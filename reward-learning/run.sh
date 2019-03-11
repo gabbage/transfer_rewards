@@ -54,7 +54,7 @@ fi
 ###
 ##
 # Finally execute the model
-if [[ $machine =='local' ]]
+if [[ $machine == 'local' ]]
 then
 	pythonw run.py -m $modelpath -d $dataset -l $loss > $log_file
 else
