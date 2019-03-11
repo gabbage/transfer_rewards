@@ -54,4 +54,9 @@ fi
 ###
 ##
 # Finally execute the model
-pythonw run.py -m $modelpath -d $dataset -l $loss > $log_file
+if [[ $machine =='local' ]]
+then
+	pythonw run.py -m $modelpath -d $dataset -l $loss > $log_file
+else
+	python run.py -m $modelpath -d $dataset -l $loss > $log_file
+fi
