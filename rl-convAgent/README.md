@@ -1,20 +1,16 @@
-[![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://github.com/ellerbrock/open-source-badges/)
 
+# Intro #
+This is a conversation agent trained by __seq2seq__ and __reinforcement learning__.
 
-## Intro
-This is a chatbot trained by __seq2seq__ and __reinforcement learning__.
+### __seq2seq__
 
-* __seq2seq__
+Seq2seq is a classical model for structured learning, its input and output are both sequence. 
 
-Seq2seq is a classical model for structured learning, its input and output are both sequence
+The seq2seq model in this repository is constructed with 2 LSTMs, similar to the one described in an ICCV '15 paper [Sequence to Sequence -- Video to Text](https://arxiv.org/abs/1505.00487), the encoder and the decoder share same weights.
 
-The vanilla seq2seq model is described in a NIPS '14 paper [Sequence to Sequence Learning with Neural Networks](https://arxiv.org/abs/1409.3215), the encoder and the decoder are seperated
+### __RL__
 
-The seq2seq model in this repository is constructed with 2 LSTMs, similar to the one described in an ICCV '15 paper [Sequence to Sequence -- Video to Text](https://arxiv.org/abs/1505.00487), the encoder and the decoder share same weights
-
-* __RL__
-
-After training chatbot with enough epochs, I use a RL technique called policy gradient to further improve the chatbot
+After training chatbot with enough epochs, we use an RL approach called policy gradient to further improve the chatbot. 
 
 By doing this, the chatbot can generate more interesting response with regard to the reward function
 
@@ -265,12 +261,3 @@ __if you choose 1, chatbot only considers last sentence__
 __if you choose 2, chatbot will consider last two sentences (one from user, and one from chatbot itself)__
 
 
-## Environment
-- OS: CentOS Linux release 7.3.1611 (Core)
-- CPU: Intel(R) Xeon(R) CPU E3-1230 v3 @ 3.30GHz
-- GPU: GeForce GTX 1070 8GB
-- Memory: 16GB DDR3
-- Python3 (for data_parser.py) & Python2.7 (for others)
-
-## Author
-Po-Chih Huang / [@pochih](http://pochih.github.io/)
