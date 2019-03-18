@@ -7,11 +7,13 @@ machine='gpu' # possible values: {'local', 'gpu'}, where 'local' has no GPU and 
 
 env='rl-convAgent' 
 
-experiment='rl-personachat'
+experiment='movie-dialogue'
 
 mode=$1
+
+model=$2
  
-log_file='./logs/'$experiment-$mode'.log'
+log_file='./logs/'$experiment-$mode-$model'.log'
 
 
 ###
@@ -56,8 +58,10 @@ fi
 if [[ $mode=='train' ]]
 then
 
-	./script/train.sh  2> $log_file
-
+	if [[ $model=='seq2seq' ]]
+	then
+		./script/train.sh  2> $log_file
+	fi
 #elif [[ $mode == 'test' ]]
 #then
 #	python ./main/predict_QuAC.py -m models/best_model.pt --show 10 2> $log_file
