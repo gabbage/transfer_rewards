@@ -60,7 +60,7 @@ then
 
 	if [[ $model=='seq2seq' ]]
 	then
-		./script/train.sh  2> $log_file
+		python python/train.py  2> $log_file
 	fi
 #elif [[ $mode == 'test' ]]
 #then
