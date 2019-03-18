@@ -49,53 +49,53 @@ class Seq2Seq_chatbot():
             entropies = []
             loss = 0.0
 
-            ##############################  Encoding Stage ##################################
-            for i in range(0, self.n_encode_lstm_step):
-                if i > 0:
-                    tf.get_variable_scope().reuse_variables()
-
-                with tf.variable_scope("LSTM1"):
-                    output1, state1 = self.lstm1(wordvec_emb[:, i, :], state1)
-
-                with tf.variable_scope("LSTM2"):
-                    output2, state2 = self.lstm2(tf.concat([padding, output1], 1), state2)
-
-            ############################# Decoding Stage ######################################
-            for i in range(0, self.n_decode_lstm_step):
-                with tf.device("/cpu:0"):
-                    current_embed = tf.nn.embedding_lookup(self.Wemb, caption[:, i])
-
+        ##############################  Encoding Stage ##################################
+        for i in range(0, self.n_encode_lstm_step):
+            if i > 0:
                 tf.get_variable_scope().reuse_variables()
 
-                with tf.variable_scope("LSTM1"):
-                    output1, state1 = self.lstm1(padding, state1)
+            with tf.variable_scope("LSTM1"):
+                output1, state1 = self.lstm1(wordvec_emb[:, i, :], state1)
 
-                with tf.variable_scope("LSTM2"):
-                    output2, state2 = self.lstm2(tf.concat([current_embed, output1], 1), state2)
+            with tf.variable_scope("LSTM2"):
+                output2, state2 = self.lstm2(tf.concat([padding, output1], 1), state2)
 
-                labels = tf.expand_dims(caption[:, i+1], 1)
-                indices = tf.expand_dims(tf.range(0, self.batch_size, 1), 1)
-                concated = tf.concat([indices, labels], 1)
-                onehot_labels = tf.sparse_to_dense(concated, tf.stack([self.batch_size, self.n_words]), 1.0, 0.0)
+        ############################# Decoding Stage ######################################
+        for i in range(0, self.n_decode_lstm_step):
+            with tf.device("/cpu:0"):
+                current_embed = tf.nn.embedding_lookup(self.Wemb, caption[:, i])
 
-                logit_words = tf.nn.xw_plus_b(output2, self.embed_word_W, self.embed_word_b)
-                cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logit_words, labels=onehot_labels)
-                cross_entropy = cross_entropy * caption_mask[:, i]
-                entropies.append(cross_entropy)
-                probs.append(logit_words)
+            tf.get_variable_scope().reuse_variables()
 
-                current_loss = tf.reduce_sum(cross_entropy)/self.batch_size
-                loss = loss + current_loss
+            with tf.variable_scope("LSTM1"):
+                output1, state1 = self.lstm1(padding, state1)
 
-            with tf.variable_scope(tf.get_variable_scope(), reuse=False):
-                train_op = tf.train.AdamOptimizer(self.lr).minimize(loss)
+            with tf.variable_scope("LSTM2"):
+                output2, state2 = self.lstm2(tf.concat([current_embed, output1], 1), state2)
 
-            inter_value = {
-                'probs': probs,
-                'entropies': entropies
-            }
+            labels = tf.expand_dims(caption[:, i+1], 1)
+            indices = tf.expand_dims(tf.range(0, self.batch_size, 1), 1)
+            concated = tf.concat([indices, labels], 1)
+            onehot_labels = tf.sparse_to_dense(concated, tf.stack([self.batch_size, self.n_words]), 1.0, 0.0)
 
-            return train_op, loss, word_vectors, caption, caption_mask, inter_value
+            logit_words = tf.nn.xw_plus_b(output2, self.embed_word_W, self.embed_word_b)
+            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logit_words, labels=onehot_labels)
+            cross_entropy = cross_entropy * caption_mask[:, i]
+            entropies.append(cross_entropy)
+            probs.append(logit_words)
+
+            current_loss = tf.reduce_sum(cross_entropy)/self.batch_size
+            loss = loss + current_loss
+
+        with tf.variable_scope(tf.get_variable_scope(), reuse=False):
+            train_op = tf.train.AdamOptimizer(self.lr).minimize(loss)
+
+        inter_value = {
+            'probs': probs,
+            'entropies': entropies
+        }
+
+        return train_op, loss, word_vectors, caption, caption_mask, inter_value
 
     def build_generator(self):
         word_vectors = tf.placeholder(tf.float32, [1, self.n_encode_lstm_step, self.dim_wordvec])
