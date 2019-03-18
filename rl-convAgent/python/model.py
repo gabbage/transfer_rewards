@@ -87,15 +87,15 @@ class Seq2Seq_chatbot():
                 current_loss = tf.reduce_sum(cross_entropy)/self.batch_size
                 loss = loss + current_loss
 
-        with tf.variable_scope(tf.get_variable_scope(), reuse=False):
-            train_op = tf.train.AdamOptimizer(self.lr).minimize(loss)
+            with tf.variable_scope(tf.get_variable_scope(), reuse=False):
+                train_op = tf.train.AdamOptimizer(self.lr).minimize(loss)
 
-        inter_value = {
-            'probs': probs,
-            'entropies': entropies
-        }
+            inter_value = {
+                'probs': probs,
+                'entropies': entropies
+            }
 
-        return train_op, loss, word_vectors, caption, caption_mask, inter_value
+            return train_op, loss, word_vectors, caption, caption_mask, inter_value
 
     def build_generator(self):
         word_vectors = tf.placeholder(tf.float32, [1, self.n_encode_lstm_step, self.dim_wordvec])
