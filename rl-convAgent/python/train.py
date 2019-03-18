@@ -97,7 +97,7 @@ def train():
             lr=learning_rate)
 
 
-    with tf.variable_scope(tf.get_variable_scope()) as scope:
+    with tf.variable_scope("model") as scope:
         
         train_op, tf_loss, word_vectors, tf_caption, tf_caption_mask, inter_value = model.build_model()
 
