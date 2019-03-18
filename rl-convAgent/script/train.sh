@@ -1,1 +1,1 @@
-python2.7 python/train.py
+python python/train.py
