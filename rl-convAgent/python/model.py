@@ -29,25 +29,23 @@ class Seq2Seq_chatbot():
             self.embed_word_b = tf.Variable(tf.zeros([n_words]), name='embed_word_b')
 
     def build_model(self):
-
-        with tf.variable_scope(tf.get_variable_scope()):
             
-            word_vectors = tf.placeholder(tf.float32, [self.batch_size, self.n_encode_lstm_step, self.dim_wordvec])
+        word_vectors = tf.placeholder(tf.float32, [self.batch_size, self.n_encode_lstm_step, self.dim_wordvec])
 
-            caption = tf.placeholder(tf.int32, [self.batch_size, self.n_decode_lstm_step+1])
-            caption_mask = tf.placeholder(tf.float32, [self.batch_size, self.n_decode_lstm_step+1])
+        caption = tf.placeholder(tf.int32, [self.batch_size, self.n_decode_lstm_step+1])
+        caption_mask = tf.placeholder(tf.float32, [self.batch_size, self.n_decode_lstm_step+1])
 
-            word_vectors_flat = tf.reshape(word_vectors, [-1, self.dim_wordvec])
-            wordvec_emb = tf.nn.xw_plus_b(word_vectors_flat, self.encode_vector_W, self.encode_vector_b ) # (batch_size*n_encode_lstm_step, dim_hidden)
-            wordvec_emb = tf.reshape(wordvec_emb, [self.batch_size, self.n_encode_lstm_step, self.dim_hidden])
+        word_vectors_flat = tf.reshape(word_vectors, [-1, self.dim_wordvec])
+        wordvec_emb = tf.nn.xw_plus_b(word_vectors_flat, self.encode_vector_W, self.encode_vector_b ) # (batch_size*n_encode_lstm_step, dim_hidden)
+        wordvec_emb = tf.reshape(wordvec_emb, [self.batch_size, self.n_encode_lstm_step, self.dim_hidden])
 
-            state1 = tf.zeros([self.batch_size, self.lstm1.state_size])
-            state2 = tf.zeros([self.batch_size, self.lstm2.state_size])
-            padding = tf.zeros([self.batch_size, self.dim_hidden])
+        state1 = tf.zeros([self.batch_size, self.lstm1.state_size])
+        state2 = tf.zeros([self.batch_size, self.lstm2.state_size])
+        padding = tf.zeros([self.batch_size, self.dim_hidden])
 
-            probs = []
-            entropies = []
-            loss = 0.0
+        probs = []
+        entropies = []
+        loss = 0.0
 
         ##############################  Encoding Stage ##################################
         for i in range(0, self.n_encode_lstm_step):

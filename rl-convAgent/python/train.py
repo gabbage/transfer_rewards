@@ -96,7 +96,10 @@ def train():
             bias_init_vector=bias_init_vector,
             lr=learning_rate)
 
-    train_op, tf_loss, word_vectors, tf_caption, tf_caption_mask, inter_value = model.build_model()
+
+    with tf.variable_scope(tf.get_variable_scope()) as scope:
+        
+        train_op, tf_loss, word_vectors, tf_caption, tf_caption_mask, inter_value = model.build_model()
 
     saver = tf.train.Saver(max_to_keep=100)
 
