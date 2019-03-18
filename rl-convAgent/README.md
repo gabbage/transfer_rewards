@@ -9,6 +9,11 @@ conda list conda$
 conda info
 ```
 
+* my cuda version is ```CUDA Version 8.0.61```, check it by:
+```bash
+ cat /usr/local/cuda/version.txt
+```
+
 * create a virtual environment by anaconda 
 ```
 conda env create -f ./documentation/environment-gpu.yml
@@ -28,20 +33,31 @@ unzip -j cornell_movie_dialogs_corpus.zip
 ```
 
 #### Step2: parse data 
-###### (in this step I use python3)
+
+Make sure that the conda virtual environment is active and then run the following script:
+
 ```bash
 ./script/parse.sh
 ```
 
-
 # Run #
 If you run the project for the first time, you should update the ```machine``` variable in the ```run.sh``` based on the type of the machine.
 
-In order to run the agent:
+
+#### Step1: train a Seq2Seq model
+
+
+In order to train the agent as a sequence-to-sequence model:
 
 ```
-./run.sh train
+./run.sh train seq2seq
 ```
+
+```bash
+./script/train.sh
+```
+
+
 
 If you want to finish the conversation, type ```bye```
 
@@ -61,26 +77,6 @@ Take a look at <a href='python/config.py' target="_blank">python/config.py</a>, 
 
 You can change some training hyper-parameters, or just keep the original ones.
 
-#### Step1: download data & libraries
-I use <a href='https://www.cs.cornell.edu/~cristian/Cornell_Movie-Dialogs_Corpus.html' target="_blank">Cornell Movie-Dialogs Corpus</a>
-
-You need to download it, unzip it, and __move all *.txt files into data/ directory__
-
-Then download some libraries with pip:
-```bash
-pip install -r requirements.txt
-```
-
-#### Step2: parse data 
-###### (in this step I use python3)
-```bash
-./script/parse.sh
-```
-
-#### Step3: train a Seq2Seq model
-```bash
-./script/train.sh
-```
 
 #### Step4-1: test a Seq2Seq model
 Let's show some results of seq2seq model :)

@@ -1,2 +1,2 @@
-python3 python/data_parser.py
-python2.7 python/feature_extracter.py
+python python/data_parser.py
+python python/feature_extracter.py
