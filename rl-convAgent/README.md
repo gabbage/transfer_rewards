@@ -14,13 +14,33 @@ conda info
 conda env create -f ./documentation/environment-gpu.yml
 ```
 
+# Data #
+#### Step1: download data & libraries
+First we try with <a href='https://www.cs.cornell.edu/~cristian/Cornell_Movie-Dialogs_Corpus.html' target="_blank">Cornell Movie-Dialogs Corpus</a>
+
+You can download it, unzip it, and __move all *.txt files into data/ directory__
+
+```bash
+source activate rl-convAgent
+cd data
+wget http://www.cs.cornell.edu/~cristian/data/cornell_movie_dialogs_corpus.zip
+unzip -j cornell_movie_dialogs_corpus.zip
+```
+
+#### Step2: parse data 
+###### (in this step I use python3)
+```bash
+./script/parse.sh
+```
+
+
 # Run #
 If you run the project for the first time, you should update the ```machine``` variable in the ```run.sh``` based on the type of the machine.
 
 In order to run the agent:
 
 ```
-./run.sh
+./run.sh train
 ```
 
 If you want to finish the conversation, type ```bye```
@@ -28,20 +48,113 @@ If you want to finish the conversation, type ```bye```
 You can check the log files in the directory ```./logs```
 
 
-### __seq2seq__
 
-Seq2seq is a classical model for structured learning, its input and output are both sequence. 
+## Train chatbot from scratch
+I trained my chatbot with python2.7.
 
-The seq2seq model in this repository is constructed with 2 LSTMs, similar to the one described in an ICCV '15 paper [Sequence to Sequence -- Video to Text](https://arxiv.org/abs/1505.00487), the encoder and the decoder share same weights.
+If you want to train the chatbot from scratch
 
-### __RL__
+You can follow those instructions below:
 
-After training chatbot with enough epochs, we use an RL approach called policy gradient to further improve the chatbot. 
+#### Step0: training configs
+Take a look at <a href='python/config.py' target="_blank">python/config.py</a>, all configs for training is described here.
 
-By doing this, the chatbot can generate more interesting response with regard to the reward function
+You can change some training hyper-parameters, or just keep the original ones.
 
-My reward function is similar to the one described in an EMNLP '16 paper <a href="https://arxiv.org/abs/1606.01541" target="_blank">Deep Reinforcement Learning for Dialogue Generation</a>
+#### Step1: download data & libraries
+I use <a href='https://www.cs.cornell.edu/~cristian/Cornell_Movie-Dialogs_Corpus.html' target="_blank">Cornell Movie-Dialogs Corpus</a>
 
+You need to download it, unzip it, and __move all *.txt files into data/ directory__
+
+Then download some libraries with pip:
+```bash
+pip install -r requirements.txt
+```
+
+#### Step2: parse data 
+###### (in this step I use python3)
+```bash
+./script/parse.sh
+```
+
+#### Step3: train a Seq2Seq model
+```bash
+./script/train.sh
+```
+
+#### Step4-1: test a Seq2Seq model
+Let's show some results of seq2seq model :)
+```bash
+./script/test.sh <PATH TO MODEL> <INPUT FILE> <OUTPUT FILE>
+```
+
+#### Step4-2: simulate a dialog
+And show some dialog results from seq2seq model!
+```bash
+./script/simulate.sh <PATH TO MODEL> <SIMULATE TYPE> <INPUT FILE> <OUTPUT FILE>
+```
+- \<SIMULATE TYPE\> 
+
+can be 1 or 2
+
+the number represents # of former sentence(s) that chatbot considers
+
+if you choose 1, chatbot will only considers user's utterance
+
+if you choose 2, chatbot will considers user's utterance and chatbot's last utterance
+
+#### Step5: train a RL model
+you need to change the *training_type* parameter in <a href='python/config.py' target="_blank">python/config.py</a>
+
+'normal' for seq2seq training, 'pg' for policy gradient
+
+you need to first train with 'normal' for some epochs till stable (at least 30 epoches is highly recommended)
+
+then change the method to 'pg' to optimize the reward function
+
+```bash
+./script/train_RL.sh
+```
+
+*When training with policy gradient (pg)*
+
+*you may need a reversed model*
+
+*the reversed model is also trained by cornell movie-dialogs dataset, but with source and target reversed.*
+
+*you can download pre-trained reversed model by*
+```bash
+./script/download_reversed.sh
+```
+
+*or you can train it by your-self*
+
+*you don't need to change any setting about reversed model if you use pre-trained reversed model*
+
+#### Step6-1: test a RL model
+Let's generate some results of RL model, and find the different from seq2seq model :)
+```bash
+./script/test_RL.sh <PATH TO MODEL> <INPUT FILE> <OUTPUT FILE>
+```
+
+#### Step6-2: generate a dialog
+And show some dialog results from RL model!
+```bash
+./script/simulate.sh <PATH TO MODEL> <SIMULATE TYPE> <INPUT FILE> <OUTPUT FILE>
+```
+- \<SIMULATE TYPE\> 
+
+can be 1 or 2
+
+the number represents # of former sentence(s) that chatbot considers
+
+__if you choose 1, chatbot only considers last sentence__
+
+__if you choose 2, chatbot will consider last two sentences (one from user, and one from chatbot itself)__
+
+
+
+<!-- 
 
 
 ## Chatbot results
@@ -182,108 +295,4 @@ You can just use the example file for convenience.
 the output file, type any filename you want
 
 
-
-## Train chatbot from scratch
-I trained my chatbot with python2.7.
-
-If you want to train the chatbot from scratch
-
-You can follow those instructions below:
-
-#### Step0: training configs
-Take a look at <a href='python/config.py' target="_blank">python/config.py</a>, all configs for training is described here.
-
-You can change some training hyper-parameters, or just keep the original ones.
-
-#### Step1: download data & libraries
-I use <a href='https://www.cs.cornell.edu/~cristian/Cornell_Movie-Dialogs_Corpus.html' target="_blank">Cornell Movie-Dialogs Corpus</a>
-
-You need to download it, unzip it, and __move all *.txt files into data/ directory__
-
-Then download some libraries with pip:
-```bash
-pip install -r requirements.txt
-```
-
-#### Step2: parse data 
-###### (in this step I use python3)
-```bash
-./script/parse.sh
-```
-
-#### Step3: train a Seq2Seq model
-```bash
-./script/train.sh
-```
-
-#### Step4-1: test a Seq2Seq model
-Let's show some results of seq2seq model :)
-```bash
-./script/test.sh <PATH TO MODEL> <INPUT FILE> <OUTPUT FILE>
-```
-
-#### Step4-2: simulate a dialog
-And show some dialog results from seq2seq model!
-```bash
-./script/simulate.sh <PATH TO MODEL> <SIMULATE TYPE> <INPUT FILE> <OUTPUT FILE>
-```
-- \<SIMULATE TYPE\> 
-
-can be 1 or 2
-
-the number represents # of former sentence(s) that chatbot considers
-
-if you choose 1, chatbot will only considers user's utterance
-
-if you choose 2, chatbot will considers user's utterance and chatbot's last utterance
-
-#### Step5: train a RL model
-you need to change the *training_type* parameter in <a href='python/config.py' target="_blank">python/config.py</a>
-
-'normal' for seq2seq training, 'pg' for policy gradient
-
-you need to first train with 'normal' for some epochs till stable (at least 30 epoches is highly recommended)
-
-then change the method to 'pg' to optimize the reward function
-
-```bash
-./script/train_RL.sh
-```
-
-*When training with policy gradient (pg)*
-
-*you may need a reversed model*
-
-*the reversed model is also trained by cornell movie-dialogs dataset, but with source and target reversed.*
-
-*you can download pre-trained reversed model by*
-```bash
-./script/download_reversed.sh
-```
-
-*or you can train it by your-self*
-
-*you don't need to change any setting about reversed model if you use pre-trained reversed model*
-
-#### Step6-1: test a RL model
-Let's generate some results of RL model, and find the different from seq2seq model :)
-```bash
-./script/test_RL.sh <PATH TO MODEL> <INPUT FILE> <OUTPUT FILE>
-```
-
-#### Step6-2: generate a dialog
-And show some dialog results from RL model!
-```bash
-./script/simulate.sh <PATH TO MODEL> <SIMULATE TYPE> <INPUT FILE> <OUTPUT FILE>
-```
-- \<SIMULATE TYPE\> 
-
-can be 1 or 2
-
-the number represents # of former sentence(s) that chatbot considers
-
-__if you choose 1, chatbot only considers last sentence__
-
-__if you choose 2, chatbot will consider last two sentences (one from user, and one from chatbot itself)__
-
-
+ -->
