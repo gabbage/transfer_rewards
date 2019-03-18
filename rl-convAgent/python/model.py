@@ -30,7 +30,8 @@ class Seq2Seq_chatbot():
 
     def build_model(self):
         with tf.variable_scope(tf.get_variable_scope()):
-        word_vectors = tf.placeholder(tf.float32, [self.batch_size, self.n_encode_lstm_step, self.dim_wordvec])
+            
+            word_vectors = tf.placeholder(tf.float32, [self.batch_size, self.n_encode_lstm_step, self.dim_wordvec])
 
         caption = tf.placeholder(tf.int32, [self.batch_size, self.n_decode_lstm_step+1])
         caption_mask = tf.placeholder(tf.float32, [self.batch_size, self.n_decode_lstm_step+1])
