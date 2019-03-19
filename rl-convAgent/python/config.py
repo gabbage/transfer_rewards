@@ -5,7 +5,7 @@ training_data_path = 'data/conversations_lenmax22_formersents2_with_former'
 all_words_path = 'data/all_words.txt'
 
 # training parameters 
-CHECKPOINT = True
+CHECKPOINT = False # True: use the saved model, False: restart training from scratch
 train_model_path = 'model'
 train_model_name = 'model-55'
 start_epoch = 56
