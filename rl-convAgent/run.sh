@@ -90,14 +90,14 @@ then
 
 	if [[ $model=='seq2seq' ]]
 	then
-		python python/train.py  2> $log_file
+		python python/train.py &> $log_file
 	fi
 
 elif [[ $mode == 'test' ]]
 then
 	if [[ $model=='seq2seq' ]]
 	then
-		python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE 2> $log_file
+		python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE &> $log_file
 	fi
 fi
 
