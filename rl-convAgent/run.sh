@@ -14,6 +14,7 @@ log_file='./logs/'$experiment
 ###
 ##
 # check if enough argument exist
+echo $1
 if [[ "$1" != "train" ]]  || [[ "$1" != "test" ]]
 then 
 	echo 'the first argument should be the mode of the system: train|test ?'
