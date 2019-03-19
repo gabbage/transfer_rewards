@@ -132,17 +132,17 @@ def train():
             current_feats = np.array(batch_X)
 
             current_captions = batch_Y
-            current_captions = list(map(lambda x: '<bos> ' + x, current_captions))
-            current_captions = list(map(lambda x: x.replace('.', ''), current_captions))
-            current_captions = list(map(lambda x: x.replace(',', ''), current_captions))
-            current_captions = list(map(lambda x: x.replace('"', ''), current_captions))
-            current_captions = list(map(lambda x: x.replace('\n', ''), current_captions))
-            current_captions = list(map(lambda x: x.replace('?', ''), current_captions))
-            current_captions = list(map(lambda x: x.replace('!', ''), current_captions))
-            current_captions = list(map(lambda x: x.replace('\\', ''), current_captions))
-            current_captions = list(map(lambda x: x.replace('/', ''), current_captions))
+            current_captions = map(lambda x: '<bos> ' + x, current_captions)
+            current_captions = map(lambda x: x.replace('.', ''), current_captions)
+            current_captions = map(lambda x: x.replace(',', ''), current_captions)
+            current_captions = map(lambda x: x.replace('"', ''), current_captions)
+            current_captions = map(lambda x: x.replace('\n', ''), current_captions)
+            current_captions = map(lambda x: x.replace('?', ''), current_captions)
+            current_captions = map(lambda x: x.replace('!', ''), current_captions)
+            current_captions = map(lambda x: x.replace('\\', ''), current_captions)
+            current_captions = map(lambda x: x.replace('/', ''), current_captions)
 
-
+            current_captions = list(current_captions)    
 
             for idx, each_cap in enumerate(current_captions):
                 word = each_cap.lower().split(' ')
@@ -170,6 +170,9 @@ def train():
             nonzeros = np.array(map(lambda x: (x != 0).sum() + 1, current_caption_matrix))
 
             for ind, row in enumerate(current_caption_masks):
+                print(ind)
+                print(row)
+                print(nonzeros[ind])
                 row[:nonzeros[ind]] = 1
 
             if batch % 100 == 0:
