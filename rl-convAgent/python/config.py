@@ -6,11 +6,12 @@ all_words_path = 'data/all_words.txt'
 
 # training parameters 
 CHECKPOINT = False # True: use the saved model, False: restart training from scratch
-train_model_path = 'model'
+train_model_path = 'model/seq2seq/'
 train_model_name = 'model-55'
 start_epoch = 0#56
 start_batch = 0
 batch_size = 25
+checkpoint_step=10 # save the model after howmany epohs
 
 # for RL training
 training_type = 'normal' # 'normal' for seq2seq training, 'pg' for policy gradient

@@ -210,9 +210,9 @@ def train():
             #                     tf_caption_mask: current_caption_masks
             #                 })
 
-
-        print("Epoch ", epoch, " is done. Saving the model ...")
-        saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
+        if epoch % config.checkpoint_step ==0:
+            print("Epoch ", epoch, " is done. Saving the model ...")
+            saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
 
 if __name__ == "__main__":
     train()

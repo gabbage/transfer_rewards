@@ -8,12 +8,38 @@ machine='gpu' # possible values: {'local', 'gpu'}, where 'local' has no GPU and 
 env='rl-convagent' 
 
 experiment='movie-dialogue'
-
-mode=$1
-
-model=$2
  
-log_file='./logs/'$experiment-$mode-$model'.log'
+
+###
+##
+# check if enough argument exist
+if [[ $1 != 'train' ]]  || [[ $1 != 'test' ]]
+then 
+	echo 'the first argument should be the mode of the system: train|test ?'
+	exist
+else
+	mode=$1
+fi
+
+if [[ $2 != 'seq2seq' ]]  || [[ $2 != 'drl' ]]
+then 
+	echo 'the second argument should be the model used in the system: seq2seq|drl ?'
+	exist
+else
+	model=$2
+	log_file='./logs/'$experiment-$mode-$model'.log'
+fi
+
+if [[ $1 == 'test' ]] && ( [[ $3 == '' ]] || [[ $4 == '' ]] || [[ $5 == '' ]] )  
+then 
+	echo 'in test mode, we need to have the path to the model, the input file, and the output file'
+	exist
+else
+	PATH_TO_MODEL=$3
+	INPUT_FILE=$4
+	OUTPUT_FILE=$5
+	log_file='./logs/'$experiment-$mode-$model-path:$PATH_TO_MODEL-inp:$INPUT_FILE-out:$OUTPUT_FILE'.log'
+fi
 
 
 ###
@@ -60,10 +86,14 @@ then
 
 	if [[ $model=='seq2seq' ]]
 	then
-		python python/train.py  #2> $log_file
+		python python/train.py  2> $log_file
 	fi
-#elif [[ $mode == 'test' ]]
-#then
-#	python ./main/predict_QuAC.py -m models/best_model.pt --show 10 2> $log_file
+
+elif [[ $mode == 'test' ]]
+then
+	if [[ $model=='seq2seq' ]]
+	then
+		python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE 2> $log_file
+	fi
 fi
 
