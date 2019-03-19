@@ -30,15 +30,18 @@ else
 	log_file='./logs/'$experiment-$mode-$model'.log'
 fi
 
-if [[ $1 == 'test' ]] && ( [[ $3 == '' ]] || [[ $4 == '' ]] || [[ $5 == '' ]] )  
+if [[ $1 == 'test' ]]
 then 
-	echo 'in test mode, we need to have the path to the model, the input file, and the output file'
-	exist
-else
-	PATH_TO_MODEL=$3
-	INPUT_FILE=$4
-	OUTPUT_FILE=$5
-	log_file='./logs/'$experiment-$mode-$model-path:$PATH_TO_MODEL-inp:$INPUT_FILE-out:$OUTPUT_FILE'.log'
+	if  [[ $3 == '' ]] || [[ $4 == '' ]] || [[ $5 == '' ]] 
+	then 
+		echo 'in test mode, we need to have the path to the model, the input file, and the output file'
+		exist
+	else
+		PATH_TO_MODEL=$3
+		INPUT_FILE=$4
+		OUTPUT_FILE=$5
+		log_file='./logs/'$experiment-$mode-$model-pat:$PATH_TO_MODEL-inp:$INPUT_FILE-out:$OUTPUT_FILE'.log'
+	fi
 fi
 
 
