@@ -172,7 +172,7 @@ def train():
             for ind, row in enumerate(current_caption_masks):
                 print(ind)
                 print(row)
-                print(nonzeros[ind])
+                print(nonzeros)
                 row[:nonzeros[ind]] = 1
 
             if batch % 100 == 0:
