@@ -167,7 +167,7 @@ def train():
             current_caption_matrix = pad_sequences(current_caption_ind, padding='post', maxlen=n_decode_lstm_step)
             current_caption_matrix = np.hstack([current_caption_matrix, np.zeros([len(current_caption_matrix), 1])]).astype(int)
             current_caption_masks = np.zeros((current_caption_matrix.shape[0], current_caption_matrix.shape[1]))
-            nonzeros = np.array(map(lambda x: (x != 0).sum() + 1, current_caption_matrix))
+            nonzeros = np.array(list(map(lambda x: (x != 0).sum() + 1, current_caption_matrix)))
 
             for ind, row in enumerate(current_caption_masks):
                 print(ind)
