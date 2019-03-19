@@ -190,7 +190,7 @@ def train():
 
             if batch % 100 == 0:
 
-                print("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, epoch_loss/float(batch), time.time() - start_time))
+                print("Epoch: {}, batch: {}/{}, loss: {}, Elapsed time: {}".format(epoch, batch, n_batch, epoch_loss/float(batch), time.time() - start_time))
 
             # if batch % 100 == 0:
             #     _, loss_val = sess.run(
