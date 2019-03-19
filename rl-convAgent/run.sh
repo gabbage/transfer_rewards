@@ -14,7 +14,7 @@ log_file='./logs/'$experiment
 ###
 ##
 # check if enough argument exist
-if [[ $1 != 'train' ]]  || [[ $1 != 'test' ]]
+if [[ '$1' != 'train' ]]  || [[ '$1' != 'test' ]]
 then 
 	echo 'the first argument should be the mode of the system: train|test ?'
 	exit
@@ -22,7 +22,7 @@ else
 	mode=$1
 fi
 
-if [[ $2 != 'seq2seq' ]]  || [[ $2 != 'drl' ]]
+if [[ '$2' != 'seq2seq' ]]  || [[ '$2' != 'drl' ]]
 then 
 	echo 'the second argument should be the model used in the system: seq2seq|drl ?'
 	exit
@@ -31,7 +31,7 @@ else
 	log_file='./logs/'$experiment-$mode-$model'.log'
 fi
 
-if [[ $1 == 'test' ]]
+if [[ '$1' == 'test' ]]
 then 
 	if  [[ $3 == '' ]] || [[ $4 == '' ]] || [[ $5 == '' ]] 
 	then 
