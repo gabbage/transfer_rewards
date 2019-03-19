@@ -22,7 +22,7 @@ else
 	mode=$1
 fi
 
-if [[ '$2' != 'seq2seq' ]]  || [[ '$2' != 'drl' ]]
+if [[ '$2' != 'seq2seq' ]]  && [[ '$2' != 'drl' ]]
 then 
 	echo 'the second argument should be the model used in the system: seq2seq|drl ?'
 	exit
