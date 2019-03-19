@@ -114,6 +114,9 @@ def train():
     dr = Data_Reader()
 
     for epoch in range(start_epoch, epochs):
+        
+        epoch_loss = 0.0
+
         n_batch = dr.get_batch_num(batch_size)
         for batch in range(n_batch):
             start_time = time.time()
@@ -173,22 +176,39 @@ def train():
 
                 row[:nonzeros[ind]] = 1
 
+
+            # train the model
+            _, loss_val = sess.run(
+                    [train_op, tf_loss],
+                    feed_dict={
+                        word_vectors: current_feats,
+                        tf_caption: current_caption_matrix,
+                        tf_caption_mask: current_caption_masks
+                    })
+
+            epoch_loss += loss_val
+
             if batch % 100 == 0:
-                _, loss_val = sess.run(
-                        [train_op, tf_loss],
-                        feed_dict={
-                            word_vectors: current_feats,
-                            tf_caption: current_caption_matrix,
-                            tf_caption_mask: current_caption_masks
-                        })
-                print("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, loss_val, time.time() - start_time))
-            else:
-                _ = sess.run(train_op,
-                             feed_dict={
-                                word_vectors: current_feats,
-                                tf_caption: current_caption_matrix,
-                                tf_caption_mask: current_caption_masks
-                            })
+
+                print("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, epoch_loss/float(batch), time.time() - start_time))
+
+            # if batch % 100 == 0:
+            #     _, loss_val = sess.run(
+            #             [train_op, tf_loss],
+            #             feed_dict={
+            #                 word_vectors: current_feats,
+            #                 tf_caption: current_caption_matrix,
+            #                 tf_caption_mask: current_caption_masks
+            #             })
+            #     epoch_loss += loss_val
+            #     print("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, loss_val, time.time() - start_time))
+            # else:
+            #     _ = sess.run(train_op,
+            #                  feed_dict={
+            #                     word_vectors: current_feats,
+            #                     tf_caption: current_caption_matrix,
+            #                     tf_caption_mask: current_caption_masks
+            #                 })
 
 
         print("Epoch ", epoch, " is done. Saving the model ...")

@@ -5,7 +5,7 @@
 # define variables
 machine='gpu' # possible values: {'local', 'gpu'}, where 'local' has no GPU and cuda
 
-env='rl-convAgent' 
+env='rl-convagent' 
 
 experiment='movie-dialogue'
 
