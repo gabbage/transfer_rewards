@@ -9,6 +9,7 @@ env='rl-convagent'
 
 experiment='movie-dialogue'
  
+log_file='./logs/'$experiment
 
 ###
 ##
