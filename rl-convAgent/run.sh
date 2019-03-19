@@ -17,7 +17,7 @@ log_file='./logs/'$experiment
 if [[ $1 != 'train' ]]  || [[ $1 != 'test' ]]
 then 
 	echo 'the first argument should be the mode of the system: train|test ?'
-	exist
+	exit
 else
 	mode=$1
 fi
@@ -25,7 +25,7 @@ fi
 if [[ $2 != 'seq2seq' ]]  || [[ $2 != 'drl' ]]
 then 
 	echo 'the second argument should be the model used in the system: seq2seq|drl ?'
-	exist
+	exit
 else
 	model=$2
 	log_file='./logs/'$experiment-$mode-$model'.log'
@@ -36,7 +36,7 @@ then
 	if  [[ $3 == '' ]] || [[ $4 == '' ]] || [[ $5 == '' ]] 
 	then 
 		echo 'in test mode, we need to have the path to the model, the input file, and the output file'
-		exist
+		exit
 	else
 		PATH_TO_MODEL=$3
 		INPUT_FILE=$4
