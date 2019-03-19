@@ -14,6 +14,12 @@ import numpy as np
 import os
 import time
 
+logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                datefmt = '%m/%d/%Y %H:%M:%S',
+                level = logging.INFO)
+
+logger = logging.getLogger(__name__)
+
 
 ### Global Parameters ###
 checkpoint = config.CHECKPOINT
@@ -104,11 +110,11 @@ def train():
     sess = tf.InteractiveSession()
     
     if checkpoint:
-        print("Use Model {}.".format(model_name))
+        logger.info("Use Model {}.".format(model_name))
         saver.restore(sess, os.path.join(model_path, model_name))
-        print("Model {} restored.".format(model_name))
+        logger.info("Model {} restored.".format(model_name))
     else:
-        print("Restart training...")
+        logger.info("Restart training...")
         tf.global_variables_initializer().run()
 
     dr = Data_Reader()
@@ -190,7 +196,7 @@ def train():
 
             if batch % 100 == 0:
 
-                print("Epoch: {}, batch: {}/{}, loss: {}, Elapsed time: {}".format(epoch, batch, n_batch, epoch_loss/float(batch), time.time() - start_time))
+                logger.info("Epoch: {}, batch: {}/{}, loss: {}, Elapsed time: {}".format(epoch, batch, n_batch, epoch_loss/float(batch), time.time() - start_time))
 
             # if batch % 100 == 0:
             #     _, loss_val = sess.run(
@@ -211,7 +217,7 @@ def train():
             #                 })
 
         if epoch % config.checkpoint_step ==0:
-            print("Epoch ", epoch, " is done. Saving the model ...")
+            logger.info("Epoch ", epoch, " is done. Saving the model ...")
             saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
 
 if __name__ == "__main__":
