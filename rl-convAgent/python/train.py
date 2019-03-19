@@ -170,9 +170,7 @@ def train():
             nonzeros = np.array(list(map(lambda x: (x != 0).sum() + 1, current_caption_matrix)))
 
             for ind, row in enumerate(current_caption_masks):
-                print(ind)
-                print(row)
-                print(nonzeros)
+
                 row[:nonzeros[ind]] = 1
 
             if batch % 100 == 0:
