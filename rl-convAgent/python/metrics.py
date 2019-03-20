@@ -170,7 +170,26 @@ class BLEU:
 
 if __name__=='__main__':
 
+    generated_sents_file ='./gen_sent.txt'
+
+    gold_sents = './gold_sent.txt'
+
+    with open(generated_sents_file) as f:
+
+        gen_sents =  f.read().split('\n')
+
+    with open(gold_sents_file) as f:
+
+        gold_sents =  f.read().split('\n')
+
+    if len(gen_sents) != len(gold_sents):
+        
+        raise ValueError('The number of sentences in both files do not match.')
+
+    hyp_corpus = [gent_sent_i.strip().split() for gent_sent_i in gen_sents]
+    
+    refs_corpus = [[gold_sent_i.strip().split()] for gold_sent_i in gold_sents] #we should extend it if we have several gold for one input in the input file
+        
     bleu = BLEU()
-    refs_corpus = [[['a', 'b', 'c', 'd','g','h','i']]]
-    hyp_corpus = [['a', 'b', 'c', 'd','g','h','i']]
+
     print(bleu.compute_bleu(reference_corpus=refs_corpus, translation_corpus=hyp_corpus, smooth=True))
