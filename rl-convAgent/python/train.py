@@ -207,8 +207,6 @@ def train():
 
     best_valid_loss = float("inf")
 
-    patient = 0.0
-
     for epoch in range(start_epoch, epochs):
         
         epoch_loss = 0.0
@@ -250,17 +248,6 @@ def train():
             
                     saver.save(sess, os.path.join(model_path, 'model-best'))
 
-                if valid_loss >= previous_valid_loss:
-
-                    if patient > 3:
-
-                        logger.info("Early stop! at epcoh: %d, batch:%d"%(epoch,t_batch))
-                        
-                        break
-                    else:
-                        previous_valid_loss = valid_loss
-
-                        patient += 1
 
         if epoch % config.checkpoint_step ==0:
 
