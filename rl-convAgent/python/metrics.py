@@ -170,4 +170,4 @@ if __name__=='__main__':
     blue = BLEU()
     ref = [['this', 'is', 'a', 'cat']]
     hyp = ['this', 'is', 'cat']
-    bleu.compute_bleu()
+    print(blue.compute_bleu())
