@@ -207,6 +207,10 @@ def train():
 
     best_valid_loss = float("inf")
 
+    best_epoch = 0
+
+    best_batch = 0
+
     for epoch in range(start_epoch, epochs):
         
         epoch_loss = 0.0
@@ -244,7 +248,9 @@ def train():
 
                 if valid_loss < best_valid_loss: 
 
-                    #logger.info(" Saving the best model ....")
+                    best_epoch = epoch
+
+                    best_batch = t_batch
             
                     saver.save(sess, os.path.join(model_path, 'model-best'))
 
@@ -255,6 +261,7 @@ def train():
             
             saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
 
+    logger.info('best model happend in epoch: %d, batch: %d'%(best_epoch, best_batch))
 
 if __name__ == "__main__":
     train()
