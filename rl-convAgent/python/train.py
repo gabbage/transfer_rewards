@@ -148,11 +148,10 @@ def step(sess, outputs, inp_dict, batch_X, batch_Y):
 
         row[:nonzeros[ind]] = 1
 
-    inp_dict = {
-            word_vectors: current_feats,
-            tf_caption: current_caption_matrix,
-            tf_caption_mask: current_caption_masks
-            }
+    inp_dict[word_vectors] = current_feats
+    inp_dict[tf_caption] = current_caption_matrix
+    inp_dict[tf_caption_mask] = current_caption_masks 
+
 
     _, loss_val = sess.run(
             outputs,
