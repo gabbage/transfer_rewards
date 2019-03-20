@@ -205,7 +205,7 @@ def train():
 
             batch_X, batch_Y = train_dr.generate_batch(batch_size)
 
-            loss_val = step(sess, [train_op, tf_loss], ,batch_X, batch_Y)
+            loss_val = step(sess, [train_op, tf_loss],batch_X, batch_Y)
 
             epoch_loss += loss_val
 
