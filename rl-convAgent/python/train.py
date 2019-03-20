@@ -195,7 +195,7 @@ def train():
         logger.info("Restart training...")
         tf.global_variables_initializer().run()
 
-    train_dr = Data_Reader(config.training_data_path)
+    train_dr = Data_Reader(config.training_data_path,shuffle=True)
     valid_dr = Data_Reader(config.valid_data_path)
     test_dr  = Data_Reader(config.test_data_path)
 
