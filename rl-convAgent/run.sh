@@ -78,7 +78,7 @@ fi
 ###
 ##
 # run the latest version of the model by getting it from GitHub
-if [[ $machine == 'gpu' ]]
+if [[ $machine == "gpu" ]]
 then
 	git checkout logs/*
 	git checkout models/*
