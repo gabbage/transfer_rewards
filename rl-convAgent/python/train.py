@@ -42,6 +42,9 @@ epochs = 500
 batch_size = 100
 learning_rate = 0.0001
 
+wordtoix, ixtoword, bias_init_vector = data_parser.preProBuildWordVocab(word_count_threshold=word_count_threshold)
+word_vector = KeyedVectors.load_word2vec_format('model/word_vector.bin', binary=True)
+
 
 def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncating='pre', value=0.):
     if not hasattr(sequences, '__len__'):
@@ -166,9 +169,10 @@ def step(batch_X, batch_Y, update=True):
 
     return loss_val
 
+
+
+
 def train():
-    wordtoix, ixtoword, bias_init_vector = data_parser.preProBuildWordVocab(word_count_threshold=word_count_threshold)
-    word_vector = KeyedVectors.load_word2vec_format('model/word_vector.bin', binary=True)
 
     model = Seq2Seq_chatbot(
             dim_wordvec=dim_wordvec,
