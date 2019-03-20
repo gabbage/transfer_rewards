@@ -149,6 +149,8 @@ def test(model_path=default_model_path):
             logger.info('\n')
             out.write(generated_sentence + '\n')
 
+        logger.info('Done! also check: %s'%output_path)
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         test(model_path=sys.argv[1])
