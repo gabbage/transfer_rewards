@@ -14,7 +14,7 @@ class Data_Reader:
         if shuffle:
             self.shuffle_list = self.shuffle_index()
         else:
-            self.shuffle_list = range(self.data_size)
+            self.shuffle_list = list(range(self.data_size))
         self.index = cur_index
 
     def get_batch_num(self, batch_size):
