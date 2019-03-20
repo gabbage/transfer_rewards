@@ -205,7 +205,7 @@ def train():
     valid_dr = Data_Reader(config.valid_data_path)
     test_dr  = Data_Reader(config.test_data_path)
 
-    best_valid_loss = 0.0 
+    best_valid_loss = float("inf")
 
     patient = 0.0
 
