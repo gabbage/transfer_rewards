@@ -191,7 +191,7 @@ def get_bleu(generated_sents_file, gold_sents_file):
 
 
 if __name__ == "__main__":
-    get_bleu('./gen_sent.txt', './gold_sent.txt')
+    print(get_bleu('./gen_sent.txt', './gold_sent.txt'))
     # if len(sys.argv) > 1:
     #     test(model_path=sys.argv[1])
     # else:
