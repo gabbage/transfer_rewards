@@ -237,11 +237,11 @@ def train():
 
                 batch_X, batch_Y = valid_dr.generate_batch(batch_size)
 
-                loss_val = step(sess, [tf_loss], None,batch_X, batch_Y)
+                loss_val = step(sess, [tf_loss], inp_list, batch_X, batch_Y)
 
                 valid_loss += loss_val
 
-            logger.info("=== Epoch ", epoch, " valid_loss: %.f"%valid_loss/valid_n_batch)
+            logger.info("=== Epoch ", epoch, " valid_loss: %.f"%valid_loss/float(batch))
 
 if __name__ == "__main__":
     train()
