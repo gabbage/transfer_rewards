@@ -62,8 +62,11 @@ class BLEU:
         max_order: Maximum n-gram order to use when computing BLEU score.
         smooth: Whether or not to apply Lin et al. 2004 smoothing.
       Returns:
-        3-Tuple with the BLEU score, n-gram precisions, geometric mean of n-gram
-        precisions and brevity penalty.
+        3-Tuple with the 
+            BLEU score, 
+            n-gram precisions, 
+            geometric mean of n-gram precisions 
+            brevity penalty.
       """
       matches_by_order = [0] * max_order
       possible_matches_by_order = [0] * max_order
@@ -169,5 +172,5 @@ if __name__=='__main__':
 
     bleu = BLEU()
     refs_corpus = [[['this', 'is', 'a', 'cat']]]
-    hyp_corpus = [['this', 'is', 'cat']]
+    hyp_corpus = [['this', 'is', 'a', 'cat']]
     print(bleu.compute_bleu(reference_corpus=refs_corpus, translation_corpus=hyp_corpus, smooth=True))
