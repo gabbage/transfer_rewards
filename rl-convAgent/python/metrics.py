@@ -119,8 +119,12 @@ class BLEU:
       return (bleu, precisions, bp, ratio, translation_length, reference_length)
 
 
-    def bleu(self, generated_sents_file, gold_sents_file):
+    def _bleu(self, generated_sents_file, gold_sents_file):
         '''
+        *********
+         WE DO NOT USE THIS FUNCTION
+        ********
+
         corpus_bleu(list_of_references, hypotheses, weights=(0.25, 0.25, 0.25, 0.25), smoothing_function=None)
         Calculate a single corpus-level BLEU score (aka. system-level BLEU) for all 
         the hypotheses and their respective references.  
@@ -185,11 +189,13 @@ if __name__=='__main__':
     if len(gen_sents) != len(gold_sents):
         
         raise ValueError('The number of sentences in both files do not match.')
-
+    
     hyp_corpus = [gent_sent_i.strip().split() for gent_sent_i in gen_sents]
     
     refs_corpus = [[gold_sent_i.strip().split()] for gold_sent_i in gold_sents] #we should extend it if we have several gold for one input in the input file
         
     bleu = BLEU()
 
-    print(bleu.compute_bleu(reference_corpus=refs_corpus, translation_corpus=hyp_corpus, smooth=True))
+    output = bleu.compute_bleu(reference_corpus=refs_corpus, translation_corpus=hyp_corpus, smooth=True)
+    print('(bleu, precisions, bp, ratio (hype/ref), hyp_length, reference_length)') 
+    print(output)
