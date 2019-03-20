@@ -138,6 +138,7 @@ def test(model_path=default_model_path):
 
 from nltk.translate.bleu_score import sentence_bleu
 from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.bleu_score import SmoothingFunction
 def get_bleu(generated_sents_file, gold_sents_file):
     '''
     corpus_bleu(list_of_references, hypotheses, weights=(0.25, 0.25, 0.25, 0.25), smoothing_function=None)
@@ -174,7 +175,7 @@ def get_bleu(generated_sents_file, gold_sents_file):
 
         gold_sents_i = [gold_sent_i] # we should extend it if we have several gold for one input in the input file
 
-        sent_bleu_score += sentence_bleu(gold_sents_i, gent_sent_i)
+        sent_bleu_score += sentence_bleu(gold_sents_i, gent_sent_i, smoothing_function=SmoothingFunction().method1)
 
     sent_bleu_score /= float(len(gold_sents))
 
@@ -183,7 +184,7 @@ def get_bleu(generated_sents_file, gold_sents_file):
     list_of_gent_sents = [gent_sent_i.strip().split() for gent_sent_i in gen_sents]
     list_of_gold_sents = [[gold_sent_i.strip().split()] for gold_sent_i in gold_sents] #we should extend it if we have several gold for one input in the input file
     
-    corpus_bleu_score = corpus_bleu(list_of_gold_sents, list_of_gent_sents)
+    corpus_bleu_score = corpus_bleu(list_of_gold_sents, list_of_gent_sents, smoothing_function=SmoothingFunction().method1)
     
     return sent_bleu_score, corpus_bleu_score
 
