@@ -250,7 +250,7 @@ def train():
             
                     saver.save(sess, os.path.join(model_path, 'model-best'))
 
-                if valid_loss > previous_valid_loss:
+                if valid_loss >= previous_valid_loss:
 
                     if patient > 3:
 
@@ -259,6 +259,7 @@ def train():
                         break
                     else:
                         previous_valid_loss = valid_loss
+                        
                         patient += 1
 
         if epoch % config.checkpoint_step ==0:
