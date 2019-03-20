@@ -41,12 +41,13 @@ then
 		PATH_TO_MODEL=$3
 		INPUT_FILE=$4
 		OUTPUT_FILE=$5
-
+		GOLD_FILE=$6
 
 		PATH_TO_MODEL_BASE=`basename $PATH_TO_MODEL`
 		INPUT_FILE_BASE=`basename $INPUT_FILE`
 		OUTPUT_FILE_BASE=`basename $OUTPUT_FILE`
-		log_file='./logs/'$experiment-$mode-$model-path:$PATH_TO_MODEL_BASE-inp:$INPUT_FILE_BASE-out:$OUTPUT_FILE_BASE'.log'
+		GOLD_FILE_BASE=`basename $GOLD_FILE`
+		log_file='./logs/'$experiment-$mode-$model-path:$PATH_TO_MODEL_BASE-inp:$INPUT_FILE_BASE-out:$OUTPUT_FILE_BASE-gold:$GOLD_FILE_BASE'.log'
 	fi
 fi
 
@@ -105,7 +106,7 @@ then
 		
 		python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE &> $log_file
 
-		python python/metrics.py $OUTPUT_FILE  $GOLD_FILE 
+		python python/metrics.py $OUTPUT_FILE  $GOLD_FILE &>> $log_file
 	fi
 fi
 
