@@ -246,9 +246,9 @@ def train():
 
                 if valid_loss < best_valid_loss: 
 
-                    logger.info("Epoch %d is done. Saving the best model ...."%epoch)
+                    logger.info(" Saving the best model ...."%epoch)
             
-                    saver.save(sess, os.path.join(model_path, 'model-best'), global_step=epoch)
+                    saver.save(sess, os.path.join(model_path, 'model-best'))
 
                 if valid_loss > previous_valid_loss:
 
@@ -263,7 +263,7 @@ def train():
 
         if epoch % config.checkpoint_step ==0:
 
-            logger.info("Epoch ", epoch, " is done. Saving the model ...")
+            logger.info("Epoch %d is done. Saving the model ..."%epoch)
             
             saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
 
