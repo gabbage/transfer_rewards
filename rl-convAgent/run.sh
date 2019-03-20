@@ -39,9 +39,9 @@ then
 		exit
 	else
 
-		PATH_TO_MODEL="{$3##/*/}" #basename
-		INPUT_FILE="{$4##/*/}"
-		OUTPUT_FILE="{$5##/*/}"
+		PATH_TO_MODEL=${$3##/*/} #basename
+		INPUT_FILE=${$4##/*/}
+		OUTPUT_FILE=${$5##/*/}
 		log_file='./logs/'$experiment-$mode-$model-path:$PATH_TO_MODEL-inp:$INPUT_FILE-out:$OUTPUT_FILE'.log'
 	fi
 fi
