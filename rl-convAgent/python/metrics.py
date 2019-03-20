@@ -167,7 +167,7 @@ class BLEU:
 
 if __name__=='__main__':
 
-    blue = BLEU()
+    bleu = BLEU()
     ref = [['this', 'is', 'a', 'cat']]
     hyp = ['this', 'is', 'cat']
-    print(blue.compute_bleu())
+    print(bleu.compute_bleu())
