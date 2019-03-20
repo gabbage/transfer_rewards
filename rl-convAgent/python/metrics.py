@@ -172,7 +172,7 @@ if __name__=='__main__':
 
     generated_sents_file ='./gen_sent.txt'
 
-    gold_sents = './gold_sent.txt'
+    gold_sents_file = './gold_sent.txt'
 
     with open(generated_sents_file) as f:
 
