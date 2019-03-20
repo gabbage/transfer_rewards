@@ -6,6 +6,8 @@ from nltk.translate.bleu_score import SmoothingFunction
 import collections
 import math
 
+import sys
+
 class BLEU:
 
     def __init__(self):
@@ -174,9 +176,9 @@ class BLEU:
 
 if __name__=='__main__':
 
-    generated_sents_file =$1
+    generated_sents_file = sys.argv[1]
 
-    gold_sents_file = $2
+    gold_sents_file = sys.argv[2]
 
     with open(generated_sents_file) as f:
 
