@@ -86,6 +86,8 @@ fi
 ###
 ##
 # Finally execute the model
+echo $mode 
+echo $model
 if [[ $mode=="train" ]]
 then
 
