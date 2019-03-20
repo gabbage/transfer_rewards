@@ -165,6 +165,9 @@ def step(sess, outputs, inp_list, batch_X, batch_Y):
                         tf_caption_mask: current_caption_masks
             })
      
+     if len(loss_val) > 0 :
+        
+        loss_val = loss_val[1]
 
     return loss_val
 
