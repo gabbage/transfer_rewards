@@ -14,7 +14,6 @@ import numpy as np
 import os
 import time
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
 
 import logging
 
@@ -22,7 +21,14 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
                 datefmt = '%m/%d/%Y %H:%M:%S',
                 level = logging.INFO)
 
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+logging.getLogger("tensorflow").setLevel(logging.Error)
+tf.get_logger().setLevel(logging.ERROR)
+
+
 logger = logging.getLogger(__name__)
+
 
 
 ### Global Parameters ###
