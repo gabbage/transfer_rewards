@@ -38,10 +38,11 @@ then
 		echo 'in test mode, we need to have the path to the model, the input file, and the output file'
 		exit
 	else
-		PATH_TO_MODEL=$3
-		INPUT_FILE=$4
-		OUTPUT_FILE=$5
-		log_file='./logs/'$experiment-$mode-$model-pat:$PATH_TO_MODEL-inp:$INPUT_FILE-out:$OUTPUT_FILE'.log'
+
+		PATH_TO_MODEL="${$3##/*/}" #basename
+		INPUT_FILE="${$4##/*/}"
+		OUTPUT_FILE="${$5##/*/}"
+		log_file='./logs/'$experiment-$mode-$model-path:$PATH_TO_MODEL-inp:$INPUT_FILE-out:$OUTPUT_FILE'.log'
 	fi
 fi
 
@@ -97,6 +98,7 @@ elif [[ $mode == 'test' ]]
 then
 	if [[ $model=='seq2seq' ]]
 	then
+
 		python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE &> $log_file
 	fi
 fi
