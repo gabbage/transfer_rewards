@@ -164,7 +164,7 @@ def get_bleu(generated_sents_file, gold_sents_file):
     
 
     # compute sent_bleu
-    sent_blue_score = 0.
+    sent_bleu_score = 0.
     
     for i in range(len(gold_sents)):
         
@@ -174,9 +174,9 @@ def get_bleu(generated_sents_file, gold_sents_file):
 
         gold_sents_i = [gold_sent_i] # we should extend it if we have several gold for one input in the input file
 
-        sent_blue_score += sentence_bleu(gold_sents_i, gent_sent_i)
+        sent_bleu_score += sentence_bleu(gold_sents_i, gent_sent_i)
 
-    sent_blue_score /= float(len(gold_sents))
+    sent_bleu_score /= float(len(gold_sents))
 
     # compute corpus_bleu
 
