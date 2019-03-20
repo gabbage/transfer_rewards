@@ -14,7 +14,7 @@ start_epoch = 0#56
 start_batch = 0
 batch_size = 25
 checkpoint_step=10 # save the model after howmany epohs
-valid_step= 1 # aftte how many epochs evaluate on the valid set
+
 
 # for RL training
 training_type = 'normal' # 'normal' for seq2seq training, 'pg' for policy gradient

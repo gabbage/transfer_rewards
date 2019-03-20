@@ -205,6 +205,10 @@ def train():
     valid_dr = Data_Reader(config.valid_data_path)
     test_dr  = Data_Reader(config.test_data_path)
 
+    best_valid_loss = 0.0 
+
+    patient = 0.0
+
     for epoch in range(start_epoch, epochs):
         
         epoch_loss = 0.0
@@ -220,6 +224,8 @@ def train():
             loss_val = step(sess, [train_op, tf_loss], inp_list, batch_X, batch_Y)
 
             epoch_loss += loss_val
+
+            previous_valid_loss = 0.0
 
             if t_batch % 100 == 0:
 
@@ -238,6 +244,22 @@ def train():
 
                 logger.info("Epoch: %d, batch: %d/%d, train_loss: %.4f, valid_loss:%.4f"%(epoch, t_batch, n_batch, epoch_loss/float(t_batch), valid_loss/float(v_batch)))
 
+                if valid_loss < best_valid_loss: 
+
+                    logger.info("Epoch ", epoch, " is done. Saving the best model ....")
+            
+                    saver.save(sess, os.path.join(model_path, 'model-best'), global_step=epoch)
+
+                if valid_loss > previous_valid_loss:
+
+                    if patient > 3:
+
+                        logger.info("Early stop! at epcoh: %d, batch:%d"%(epoch,t_batch))
+                        
+                        break
+                    else:
+                        previous_valid_loss = valid_loss
+                        patient += 1
 
         if epoch % config.checkpoint_step ==0:
 
@@ -245,9 +267,6 @@ def train():
             
             saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
 
-        if epoch % config.valid_step == 0:
-    
-            logger.info("=== Epoch ", epoch, " valid_loss: %.f"%valid_loss/float(batch))
 
 if __name__ == "__main__":
     train()
