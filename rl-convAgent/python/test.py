@@ -180,7 +180,7 @@ def get_bleu(generated_sents_file, gold_sents_file):
 
     # compute corpus_bleu
 
-    list_of_gent_sents = [gent_sent_i.strip().split() for gent_sent_i in gent_sents]
+    list_of_gent_sents = [gent_sent_i.strip().split() for gent_sent_i in gen_sents]
     list_of_gold_sents = [[gold_sent_i.strip().split()] for gold_sent_i in gold_sents] #we should extend it if we have several gold for one input in the input file
     
     corpus_bleu_score = corpus_bleu(list_of_gold_sents, list_of_gent_sents)
