@@ -72,13 +72,19 @@ def test(model_path=default_model_path):
         saver.restore(sess, default_model_path)
 
     with open(output_path, 'w') as out:
+        
         generated_sentences = []
+        
         bleu_score_avg = [0., 0.]
+        
         for idx, question in enumerate(testing_data):
+        
             print('question =>', question)
 
             question = [refine(w) for w in question.lower().split()]
+        
             question = [word_vector[w] if w in word_vector else np.zeros(dim_wordvec) for w in question]
+        
             question.insert(0, np.random.normal(size=(dim_wordvec,))) # insert random normal at the first step
 
             if len(question) > n_encode_lstm_step:
@@ -129,6 +135,58 @@ def test(model_path=default_model_path):
 
             print('generated_sentence =>', generated_sentence)
             out.write(generated_sentence + '\n')
+
+from nltk.translate.bleu_score import sentence_bleu
+from nltk.translate.bleu_score import corpus_bleu
+def get_bleu(generated_sents_file, gold_sents_file):
+    '''
+    corpus_bleu(list_of_references, hypotheses, weights=(0.25, 0.25, 0.25, 0.25), smoothing_function=None)
+    Calculate a single corpus-level BLEU score (aka. system-level BLEU) for all 
+    the hypotheses and their respective references.  
+
+    Instead of averaging the sentence level BLEU scores (i.e. marco-average 
+    precision), the original BLEU metric (Papineni et al. 2002) accounts for 
+    the micro-average precision (i.e. summing the numerators and denominators
+    for each hypothesis-reference(s) pairs before the division).
+    '''
+
+    with open(generated_sents_file) as f:
+
+        gen_sents =  f.read().split('\n')
+
+    with open(gold_sents_file) as f:
+
+        gold_sents =  f.read().split('\n')
+
+    if len(gen_sents) != len(gold_sents):
+        
+        raise ValueError('The number of sentences in both files do not match.')
+    
+
+    # compute sent_bleu
+    sent_blue_score = 0.
+    
+    for i in range(len(gold_sents)):
+        
+        gent_sent_i = gen_sents[i].strip().split() # tokenized sent
+
+        gold_sent_i = gold_sents[i].strip().split() # tokenized sent
+
+        gold_sents_i = [gold_sent_i] # we should extend it if we have several gold for one input in the input file
+
+        sent_blue_score += sentence_bleu(gold_sents_i, gent_sent_i)
+
+    sent_blue_score /= float(len(gold_sents))
+
+    # compute corpus_bleu
+
+    list_of_gent_sents = [gent_sent_i.strip().split() for gent_sent_i in gent_sents]
+    list_of_gold_sents = [[gold_sent_i.strip().split()] for gold_sent_i in gold_sents] #we should extend it if we have several gold for one input in the input file
+    
+    corpus_bleu_score = corpus_bleu(list_of_gold_sents, list_of_gent_sents)
+    
+    return sent_bleu_score, corpus_bleu_score
+
 
 
 if __name__ == "__main__":
