@@ -223,7 +223,7 @@ def train():
 
             epoch_loss += loss_val
 
-            if batch % 100 == 0:
+            if t_batch % 100 == 0:
 
                 valid_n_batch = valid_dr.get_batch_num(batch_size)
 
