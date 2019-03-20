@@ -8,6 +8,18 @@ import math
 
 import sys
 
+
+
+import logging
+
+logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                datefmt = '%m/%d/%Y %H:%M:%S',
+                level = logging.INFO)
+
+
+logger = logging.getLogger(__name__)
+
+
 class BLEU:
 
     def __init__(self):
@@ -178,7 +190,13 @@ if __name__=='__main__':
 
     generated_sents_file = sys.argv[1]
 
+    logger.info('compute evaluation metric ....')
+
+    logger.info('generated_sents_file: %s'%generated_sents_file)
+
     gold_sents_file = sys.argv[2]
+
+    logger.info('gold_sents_file: %s'%gold_sents_file)
 
     with open(generated_sents_file) as f:
 
@@ -199,5 +217,5 @@ if __name__=='__main__':
     bleu = BLEU()
 
     output = bleu.compute_bleu(reference_corpus=refs_corpus, translation_corpus=hyp_corpus, smooth=True)
-    print('(bleu, precisions, bp, ratio (hype/ref), hyp_length, reference_length)') 
-    print(output)
+    logger.info('(bleu, precisions, bp, ratio (hype/ref), hyp_length, reference_length):') 
+    logger.info(output)

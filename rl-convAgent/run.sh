@@ -104,6 +104,8 @@ then
 	then
 		
 		python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE &> $log_file
+
+		python python/metrics.py $OUTPUT_FILE  $GOLD_FILE 
 	fi
 fi
 
