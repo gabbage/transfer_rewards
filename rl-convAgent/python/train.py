@@ -246,7 +246,7 @@ def train():
 
                 if valid_loss < best_valid_loss: 
 
-                    logger.info("Epoch ", epoch, " is done. Saving the best model ....")
+                    logger.info("Epoch %d is done. Saving the best model ...."%epoch)
             
                     saver.save(sess, os.path.join(model_path, 'model-best'), global_step=epoch)
 
