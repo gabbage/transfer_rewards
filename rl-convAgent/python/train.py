@@ -236,7 +236,7 @@ def train():
                     valid_loss += loss_val
 
 
-                logger.info("Epoch: %d, batch: %d/%d, train_loss: %.4f, valid_loss:%.4f"%(epoch, batch, n_batch, epoch_loss/float(t_batch), valid_loss/float(v_batch)))
+                logger.info("Epoch: %d, batch: %d/%d, train_loss: %.4f, valid_loss:%.4f"%(epoch, t_batch, n_batch, epoch_loss/float(t_batch), valid_loss/float(v_batch)))
 
 
         if epoch % config.checkpoint_step ==0:
