@@ -86,19 +86,20 @@ fi
 ###
 ##
 # Finally execute the model
-if [[ $mode=="train" ]]
+if [[ $mode == "train" ]]
 then
 
-	if [[ $model=="seq2seq" ]]
+	if [[ $model == "seq2seq" ]]
 	then
+		echo 'here train'
 		python python/train.py &> $log_file
 	fi
 
-elif [[ $mode=="test" ]]
+elif [[ $mode == "test" ]]
 then
-	if [[ $model=="seq2seq" ]]
+	if [[ $model == "seq2seq" ]]
 	then
-		echo 'here'
+		echo 'here tesst'
 		python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE &> $log_file
 	fi
 fi
