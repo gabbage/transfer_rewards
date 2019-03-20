@@ -164,7 +164,7 @@ def step(sess, outputs, inp_list, batch_X, batch_Y):
                         tf_caption: current_caption_matrix,
                         tf_caption_mask: current_caption_masks
             })
-     
+    logger.info(loss_val)
     if len(loss_val) > 0 :
 
         loss_val = loss_val[1]
