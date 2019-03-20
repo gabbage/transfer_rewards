@@ -47,7 +47,7 @@ n_decode_lstm_step = 22
 
 epochs = 200
 batch_size = 100
-learning_rate = 0.0001
+learning_rate = 0.01
 
 wordtoix, ixtoword, bias_init_vector = data_parser.preProBuildWordVocab(word_count_threshold=word_count_threshold)
 word_vector = KeyedVectors.load_word2vec_format('model/word_vector.bin', binary=True)
