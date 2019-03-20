@@ -43,43 +43,23 @@ Make sure that the conda virtual environment is active and then run the followin
 # Run #
 If you run the project for the first time, you should update the ```machine``` variable in the ```run.sh``` based on the type of the machine.
 
-
-#### Step1: train a Seq2Seq model
-
-
-In order to train the agent as a sequence-to-sequence model:
-
-```
-./run.sh train seq2seq
-```
-
-```bash
-./script/train.sh
-```
-
-
-
-If you want to finish the conversation, type ```bye```
-
-You can check the log files in the directory ```./logs```
-
-
-
-## Train chatbot from scratch
-I trained my chatbot with python2.7.
-
-If you want to train the chatbot from scratch
-
-You can follow those instructions below:
-
 #### Step0: training configs
 Take a look at <a href='python/config.py' target="_blank">python/config.py</a>, all configs for training is described here.
 
 You can change some training hyper-parameters, or just keep the original ones.
 
 
-#### Step4-1: test a Seq2Seq model
-Let's show some results of seq2seq model :)
+#### Step1: train a Seq2Seq model
+
+In order to train the agent as a sequence-to-sequence model:
+
+```
+nohup ./run.sh train seq2seq &
+```
+
+#### Step2: test a Seq2Seq model
+Let's show some results of seq2seq model
+
 ```bash
 ./script/test.sh <PATH TO MODEL> <INPUT FILE> <OUTPUT FILE>
 ```
@@ -98,6 +78,18 @@ the number represents # of former sentence(s) that chatbot considers
 if you choose 1, chatbot will only considers user's utterance
 
 if you choose 2, chatbot will considers user's utterance and chatbot's last utterance
+
+
+
+If you want to finish the conversation, type ```bye```
+
+You can check the log files in the directory ```./logs```
+
+
+
+
+
+
 
 #### Step5: train a RL model
 you need to change the *training_type* parameter in <a href='python/config.py' target="_blank">python/config.py</a>

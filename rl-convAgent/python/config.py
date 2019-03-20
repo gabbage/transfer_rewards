@@ -1,5 +1,7 @@
 # path to training data
-training_data_path = 'data/conversations_lenmax22_formersents2_with_former'
+training_data_path = 'data/train.pkl'
+valid_data_path = 'data/valid.pkl'
+test_data_path = 'data/test.pkl'
 
 # path to all_words
 all_words_path = 'data/all_words.txt'

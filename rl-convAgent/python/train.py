@@ -90,6 +90,82 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncati
             raise ValueError('Padding type "%s" not understood' % padding)
     return x
 
+
+def step(batch_X, batch_Y, update=True):
+    for i in range(len(batch_X)):
+        batch_X[i] = [word_vector[w] if w in word_vector else np.zeros(dim_wordvec) for w in batch_X[i]]
+        # batch_X[i].insert(0, np.random.normal(size=(dim_wordvec,))) # insert random normal at the first step
+        if len(batch_X[i]) > n_encode_lstm_step:
+            batch_X[i] = batch_X[i][:n_encode_lstm_step]
+        else:
+            for _ in range(len(batch_X[i]), n_encode_lstm_step):
+                batch_X[i].append(np.zeros(dim_wordvec))
+
+    current_feats = np.array(batch_X)
+
+    current_captions = batch_Y
+    current_captions = map(lambda x: '<bos> ' + x, current_captions)
+    current_captions = map(lambda x: x.replace('.', ''), current_captions)
+    current_captions = map(lambda x: x.replace(',', ''), current_captions)
+    current_captions = map(lambda x: x.replace('"', ''), current_captions)
+    current_captions = map(lambda x: x.replace('\n', ''), current_captions)
+    current_captions = map(lambda x: x.replace('?', ''), current_captions)
+    current_captions = map(lambda x: x.replace('!', ''), current_captions)
+    current_captions = map(lambda x: x.replace('\\', ''), current_captions)
+    current_captions = map(lambda x: x.replace('/', ''), current_captions)
+
+    current_captions = list(current_captions)    
+
+    for idx, each_cap in enumerate(current_captions):
+        word = each_cap.lower().split(' ')
+        if len(word) < n_decode_lstm_step:
+            current_captions[idx] = current_captions[idx] + ' <eos>'
+        else:
+            new_word = ''
+            for i in range(n_decode_lstm_step-1):
+                new_word = new_word + word[i] + ' '
+            current_captions[idx] = new_word + '<eos>'
+
+    current_caption_ind = []
+    for cap in current_captions:
+        current_word_ind = []
+        for word in cap.lower().split(' '):
+            if word in wordtoix:
+                current_word_ind.append(wordtoix[word])
+            else:
+                current_word_ind.append(wordtoix['<unk>'])
+        current_caption_ind.append(current_word_ind)
+
+    current_caption_matrix = pad_sequences(current_caption_ind, padding='post', maxlen=n_decode_lstm_step)
+    current_caption_matrix = np.hstack([current_caption_matrix, np.zeros([len(current_caption_matrix), 1])]).astype(int)
+    current_caption_masks = np.zeros((current_caption_matrix.shape[0], current_caption_matrix.shape[1]))
+    nonzeros = np.array(list(map(lambda x: (x != 0).sum() + 1, current_caption_matrix)))
+
+    for ind, row in enumerate(current_caption_masks):
+
+        row[:nonzeros[ind]] = 1
+
+
+    if update:
+        # train the model
+        _, loss_val = sess.run(
+                [train_op, tf_loss],
+                feed_dict={
+                    word_vectors: current_feats,
+                    tf_caption: current_caption_matrix,
+                    tf_caption_mask: current_caption_masks
+                })
+    else:
+        _, loss_val = sess.run(
+                [tf_loss],
+                feed_dict={
+                    word_vectors: current_feats,
+                    tf_caption: current_caption_matrix,
+                    tf_caption_mask: current_caption_masks
+                })        
+
+    return loss_val
+
 def train():
     wordtoix, ixtoword, bias_init_vector = data_parser.preProBuildWordVocab(word_count_threshold=word_count_threshold)
     word_vector = KeyedVectors.load_word2vec_format('model/word_vector.bin', binary=True)
@@ -119,80 +195,24 @@ def train():
         logger.info("Restart training...")
         tf.global_variables_initializer().run()
 
-    dr = Data_Reader()
+    train_dr = Data_Reader(config.training_data_path)
+    valid_dr = Data_Reader(config.valid_data_path)
+    test_dr  = Data_Reader(config.test_data_path)
 
     for epoch in range(start_epoch, epochs):
         
         epoch_loss = 0.0
 
-        n_batch = dr.get_batch_num(batch_size)
+        n_batch = train_dr.get_batch_num(batch_size)
         for batch in range(n_batch):
             start_time = time.time()
 
-            batch_X, batch_Y = dr.generate_training_batch(batch_size)
+            batch_X, batch_Y = train_dr.generate_batch(batch_size)
 
-            for i in range(len(batch_X)):
-                batch_X[i] = [word_vector[w] if w in word_vector else np.zeros(dim_wordvec) for w in batch_X[i]]
-                # batch_X[i].insert(0, np.random.normal(size=(dim_wordvec,))) # insert random normal at the first step
-                if len(batch_X[i]) > n_encode_lstm_step:
-                    batch_X[i] = batch_X[i][:n_encode_lstm_step]
-                else:
-                    for _ in range(len(batch_X[i]), n_encode_lstm_step):
-                        batch_X[i].append(np.zeros(dim_wordvec))
-
-            current_feats = np.array(batch_X)
-
-            current_captions = batch_Y
-            current_captions = map(lambda x: '<bos> ' + x, current_captions)
-            current_captions = map(lambda x: x.replace('.', ''), current_captions)
-            current_captions = map(lambda x: x.replace(',', ''), current_captions)
-            current_captions = map(lambda x: x.replace('"', ''), current_captions)
-            current_captions = map(lambda x: x.replace('\n', ''), current_captions)
-            current_captions = map(lambda x: x.replace('?', ''), current_captions)
-            current_captions = map(lambda x: x.replace('!', ''), current_captions)
-            current_captions = map(lambda x: x.replace('\\', ''), current_captions)
-            current_captions = map(lambda x: x.replace('/', ''), current_captions)
-
-            current_captions = list(current_captions)    
-
-            for idx, each_cap in enumerate(current_captions):
-                word = each_cap.lower().split(' ')
-                if len(word) < n_decode_lstm_step:
-                    current_captions[idx] = current_captions[idx] + ' <eos>'
-                else:
-                    new_word = ''
-                    for i in range(n_decode_lstm_step-1):
-                        new_word = new_word + word[i] + ' '
-                    current_captions[idx] = new_word + '<eos>'
-
-            current_caption_ind = []
-            for cap in current_captions:
-                current_word_ind = []
-                for word in cap.lower().split(' '):
-                    if word in wordtoix:
-                        current_word_ind.append(wordtoix[word])
-                    else:
-                        current_word_ind.append(wordtoix['<unk>'])
-                current_caption_ind.append(current_word_ind)
-
-            current_caption_matrix = pad_sequences(current_caption_ind, padding='post', maxlen=n_decode_lstm_step)
-            current_caption_matrix = np.hstack([current_caption_matrix, np.zeros([len(current_caption_matrix), 1])]).astype(int)
-            current_caption_masks = np.zeros((current_caption_matrix.shape[0], current_caption_matrix.shape[1]))
-            nonzeros = np.array(list(map(lambda x: (x != 0).sum() + 1, current_caption_matrix)))
-
-            for ind, row in enumerate(current_caption_masks):
-
-                row[:nonzeros[ind]] = 1
-
-
-            # train the model
-            _, loss_val = sess.run(
-                    [train_op, tf_loss],
-                    feed_dict={
-                        word_vectors: current_feats,
-                        tf_caption: current_caption_matrix,
-                        tf_caption_mask: current_caption_masks
-                    })
+            ###
+            ##
+            # 
+            loss_val = step(batch_X, batch_Y)
 
             epoch_loss += loss_val
 
@@ -200,27 +220,28 @@ def train():
 
                 logger.info("Epoch: {}, batch: {}/{}, loss: {}, Elapsed time: {}".format(epoch, batch, n_batch, epoch_loss/float(batch), time.time() - start_time))
 
-            # if batch % 100 == 0:
-            #     _, loss_val = sess.run(
-            #             [train_op, tf_loss],
-            #             feed_dict={
-            #                 word_vectors: current_feats,
-            #                 tf_caption: current_caption_matrix,
-            #                 tf_caption_mask: current_caption_masks
-            #             })
-            #     epoch_loss += loss_val
-            #     print("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, loss_val, time.time() - start_time))
-            # else:
-            #     _ = sess.run(train_op,
-            #                  feed_dict={
-            #                     word_vectors: current_feats,
-            #                     tf_caption: current_caption_matrix,
-            #                     tf_caption_mask: current_caption_masks
-            #                 })
 
         if epoch % config.checkpoint_step ==0:
+
             logger.info("Epoch ", epoch, " is done. Saving the model ...")
+            
             saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
+
+        if epoch % config.valid_step == 0:
+    
+            valid_n_batch = valid_dr.get_batch_num(batch_size)
+
+            valid_loss = 0.0
+        
+            for batch in range(valid_n_batch):
+
+                batch_X, batch_Y = valid_dr.generate_batch(batch_size)
+
+                loss_val = step(batch_X, batch_Y, False)
+
+                valid_loss += loss_val
+
+            logger.info("=== Epoch ", epoch, " valid_loss: %.f"%valid_loss/valid_n_batch)
 
 if __name__ == "__main__":
     train()

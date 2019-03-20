@@ -83,7 +83,7 @@ class Seq2Seq_chatbot():
             probs.append(logit_words)
 
             current_loss = tf.reduce_sum(cross_entropy)/self.batch_size
-            loss = loss + current_loss
+            loss = current_loss
 
         with tf.variable_scope(tf.get_variable_scope(), reuse=False):
             #train_op = tf.train.AdamOptimizer(self.lr).minimize(loss)
