@@ -45,7 +45,7 @@ dim_hidden = 1000
 n_encode_lstm_step = 22 + 22
 n_decode_lstm_step = 22
 
-epochs = 500
+epochs = 200
 batch_size = 100
 learning_rate = 0.0001
 
@@ -259,7 +259,7 @@ def train():
                         break
                     else:
                         previous_valid_loss = valid_loss
-                        
+
                         patient += 1
 
         if epoch % config.checkpoint_step ==0:
