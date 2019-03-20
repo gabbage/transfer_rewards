@@ -213,7 +213,7 @@ def train():
 
         n_batch = train_dr.get_batch_num(batch_size)
 
-        for batch in range(n_batch):
+        for t_batch in range(n_batch):
         
             start_time = time.time()
 
@@ -225,7 +225,20 @@ def train():
 
             if batch % 100 == 0:
 
-                logger.info("Epoch: {}, batch: {}/{}, loss: {}, Elapsed time: {}".format(epoch, batch, n_batch, epoch_loss/float(batch), time.time() - start_time))
+                valid_n_batch = valid_dr.get_batch_num(batch_size)
+
+                valid_loss = 0.0
+        
+                for v_batch in range(valid_n_batch):
+
+                    batch_X, batch_Y = valid_dr.generate_batch(batch_size)
+
+                    loss_val = step(sess, [tf_loss], inp_list, batch_X, batch_Y)
+
+                    valid_loss += loss_val
+
+
+                logger.info("Epoch: %d, batch: %d/%d, train_loss: %.4f, valid_loss:%.4f"%(epoch, batch, n_batch, epoch_loss/float(t_batch), valid_loss/float(v_batch)))
 
 
         if epoch % config.checkpoint_step ==0:
@@ -236,18 +249,6 @@ def train():
 
         if epoch % config.valid_step == 0:
     
-            valid_n_batch = valid_dr.get_batch_num(batch_size)
-
-            valid_loss = 0.0
-        
-            for batch in range(valid_n_batch):
-
-                batch_X, batch_Y = valid_dr.generate_batch(batch_size)
-
-                loss_val = step(sess, [tf_loss], inp_list, batch_X, batch_Y)
-
-                valid_loss += loss_val
-
             logger.info("=== Epoch ", epoch, " valid_loss: %.f"%valid_loss/float(batch))
 
 if __name__ == "__main__":
