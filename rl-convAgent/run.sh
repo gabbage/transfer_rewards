@@ -91,10 +91,10 @@ then
 
 	if [[ $model=='seq2seq' ]]
 	then
-		python python/train.py &> $log_file
+		#python python/train.py &> $log_file
 	fi
 
-elif [[ $mode == 'test' ]]
+elif [[ $mode =='test' ]]
 then
 	if [[ $model=='seq2seq' ]]
 	then

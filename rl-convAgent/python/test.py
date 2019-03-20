@@ -15,6 +15,17 @@ import os
 import sys
 import time
 
+
+import logging
+
+logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                datefmt = '%m/%d/%Y %H:%M:%S',
+                level = logging.INFO)
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+
 #=====================================================
 # Global Parameters
 #=====================================================
@@ -65,10 +76,10 @@ def test(model_path=default_model_path):
 
     saver = tf.train.Saver()
     try:
-        print('\n=== Use model', model_path, '===\n')
+        logger.info('\n=== Use model', model_path, '===\n')
         saver.restore(sess, model_path)
     except:
-        print('\nUse default model\n')
+        logger.info('\nUse default model\n')
         saver.restore(sess, default_model_path)
 
     with open(output_path, 'w') as out:
@@ -79,7 +90,7 @@ def test(model_path=default_model_path):
         
         for idx, question in enumerate(testing_data):
         
-            print('question =>', question)
+            logger.info('question =>', question)
 
             question = [refine(w) for w in question.lower().split()]
         
@@ -133,7 +144,8 @@ def test(model_path=default_model_path):
             generated_sentence = generated_sentence.replace("i'v", "I'v")
             generated_sentence = generated_sentence.replace(" - ", "")
 
-            print('generated_sentence =>', generated_sentence)
+            logger.info('generated_sentence =>', generated_sentence)
+            logger.info('\n')
             out.write(generated_sentence + '\n')
 
 if __name__ == "__main__":
