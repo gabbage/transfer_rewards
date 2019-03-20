@@ -24,7 +24,6 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
-tf.get_logger().setLevel(logging.ERROR)
 
 
 logger = logging.getLogger(__name__)
