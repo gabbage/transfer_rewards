@@ -14,6 +14,8 @@ import numpy as np
 import os
 import time
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+
 import logging
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
