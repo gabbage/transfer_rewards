@@ -157,7 +157,7 @@ def step(sess, outputs, inp_list, batch_X, batch_Y):
 
     [word_vectors, tf_caption, tf_caption_mask] = inp_list
 
-    _, loss_val = sess.run(
+    loss_val = sess.run(
             outputs,
             feed_dict= {
                         word_vectors: current_feats,
@@ -230,7 +230,7 @@ def train():
 
                     batch_X, batch_Y = valid_dr.generate_batch(batch_size)
 
-                    loss_val = step(sess, [_, tf_loss], inp_list, batch_X, batch_Y)
+                    loss_val = step(sess, [tf_loss], inp_list, batch_X, batch_Y)
 
                     valid_loss += loss_val
 
