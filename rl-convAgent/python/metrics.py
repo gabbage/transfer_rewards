@@ -174,9 +174,9 @@ class BLEU:
 
 if __name__=='__main__':
 
-    generated_sents_file ='./gen_sent.txt'
+    generated_sents_file =$1
 
-    gold_sents_file = './gold_sent.txt'
+    gold_sents_file = $2
 
     with open(generated_sents_file) as f:
 
