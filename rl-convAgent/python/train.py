@@ -150,7 +150,7 @@ def step(sess, outputs, inp_list, batch_X, batch_Y):
 
 
  
-     [word_vectors, tf_caption, tf_caption_mask] = inp_list
+    [word_vectors, tf_caption, tf_caption_mask] = inp_list
 
 
     _, loss_val = sess.run(
