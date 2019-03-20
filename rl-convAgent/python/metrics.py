@@ -171,6 +171,6 @@ class BLEU:
 if __name__=='__main__':
 
     bleu = BLEU()
-    refs_corpus = [[['a', 'b', 'c', 'd']]]
-    hyp_corpus = [['e', 'f', 'g', 'h']]
+    refs_corpus = [[['a', 'b', 'c', 'd','g','h','i']]]
+    hyp_corpus = [['l', 'm', 'n', 'o','r','w']]
     print(bleu.compute_bleu(reference_corpus=refs_corpus, translation_corpus=hyp_corpus, smooth=True, max_order=1))
