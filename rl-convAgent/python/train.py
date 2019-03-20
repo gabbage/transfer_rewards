@@ -94,7 +94,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncati
     return x
 
 
-def step(sess, nodes, word_vectors, batch_X, batch_Y):
+def step(sess, outputs, inp_dict, batch_X, batch_Y):
     for i in range(len(batch_X)):
         batch_X[i] = [word_vector[w] if w in word_vector else np.zeros(dim_wordvec) for w in batch_X[i]]
         # batch_X[i].insert(0, np.random.normal(size=(dim_wordvec,))) # insert random normal at the first step
@@ -148,13 +148,15 @@ def step(sess, nodes, word_vectors, batch_X, batch_Y):
 
         row[:nonzeros[ind]] = 1
 
+    inp_dict = {
+            word_vectors: current_feats,
+            tf_caption: current_caption_matrix,
+            tf_caption_mask: current_caption_masks
+            }
+
     _, loss_val = sess.run(
-            nodes,
-            feed_dict={
-                word_vectors: current_feats,
-                tf_caption: current_caption_matrix,
-                tf_caption_mask: current_caption_masks
-            })
+            outputs,
+            feed_dict=inp_dict)
      
 
     return loss_val
@@ -181,6 +183,12 @@ def train():
 
     sess = tf.InteractiveSession()
     
+    inp_dict = {
+                word_vectors: None,
+                tf_caption: None,
+                tf_caption_mask: None
+                }
+
     if checkpoint:
         logger.info("Use Model {}.".format(model_name))
         saver.restore(sess, os.path.join(model_path, model_name))
@@ -205,7 +213,7 @@ def train():
 
             batch_X, batch_Y = train_dr.generate_batch(batch_size)
 
-            loss_val = step(sess, [train_op, tf_loss], word_vectors, batch_X, batch_Y)
+            loss_val = step(sess, [train_op, tf_loss], inp_dict, batch_X, batch_Y)
 
             epoch_loss += loss_val
 
