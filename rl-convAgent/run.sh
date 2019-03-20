@@ -86,8 +86,6 @@ fi
 ###
 ##
 # Finally execute the model
-echo $mode 
-echo $model
 if [[ $mode=="train" ]]
 then
 
@@ -100,7 +98,7 @@ elif [[ $mode=="test" ]]
 then
 	if [[ $model=="seq2seq" ]]
 	then
-
+		echo 'here'
 		python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE &> $log_file
 	fi
 fi
