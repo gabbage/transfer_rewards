@@ -94,7 +94,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncati
     return x
 
 
-def step(sess, nodes ,batch_X, batch_Y, update=True):
+def step(sess, nodes, word_vectors, batch_X, batch_Y):
     for i in range(len(batch_X)):
         batch_X[i] = [word_vector[w] if w in word_vector else np.zeros(dim_wordvec) for w in batch_X[i]]
         # batch_X[i].insert(0, np.random.normal(size=(dim_wordvec,))) # insert random normal at the first step
@@ -205,7 +205,7 @@ def train():
 
             batch_X, batch_Y = train_dr.generate_batch(batch_size)
 
-            loss_val = step(sess, [train_op, tf_loss],batch_X, batch_Y)
+            loss_val = step(sess, [train_op, tf_loss], word_vectors, batch_X, batch_Y)
 
             epoch_loss += loss_val
 
@@ -230,7 +230,7 @@ def train():
 
                 batch_X, batch_Y = valid_dr.generate_batch(batch_size)
 
-                loss_val = step(sess, [tf_loss], batch_X, batch_Y)
+                loss_val = step(sess, [tf_loss], None,batch_X, batch_Y)
 
                 valid_loss += loss_val
 
