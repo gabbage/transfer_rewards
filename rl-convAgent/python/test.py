@@ -77,7 +77,7 @@ def test(model_path=default_model_path):
 
     saver = tf.train.Saver()
     try:
-        logger.info('\n=== Use model', model_path, '===\n')
+        logger.info('\n=== Use model: %s ===='%model_path)
         saver.restore(sess, model_path)
     except:
         logger.info('\nUse default model\n')
@@ -91,7 +91,7 @@ def test(model_path=default_model_path):
         
         for idx, question in enumerate(testing_data):
         
-            logger.info('question =>', question)
+            logger.info('question => %s'%question)
 
             question = [refine(w) for w in question.lower().split()]
         
@@ -145,7 +145,7 @@ def test(model_path=default_model_path):
             generated_sentence = generated_sentence.replace("i'v", "I'v")
             generated_sentence = generated_sentence.replace(" - ", "")
 
-            logger.info('generated_sentence =>', generated_sentence)
+            logger.info('generated_sentence => %s'%generated_sentence)
             logger.info('\n')
             out.write(generated_sentence + '\n')
 
