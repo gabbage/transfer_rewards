@@ -172,5 +172,5 @@ if __name__=='__main__':
 
     bleu = BLEU()
     refs_corpus = [[['this', 'is', 'a', 'cat']]]
-    hyp_corpus = [['this', 'is', 'a', 'cat']]
+    hyp_corpus = [['that', 'are', 'not', 'cow']]
     print(bleu.compute_bleu(reference_corpus=refs_corpus, translation_corpus=hyp_corpus, smooth=True))
