@@ -6,7 +6,7 @@ from nltk.translate.bleu_score import SmoothingFunction
 import collections
 import math
 
-class BLEU(Object):
+class BLEU:
 
     def __init__(self):
         # I got the code from 
