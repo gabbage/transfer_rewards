@@ -76,8 +76,8 @@ class BLEU:
 
         merged_ref_ngram_counts = collections.Counter()
         for reference in references:
-          merged_ref_ngram_counts |= _get_ngrams(reference, max_order)
-        translation_ngram_counts = _get_ngrams(translation, max_order)
+          merged_ref_ngram_counts |= self._get_ngrams(reference, max_order)
+        translation_ngram_counts = self._get_ngrams(translation, max_order)
         overlap = translation_ngram_counts & merged_ref_ngram_counts
         for ngram in overlap:
           matches_by_order[len(ngram)-1] += overlap[ngram]
