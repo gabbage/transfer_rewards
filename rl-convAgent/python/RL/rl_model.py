@@ -90,7 +90,7 @@ class PolicyGradient_chatbot():
 
         with tf.variable_scope(tf.get_variable_scope(), reuse=False):
             #train_op = tf.train.AdamOptimizer(self.lr).minimize(pg_loss)
-            train_op = tf.train.GradientDescentOptimizer(self.lr).minimize(loss)
+            train_op = tf.train.GradientDescentOptimizer(self.lr).minimize(pg_loss)
 
         input_tensors = {
             'word_vectors': word_vectors,
