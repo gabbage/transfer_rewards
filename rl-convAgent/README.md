@@ -73,8 +73,11 @@ Then, in the ```config.py``` file, change the ```training_type``` parameter to `
 #### Step3.1: train a reversed model
 
 The reversed model is also trained by the same dataset, but with source and target reversed. 
+To do so, change the experiment name in the ```run.sh``` file to have a new log file, then make sure that ```reverse``` is ```True```, now you can train the reverse model. 
 
-
+```bash
+nohup ./run.sh train seq2seq &
+```
 <!-- 
 #### Step4-2: simulate a dialog
 And show some dialog results from seq2seq model!

@@ -207,7 +207,6 @@ def train():
 
     train_dr = Data_Reader(config.training_data_path,shuffle=True)
     valid_dr = Data_Reader(config.valid_data_path)
-    test_dr  = Data_Reader(config.test_data_path)
 
     best_valid_loss = float("inf")
 
@@ -228,12 +227,22 @@ def train():
             batch_X, batch_Y = train_dr.generate_batch(batch_size)
 
             if config.reverse:
+                logger.infor('reverse input and output')
+                tmp_Y = []
 
-                tmp = batch_X
+                for item in batch_X:
 
-                batch_X = batch_Y
+                    tmp_Y.append(' '.join(item))
 
-                batch_Y = tmp
+                tmp_X = []
+
+                for item in batch_Y:
+
+                    temp_X.append(item.split()) 
+
+                batch_X = tmp_X
+
+                batch_Y = tmp_Y
 
             loss_val = step(sess, [train_op, tf_loss], inp_list, batch_X, batch_Y)
 
