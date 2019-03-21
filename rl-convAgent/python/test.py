@@ -56,7 +56,7 @@ def refine(data):
     return data
 
 def test(model_path=default_model_path):
-    testing_data = open(testing_data_path, 'r').read().split('\n')
+    testing_data = open(testing_data_path, 'r').read().strip().split('\n')
     logger.info('number of input sentences: %d'%len(testing_data))
 
     word_vector = KeyedVectors.load_word2vec_format('model/word_vector.bin', binary=True)
