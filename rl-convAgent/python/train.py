@@ -227,7 +227,7 @@ def train():
             batch_X, batch_Y = train_dr.generate_batch(batch_size)
 
             if config.reverse:
-                logger.info('reverse input and output')
+                
                 tmp_Y = []
 
                 for item in batch_X:
@@ -285,4 +285,7 @@ def train():
     logger.info('best model happend in epoch: %d, batch: %d'%(best_epoch, best_batch))
 
 if __name__ == "__main__":
+
+    logger.info(config)
+    
     train()
