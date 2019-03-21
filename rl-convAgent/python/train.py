@@ -34,6 +34,9 @@ logger = logging.getLogger(__name__)
 checkpoint = config.CHECKPOINT
 model_path = config.train_model_path
 model_name = config.train_model_name
+if config.reverse:
+    model_path = config.reversed_model_path
+    model_name = config.reversed_model_name
 start_epoch = config.start_epoch
 
 word_count_threshold = config.WC_threshold
@@ -244,6 +247,7 @@ def train():
 
                 batch_Y = tmp_Y
 
+
             loss_val = step(sess, [train_op, tf_loss], inp_list, batch_X, batch_Y)
 
             epoch_loss += loss_val
@@ -272,7 +276,7 @@ def train():
                     best_epoch = epoch
 
                     best_batch = t_batch
-            
+
                     saver.save(sess, os.path.join(model_path, 'model-best'))
 
 

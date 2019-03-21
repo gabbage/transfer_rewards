@@ -18,7 +18,7 @@ reverse = True # True: means reverse input and output and train the model.
 
 # for RL training
 training_type = 'normal' # 'normal' for seq2seq training, 'pg' for policy gradient
-reversed_model_path = ''
+reversed_model_path = 'model/reversed/'
 reversed_model_name = ''
 
 # data reader shuffle index list
