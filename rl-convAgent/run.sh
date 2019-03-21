@@ -96,7 +96,7 @@ then
 
 	if [[ $model == "seq2seq" ]]
 	then
-		python python/train.py &> $log_file
+		 CUDA_VISIBLE_DEVICES=0 python python/train.py &> $log_file
 
 	elif [[ $model == "rl" ]]
 	then

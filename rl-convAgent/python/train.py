@@ -189,7 +189,11 @@ def train():
 
     saver = tf.train.Saver(max_to_keep=100)
 
-    sess = tf.InteractiveSession()
+    sess_config = tf.ConfigProto()
+
+    sess_config.gpu_options.allow_growth = True
+
+    sess = tf.InteractiveSession(config=sess_config)
     
     inp_list = [word_vectors, tf_caption, tf_caption_mask] 
 
