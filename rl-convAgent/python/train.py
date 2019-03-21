@@ -238,7 +238,7 @@ def train():
 
                 for item in batch_Y:
 
-                    temp_X.append(item.split()) 
+                    tmp_X.append(item.split()) 
 
                 batch_X = tmp_X
 
