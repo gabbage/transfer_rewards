@@ -57,6 +57,7 @@ def refine(data):
 
 def test(model_path=default_model_path):
     testing_data = open(testing_data_path, 'r').read().split('\n')
+    logger.info('number of input sentences: %d'%len(testing_data))
 
     word_vector = KeyedVectors.load_word2vec_format('model/word_vector.bin', binary=True)
 
@@ -87,9 +88,13 @@ def test(model_path=default_model_path):
         
         generated_sentences = []
         
-        bleu_score_avg = [0., 0.]
-        
+        count = 0
+
         for idx, question in enumerate(testing_data):
+
+            if len(question)==0:
+
+                continue
         
             logger.info('question => %s'%question)
 
@@ -148,6 +153,10 @@ def test(model_path=default_model_path):
             logger.info('generated_sentence => %s'%generated_sentence)
             logger.info('\n')
             out.write(generated_sentence + '\n')
+
+            count += 1
+
+        logger.info('number of answered quesitons: %d' %d)    
 
         logger.info('Done! also check: %s'%output_path)
 
