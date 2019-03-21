@@ -227,7 +227,7 @@ def train():
             batch_X, batch_Y = train_dr.generate_batch(batch_size)
 
             if config.reverse:
-                logger.infor('reverse input and output')
+                logger.info('reverse input and output')
                 tmp_Y = []
 
                 for item in batch_X:
