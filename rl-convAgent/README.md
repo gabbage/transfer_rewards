@@ -61,9 +61,21 @@ nohup ./run.sh train seq2seq &
 Let's show some results of seq2seq model
 
 ```bash
-./script/test.sh <PATH TO MODEL> <INPUT FILE> <OUTPUT FILE>
+./script/test.sh <PATH TO MODEL> <INPUT FILE> <OUTPUT FILE> <GOLD FILE>
 ```
 
+#### Step3: train the RL model
+
+Note: it is very helpful to train a seq2seq model first as described above. 
+
+Then, in the ```config.py``` file, change the ```training_type``` parameter to ```pg```. 
+
+#### Step3.1: train a reversed model
+
+The reversed model is also trained by the same dataset, but with source and target reversed. 
+
+
+<!-- 
 #### Step4-2: simulate a dialog
 And show some dialog results from seq2seq model!
 ```bash
@@ -84,7 +96,6 @@ if you choose 2, chatbot will considers user's utterance and chatbot's last utte
 If you want to finish the conversation, type ```bye```
 
 You can check the log files in the directory ```./logs```
-
 
 
 
@@ -142,7 +153,7 @@ __if you choose 2, chatbot will consider last two sentences (one from user, and 
 
 
 
-<!-- 
+
 
 
 ## Chatbot results

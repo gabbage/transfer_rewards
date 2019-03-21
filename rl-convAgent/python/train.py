@@ -223,6 +223,14 @@ def train():
 
             batch_X, batch_Y = train_dr.generate_batch(batch_size)
 
+            if config.reverse:
+
+                tmp = batch_X
+
+                batch_X = batch_Y
+
+                batch_Y = tmp
+
             loss_val = step(sess, [train_op, tf_loss], inp_list, batch_X, batch_Y)
 
             epoch_loss += loss_val

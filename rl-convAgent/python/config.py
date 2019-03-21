@@ -14,12 +14,12 @@ start_epoch = 0#56
 start_batch = 0
 batch_size = 25
 checkpoint_step=10 # save the model after howmany epohs
-
+reverse = True # True: means reverse input and output and train the model.
 
 # for RL training
 training_type = 'normal' # 'normal' for seq2seq training, 'pg' for policy gradient
-reversed_model_path = 'Adam_encode22_decode22_reversed-maxlen22_lr0.0001_batch25_wordthres6'
-reversed_model_name = 'model-63'
+reversed_model_path = ''
+reversed_model_name = ''
 
 # data reader shuffle index list
 load_list = False
