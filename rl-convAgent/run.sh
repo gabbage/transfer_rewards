@@ -7,7 +7,7 @@ machine='gpu' # possible values: {'local', 'gpu'}, where 'local' has no GPU and 
 
 env='rl-convagent' 
 
-experiment='movie-dialogue'
+experiment='movie-dialogue-reverse'
  
 log_file='./logs/'$experiment
 
