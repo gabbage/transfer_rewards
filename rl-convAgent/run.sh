@@ -97,6 +97,10 @@ then
 	if [[ $model == "seq2seq" ]]
 	then
 		python python/train.py &> $log_file
+
+	elif [[ $model == "rl" ]]
+	then
+		python python/RL/train.py &> $log_file
 	fi
 
 elif [[ $mode == "test" ]]

@@ -21,6 +21,19 @@ import tensorflow as tf
 import numpy as np
 import math
 
+import logging
+
+logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                datefmt = '%m/%d/%Y %H:%M:%S',
+                level = logging.INFO)
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+
+
+logger = logging.getLogger(__name__)
+
 
 ### Global Parameters ###
 checkpoint = config.CHECKPOINT
@@ -140,6 +153,8 @@ def make_batch_Y(batch_Y, wordtoix, n_decode_lstm_step):
     current_captions = map(lambda x: x.replace('\\', ''), current_captions)
     current_captions = map(lambda x: x.replace('/', ''), current_captions)
 
+    current_captions = list(current_captions)  
+    
     for idx, each_cap in enumerate(current_captions):
         word = each_cap.lower().split(' ')
         if len(word) < n_decode_lstm_step:
@@ -212,6 +227,7 @@ def index2sentence(generated_word_index, prob_logit, ixtoword):
     return generated_sentence
 
 def sigmoid(x):
+
     return 1 / (1 + np.exp(-x))
 
 def count_rewards(dull_loss, forward_entropy, backward_entropy, forward_target, backward_target, reward_type='pg'):
