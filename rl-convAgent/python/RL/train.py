@@ -358,7 +358,7 @@ def train():
 
     #dr = Data_Reader(cur_train_index=config.cur_train_index, load_list=config.load_list)
     train_dr = Data_Reader(config.training_data_path,shuffle=True)
-    
+
     for epoch in range(start_epoch, epochs):
         n_batch = train_dr.get_batch_num(batch_size)
 
@@ -367,7 +367,7 @@ def train():
         for batch in range(sb, n_batch):
             start_time = time.time()
 
-            batch_X, batch_Y, former = train_dr.generate_training_batch_with_former(batch_size)
+            batch_X, batch_Y, former = train_dr.generate_batch_with_former(batch_size)
 
             current_feats = make_batch_X(
                             batch_X=copy.deepcopy(batch_X), 
