@@ -542,7 +542,7 @@ def train():
 
                         # policy gradient: loss on the validation set
                         v_loss_val = sess.run(
-                            [loss],
+                            loss,
                             feed_dict={
                                 input_tensors['word_vectors']: valid_current_feats,
                                 input_tensors['caption']: valid_current_caption_matrix,
