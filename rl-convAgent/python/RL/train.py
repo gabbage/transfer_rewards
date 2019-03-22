@@ -279,17 +279,9 @@ def count_rewards(dull_loss, forward_entropy, backward_entropy, forward_target, 
 
 
 def reward(sess, loss, input_tensors, inter_value, tf_actions,
+            dull_matrix, dull_mask,
             tf_feats, tf_states, current_feats, former, wordtoix, ixtoword, word_vector):
-    if len(dull_set) > batch_size:
-        dull_set = dull_set[:batch_size]
-    else:
-        for _ in range(len(dull_set), batch_size):
-            dull_set.append('')
-    dull_matrix, dull_mask = make_batch_Y(
-                                batch_Y=dull_set, 
-                                wordtoix=wordtoix, 
-                                n_decode_lstm_step=n_decode_lstm_step)
-
+    
     ones_reward = np.ones([batch_size, n_decode_lstm_step])
 
     # action: generate batch_size sents
@@ -386,8 +378,17 @@ def train():
     wordtoix, ixtoword, bias_init_vector = data_parser.preProBuildWordVocab(word_count_threshold=word_count_threshold)
     word_vector = KeyedVectors.load_word2vec_format('model/word_vector.bin', binary=True)
 
+    if len(dull_set) > batch_size:
+        dull_set = dull_set[:batch_size]
+    else:
+        for _ in range(len(dull_set), batch_size):
+            dull_set.append('')
+    dull_matrix, dull_mask = make_batch_Y(
+                                batch_Y=dull_set, 
+                                wordtoix=wordtoix, 
+                                n_decode_lstm_step=n_decode_lstm_step)
 
-
+    
     g1 = tf.Graph()
     g2 = tf.Graph()
 
@@ -489,6 +490,8 @@ def train():
                                 input_tensors = input_tensors,
                                 inter_value= inter_value,
                                 tf_actions=tf_actions, 
+                                dull_matrix=dull_matrix, 
+                                dull_mask=dull_mask,
                                 tf_feats=tf_feats, 
                                 tf_states=tf_states, 
                                 current_feats=current_feats, 
