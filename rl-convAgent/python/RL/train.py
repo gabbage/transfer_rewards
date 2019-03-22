@@ -350,7 +350,9 @@ def train():
     
         saver2 = tf.train.Saver()
         logger.info("Use reversed model: %s"%reversed_model_name)
+
         saver2.restore(sess2, os.path.join(reversed_model_path, reversed_model_name))
+        
         logger.info("Reversed model {} restored.".format(reversed_model_name))
 
 
