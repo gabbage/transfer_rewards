@@ -498,7 +498,7 @@ def train():
                     
                     logger.info("Epoch: {}, batch: {}, loss: {}".format(epoch, 
                                                                         batch, 
-                                                                        epoch_loss/float(batch))
+                                                                        epoch_loss/float(batch)))
 
         logger.info("Epoch %s is done. Saving the model ..."%epoch)
 
