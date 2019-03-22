@@ -281,7 +281,7 @@ def count_rewards(dull_loss, forward_entropy, backward_entropy, forward_target, 
 def reward(sess, sess2, 
             loss, input_tensors, inter_value, tf_actions,
             dull_matrix, dull_mask,
-            reverse_inter, word_vectors,  
+            reverse_inter, word_vectors, caption, caption_mask, 
             tf_feats, tf_states, current_feats, former, wordtoix, ixtoword, word_vector):
     
     ones_reward = np.ones([batch_size, n_decode_lstm_step])
@@ -495,7 +495,7 @@ def train():
                                 tf_actions=tf_actions, 
                                 dull_matrix=dull_matrix, 
                                 dull_mask=dull_mask,
-                                reverse_inter =reverse_inter, word_vectors = word_vectors,
+                                reverse_inter =reverse_inter, word_vectors = word_vectors, caption= caption, caption_mask=caption_mask,
                                 tf_feats=tf_feats, 
                                 tf_states=tf_states, 
                                 current_feats=current_feats, 
