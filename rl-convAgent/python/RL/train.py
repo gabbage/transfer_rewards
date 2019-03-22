@@ -278,7 +278,7 @@ def count_rewards(dull_loss, forward_entropy, backward_entropy, forward_target, 
         return total_loss
 
 
-def reward(sess, loss,  tf_actions, tf_feats, tf_states, current_feats, former, wordtoix, ixtoword, word_vector):
+def reward(sess, loss, input_tensors, inter_value, tf_actions, tf_feats, tf_states, current_feats, former, wordtoix, ixtoword, word_vector):
     # action: generate batch_size sents
     action_word_indexs, inference_feats = sess.run([tf_actions, tf_feats],
                                                     feed_dict={
@@ -483,6 +483,8 @@ def train():
                         
                 rewards = reward(sess=sess, 
                                 loss=loss, 
+                                input_tensors = input_tensors,
+                                inter_value= inter_value,
                                 tf_actions=tf_actions, 
                                 tf_feats=tf_feats, 
                                 tf_states=tf_states, 
