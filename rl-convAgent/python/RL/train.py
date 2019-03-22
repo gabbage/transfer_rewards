@@ -476,7 +476,7 @@ def train():
                                                                         batch, 
                                                                         epoch_loss/float(batch))
 
-                if batch % 1000 == 0 and batch != 0:
+                if ((batch % 1000 == 0) and (batch != 0)) :
                     logger.info("Epoch {} batch {} is done. Saving the model ...".format(epoch, batch))
                     
                     saver.save(sess, os.path.join(model_path, 'model-{}-{}'.format(epoch, batch)))
@@ -501,7 +501,7 @@ def train():
                                                                         epoch_loss/float(batch))
 
         logger.info("Epoch %s is done. Saving the model ..."%epoch)
-        
+
         saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
 
 if __name__ == "__main__":
