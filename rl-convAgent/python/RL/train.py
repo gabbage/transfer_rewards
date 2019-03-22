@@ -310,6 +310,7 @@ def train():
                 n_decode_lstm_step=n_decode_lstm_step,
                 bias_init_vector=bias_init_vector,
                 lr=learning_rate)
+
         train_op, loss, input_tensors, inter_value = model.build_model()
         tf_states, tf_actions, tf_feats = model.build_generator()
 
@@ -341,11 +342,11 @@ def train():
             lr=learning_rate)
         _, _, word_vectors, caption, caption_mask, reverse_inter = reversed_model.build_model()
         
-        sess_config = tf.ConfigProto()
+        sess2_config = tf.ConfigProto()
 
-        sess_config.gpu_options.allow_growth = True
+        sess2_config.gpu_options.allow_growth = True
 
-        sess2 = tf.InteractiveSession(config=sess_config)
+        sess2 = tf.InteractiveSession(config=sess2_config)
     
         saver2 = tf.train.Saver()
         saver2.restore(sess2, os.path.join(reversed_model_path, reversed_model_name))
