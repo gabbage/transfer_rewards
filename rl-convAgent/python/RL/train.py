@@ -474,7 +474,7 @@ def train():
                     
                     logger.info("Epoch: {}, batch: {}, loss: {}".format(epoch, 
                                                                         batch, 
-                                                                        epoch_loss/float(batch))
+                                                                        epoch_loss/float(batch)))
 
                 if ((batch % 1000 == 0) and (batch != 0)) :
                     logger.info("Epoch {} batch {} is done. Saving the model ...".format(epoch, batch))
