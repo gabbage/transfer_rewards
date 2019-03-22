@@ -356,8 +356,9 @@ def train():
         logger.info("Reversed model {} restored.".format(reversed_model_name))
 
 
-    dr = Data_Reader(cur_train_index=config.cur_train_index, load_list=config.load_list)
-
+    #dr = Data_Reader(cur_train_index=config.cur_train_index, load_list=config.load_list)
+    train_dr = Data_Reader(config.training_data_path,shuffle=True)
+    
     for epoch in range(start_epoch, epochs):
         n_batch = dr.get_batch_num(batch_size)
 
