@@ -367,7 +367,7 @@ def train():
         for batch in range(sb, n_batch):
             start_time = time.time()
 
-            batch_X, batch_Y, former = dr.generate_training_batch_with_former(batch_size)
+            batch_X, batch_Y, former = train_dr.generate_training_batch_with_former(batch_size)
 
             current_feats = make_batch_X(
                             batch_X=copy.deepcopy(batch_X), 
