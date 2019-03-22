@@ -360,7 +360,7 @@ def train():
     train_dr = Data_Reader(config.training_data_path,shuffle=True)
     
     for epoch in range(start_epoch, epochs):
-        n_batch = dr.get_batch_num(batch_size)
+        n_batch = train_dr.get_batch_num(batch_size)
 
         sb = start_batch if epoch == start_epoch else 0
 
