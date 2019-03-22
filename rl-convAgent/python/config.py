@@ -28,7 +28,7 @@ cur_train_index = start_batch * batch_size
 
 # word count threshold
 WC_threshold = 20
-reversed_WC_threshold = 6
+reversed_WC_threshold = 20 #6
 
 # dialog simulation turns
 MAX_TURNS = 10
