@@ -66,8 +66,8 @@ n_decode_lstm_step = 22
 r_n_encode_lstm_step = 22
 r_n_decode_lstm_step = 22
 
-learning_rate = 0.01 #0.0001
 epochs = 200
+learning_rate = 0.01 #0.0001
 batch_size = config.batch_size
 reversed_batch_size = config.batch_size
 

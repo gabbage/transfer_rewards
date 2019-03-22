@@ -7,7 +7,7 @@ test_data_path = 'data/test.pkl'
 all_words_path = 'data/all_words.txt'
 
 # training parameters 
-CHECKPOINT = True # True: use the saved model, False: restart training from scratch
+CHECKPOINT = False # True: use the saved model, False: restart training from scratch
 train_model_path = 'model/seq2seq/'
 train_model_name = 'model-best'
 start_epoch = 0#56
