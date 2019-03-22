@@ -359,6 +359,8 @@ def train():
     #dr = Data_Reader(cur_train_index=config.cur_train_index, load_list=config.load_list)
     train_dr = Data_Reader(config.training_data_path,shuffle=True)
 
+    epoch_loss = 0.0
+
     for epoch in range(start_epoch, epochs):
         n_batch = train_dr.get_batch_num(batch_size)
 
@@ -457,48 +459,49 @@ def train():
                 rewards = count_rewards(dull_loss, forward_entropies, backward_entropies, actions, former, reward_type='pg')
     
                 # policy gradient: train batch with rewards
+                _, loss_val = sess.run(
+                        [train_op, loss],
+                        feed_dict={
+                            input_tensors['word_vectors']: current_feats,
+                            input_tensors['caption']: current_caption_matrix,
+                            input_tensors['caption_mask']: current_caption_masks,
+                            input_tensors['reward']: rewards
+                        })
+
+                epoch_loss += loss_val
+
                 if batch % 10 == 0:
-                    _, loss_val = sess.run(
-                            [train_op, loss],
-                            feed_dict={
-                                input_tensors['word_vectors']: current_feats,
-                                input_tensors['caption']: current_caption_matrix,
-                                input_tensors['caption_mask']: current_caption_masks,
-                                input_tensors['reward']: rewards
-                            })
-                    logger.info("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, loss_val, time.time() - start_time))
-                else:
-                    _ = sess.run(train_op,
-                                 feed_dict={
-                                    input_tensors['word_vectors']: current_feats,
-                                    input_tensors['caption']: current_caption_matrix,
-                                    input_tensors['caption_mask']: current_caption_masks,
-                                    input_tensors['reward']: rewards
-                                })
+                    
+                    logger.info("Epoch: {}, batch: {}, loss: {}".format(epoch, 
+                                                                        batch, 
+                                                                        epoch_loss/float(batch))
+
                 if batch % 1000 == 0 and batch != 0:
                     logger.info("Epoch {} batch {} is done. Saving the model ...".format(epoch, batch))
+                    
                     saver.save(sess, os.path.join(model_path, 'model-{}-{}'.format(epoch, batch)))
+
             if training_type == 'normal':
+
+                _, loss_val = sess.run(
+                        [train_op, loss],
+                        feed_dict={
+                            input_tensors['word_vectors']: current_feats,
+                            input_tensors['caption']: current_caption_matrix,
+                            input_tensors['caption_mask']: current_caption_masks,
+                            input_tensors['reward']: ones_reward
+                        })
+
+                epoch_loss += loss_val
+                
                 if batch % 10 == 0:
-                    _, loss_val = sess.run(
-                            [train_op, loss],
-                            feed_dict={
-                                input_tensors['word_vectors']: current_feats,
-                                input_tensors['caption']: current_caption_matrix,
-                                input_tensors['caption_mask']: current_caption_masks,
-                                input_tensors['reward']: ones_reward
-                            })
-                    logger.info("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, loss_val, time.time() - start_time))
-                else:
-                    _ = sess.run(train_op,
-                                 feed_dict={
-                                    input_tensors['word_vectors']: current_feats,
-                                    input_tensors['caption']: current_caption_matrix,
-                                    input_tensors['caption_mask']: current_caption_masks,
-                                    input_tensors['reward']: ones_reward
-                                })
+                    
+                    logger.info("Epoch: {}, batch: {}, loss: {}".format(epoch, 
+                                                                        batch, 
+                                                                        epoch_loss/float(batch))
 
         logger.info("Epoch %s is done. Saving the model ..."%epoch)
+        
         saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
 
 if __name__ == "__main__":
