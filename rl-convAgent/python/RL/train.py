@@ -278,7 +278,7 @@ def count_rewards(dull_loss, forward_entropy, backward_entropy, forward_target, 
         return total_loss
 
 
-def reward(sess, tf_actions, tf_feats, current_feats, former, wordtoix):
+def reward(sess, tf_actions, tf_feats, tf_states, current_feats, former, wordtoix):
     # action: generate batch_size sents
     action_word_indexs, inference_feats = sess.run([tf_actions, tf_feats],
                                                     feed_dict={
@@ -480,12 +480,14 @@ def train():
                                                                 n_decode_lstm_step=n_decode_lstm_step)
 
             if training_type == 'pg':
-                
-                rewards = reward(sess, 
-                        tf_actions, tf_states,
-                        current_feats, 
-                        former, 
-                        wordtoix) 
+                        
+                rewards = reward(sess=sess, 
+                                tf_actions=tf_actions, 
+                                tf_feats=tf_feats, 
+                                tf_states=tf_states, 
+                                current_feats=current_feats, 
+                                former=former, 
+                                wordtoix= wordtoix) 
     
                 # policy gradient: train batch with rewards
                 _, loss_val = sess.run(
