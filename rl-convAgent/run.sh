@@ -98,7 +98,7 @@ then
 	then
 		 CUDA_VISIBLE_DEVICES=0 python python/train.py &> $log_file
 
-	elif [[ $model == "rl" ]]
+	elif [[ $model == "drl" ]]
 	then
 		CUDA_VISIBLE_DEVICES=0 python python/RL/train.py &> $log_file
 	fi
