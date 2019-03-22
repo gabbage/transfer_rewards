@@ -17,7 +17,7 @@ checkpoint_step=10 # save the model after howmany epohs
 reverse = True # True: means reverse input and output and train the model.
 
 # for RL training
-training_type = 'normal' # 'normal' for seq2seq training, 'pg' for policy gradient
+training_type = 'pg' # 'normal' for seq2seq training, 'pg' for policy gradient
 reversed_model_path = 'model/reversed/'
 reversed_model_name = 'model-best'
 
