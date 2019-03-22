@@ -9,7 +9,7 @@ all_words_path = 'data/all_words.txt'
 # training parameters 
 CHECKPOINT = False # True: use the saved model, False: restart training from scratch
 train_model_path = 'model/seq2seq/'
-train_model_name = 'model-55'
+train_model_name = 'model-best'
 start_epoch = 0#56
 start_batch = 0
 batch_size = 25
@@ -19,7 +19,7 @@ reverse = True # True: means reverse input and output and train the model.
 # for RL training
 training_type = 'normal' # 'normal' for seq2seq training, 'pg' for policy gradient
 reversed_model_path = 'model/reversed/'
-reversed_model_name = ''
+reversed_model_name = 'model-best'
 
 # data reader shuffle index list
 load_list = False

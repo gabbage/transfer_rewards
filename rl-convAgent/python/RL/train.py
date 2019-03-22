@@ -312,14 +312,20 @@ def train():
                 lr=learning_rate)
         train_op, loss, input_tensors, inter_value = model.build_model()
         tf_states, tf_actions, tf_feats = model.build_generator()
-        sess = tf.InteractiveSession()
+
+        sess_config = tf.ConfigProto()
+
+        sess_config.gpu_options.allow_growth = True
+
+        sess = tf.InteractiveSession(config=sess_config)
+        
         saver = tf.train.Saver(max_to_keep=100)
         if checkpoint:
-            print("Use Model {}.".format(model_name))
+            logger.info("Use Model %s."%model_name)
             saver.restore(sess, os.path.join(model_path, model_name))
-            print("Model {} restored.".format(model_name))
+            logger.info("Model {} restored.".format(model_name))
         else:
-            print("Restart training...")
+            logger.info("Restart training...")
             tf.global_variables_initializer().run()
 
     r_wordtoix, r_ixtoword, r_bias_init_vector = data_parser.preProBuildWordVocab(word_count_threshold=r_word_count_threshold)
@@ -334,10 +340,16 @@ def train():
             bias_init_vector=r_bias_init_vector,
             lr=learning_rate)
         _, _, word_vectors, caption, caption_mask, reverse_inter = reversed_model.build_model()
-        sess2 = tf.InteractiveSession()
+        
+        sess_config = tf.ConfigProto()
+
+        sess_config.gpu_options.allow_growth = True
+
+        sess2 = tf.InteractiveSession(config=sess_config)
+    
         saver2 = tf.train.Saver()
         saver2.restore(sess2, os.path.join(reversed_model_path, reversed_model_name))
-        print("Reversed model {} restored.".format(reversed_model_name))
+        logger.info("Reversed model {} restored.".format(reversed_model_name))
 
 
     dr = Data_Reader(cur_train_index=config.cur_train_index, load_list=config.load_list)
