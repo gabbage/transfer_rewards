@@ -356,7 +356,9 @@ def train():
 
     for epoch in range(start_epoch, epochs):
         n_batch = dr.get_batch_num(batch_size)
+
         sb = start_batch if epoch == start_epoch else 0
+
         for batch in range(sb, n_batch):
             start_time = time.time()
 
@@ -459,7 +461,7 @@ def train():
                                 input_tensors['caption_mask']: current_caption_masks,
                                 input_tensors['reward']: rewards
                             })
-                    print("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, loss_val, time.time() - start_time))
+                    logger.info("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, loss_val, time.time() - start_time))
                 else:
                     _ = sess.run(train_op,
                                  feed_dict={
@@ -469,7 +471,7 @@ def train():
                                     input_tensors['reward']: rewards
                                 })
                 if batch % 1000 == 0 and batch != 0:
-                    print("Epoch {} batch {} is done. Saving the model ...".format(epoch, batch))
+                    logger.info("Epoch {} batch {} is done. Saving the model ...".format(epoch, batch))
                     saver.save(sess, os.path.join(model_path, 'model-{}-{}'.format(epoch, batch)))
             if training_type == 'normal':
                 if batch % 10 == 0:
@@ -481,7 +483,7 @@ def train():
                                 input_tensors['caption_mask']: current_caption_masks,
                                 input_tensors['reward']: ones_reward
                             })
-                    print("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, loss_val, time.time() - start_time))
+                    logger.info("Epoch: {}, batch: {}, loss: {}, Elapsed time: {}".format(epoch, batch, loss_val, time.time() - start_time))
                 else:
                     _ = sess.run(train_op,
                                  feed_dict={
@@ -491,8 +493,11 @@ def train():
                                     input_tensors['reward']: ones_reward
                                 })
 
-        print("Epoch ", epoch, " is done. Saving the model ...")
+        logger.info("Epoch %s is done. Saving the model ..."%epoch)
         saver.save(sess, os.path.join(model_path, 'model'), global_step=epoch)
 
 if __name__ == "__main__":
+    
+    logger.info(config)
+
     train()
