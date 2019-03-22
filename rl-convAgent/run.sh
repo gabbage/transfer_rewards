@@ -7,7 +7,7 @@ machine='gpu' # possible values: {'local', 'gpu'}, where 'local' has no GPU and 
 
 env='rl-convagent' 
 
-experiment='movie-dialogue-reverse'
+experiment='movie-dialogue-rl'
  
 log_file='./logs/'$experiment
 
@@ -100,7 +100,7 @@ then
 
 	elif [[ $model == "rl" ]]
 	then
-		python python/RL/train.py &> $log_file
+		CUDA_VISIBLE_DEVICES=0 python python/RL/train.py &> $log_file
 	fi
 
 elif [[ $mode == "test" ]]
@@ -108,9 +108,9 @@ then
 	if [[ $model == "seq2seq" ]]
 	then
 		
-		python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE &> $log_file
+		CUDA_VISIBLE_DEVICES=0 python python/test.py $PATH_TO_MODEL $INPUT_FILE $OUTPUT_FILE &> $log_file
 
-		python python/metrics.py $OUTPUT_FILE  $GOLD_FILE &>> $log_file
+		CUDA_VISIBLE_DEVICES=0 python python/metrics.py $OUTPUT_FILE  $GOLD_FILE &>> $log_file
 	fi
 fi
 
