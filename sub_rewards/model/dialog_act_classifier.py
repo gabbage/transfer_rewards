@@ -110,7 +110,7 @@ class FeatureBased(object):
 
 		acc = accuracy_score(gold, pred)*100
 
-		logger.info('\tacc = %.2f%%\\%'%acc)
+		logger.info('\tacc = %.2f%%'%acc)
 
 	def text_to_label(self, data_y):
 		labels = [ int(label) for label in data_y]
