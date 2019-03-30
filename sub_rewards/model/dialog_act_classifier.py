@@ -34,7 +34,7 @@ class FeatureBased(object):
 		self.voc = self.bow_vectorizer.vocabulary_ # voc={word:id (feature_index)} 
 		train_label = self.text_to_label(train_y)
 		self.train_data = (train_feat, train_label)
-		logger.info('train data is ready')
+		
 
 		valid_x, valid_y = self.load(self.valid_path)
 		logger.info('valid data is loaded. #samples: %d, #labels:%d'%(len(valid_x), len(valid_y)))
@@ -42,7 +42,7 @@ class FeatureBased(object):
 		logger.info('valid_feat: %s'%str(valid_feat.shape))
 		valid_label = self.text_to_label(valid_y) 
 		self.valid_data = (valid_feat, valid_label)
-		logger.info('valid data is ready')
+		
 
 		test_x, test_y = self.load(self.test_path)
 		logger.info('test data is loaded. #samples: %d, #labels:%d'%(len(test_x), len(test_y)))
@@ -50,7 +50,7 @@ class FeatureBased(object):
 		logger.info('test_feat: %s'%str(test_feat.shape))
 		test_label 	= self.text_to_label(test_y) 
 		self.test_data = (test_feat, test_label)
-		logger.info('test data is ready')
+		
 
 	def load(self, data_path):
 
