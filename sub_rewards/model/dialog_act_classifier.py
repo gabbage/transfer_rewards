@@ -23,12 +23,15 @@ class FeatureBased(object):
 		logger.info('valid_path: %s'%valid_path)
 		logger.info('test_path: %s'%test_path)
 
+		self.bow_vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
+
 	def prepare_data(self):
 
 		train_x, train_y = self.load(self.train_path)
 		logger.info('train data is loaded. #samples: %d, #labels:%d'%(len(train_x), len(train_y)))
-		train_feat  = self.text_to_features(train_x)
+		train_feat  = self.text_to_features(train_x, is_trainset=True)
 		logger.info('train_feat: %s'%str(train_feat.shape))
+		self.voc = train_feat.vectorizer.vocabulary_ # voc={word:id (feature_index)} 
 		train_label = self.text_to_label(train_y)
 		self.train_data = (train_feat, train_label)
 		logger.info('train data is ready')
@@ -102,17 +105,20 @@ class FeatureBased(object):
     
 		return tokens
 
-	def text_to_features(self, data_x):
+	def text_to_features(self, data_x, is_trainset=False):
 		'''
 			data: is a list of texts  
 		'''
 		feature_vectors = []
-		# 
 
 		# bag of words
-		vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
+		if is_trainset:
+			
+			feature_vectors = self.self.bow_vectorizer.fit_transform(data_x)
 		
-		feature_vectors = vectorizer.fit_transform(data_x)
+		else:
+
+			feature_vectors = self.self.bow_vectorizer.transform(data_x)
 		
 		return feature_vectors
 
