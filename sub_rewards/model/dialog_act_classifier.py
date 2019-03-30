@@ -28,13 +28,15 @@ class FeatureBased(object):
 
 		# define the model
 		#self.model = naive_bayes.MultinomialNB()
-		#self.model = linear_model.LogisticRegression(random_state=1234, 
-		#											 solver='lbfgs',
-		#											 multi_class='multinomial',
-		#											 penalty='l2')
-		self.model = svm.LinearSVC(random_state=1234, 
-									tol=1e-5,
-									penalty='l2')
+
+		self.model = linear_model.LogisticRegression(random_state=1234, 
+													 solver='lbfgs',
+													 multi_class='multinomial',
+													 penalty='l2')
+
+		#self.model = svm.LinearSVC(random_state=1234, 
+		#							tol=1e-5,
+		#							penalty='l2')
 
 		self.bow_vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
 
