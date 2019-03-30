@@ -28,7 +28,7 @@ class FeatureBased(object):
 		train_x, train_y = self.load(self.train_path)
 		logger.info('train data is loaded. #samples: %d, #labels:%d'%(len(train_x), len(train_y)))
 		train_feat  = self.text_to_features(train_x)
-		logger.info('train_feat: %s'%train_feat.shape)
+		logger.info('train_feat: %s'%str(train_feat.shape))
 		train_label = self.text_to_label(train_y)
 		self.train_data = (train_feat, train_label)
 		logger.info('train data is ready')
