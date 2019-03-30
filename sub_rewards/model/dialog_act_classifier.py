@@ -163,7 +163,7 @@ if __name__== '__main__':
 
 	inp = ['Thank you!','how can I help you?']
 
-	labels_pred = fb.pred(inp)
+	labels_pred = fb.predict(inp)
 	print(inp)
 	print(labels_pred)
 
