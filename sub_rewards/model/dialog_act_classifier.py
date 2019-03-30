@@ -121,12 +121,14 @@ class FeatureBased(object):
 
 		labels = {1: 'inform', 2: 'question', 3: 'directive', 4: 'commissive'}
 
-		label_pred_string = [ labels[l] for l in label_pred]
+		label_pred_string = [ labels[l+1] for l in label_pred]
 
 		return label_pred, label_pred_string
 
 	def text_to_label(self, data_y):
-		labels = [ int(label) for label in data_y]
+
+		labels = [ int(label)-1 for label in data_y]
+		
 		return labels
 
 	def tokenizeText(self, sample):
