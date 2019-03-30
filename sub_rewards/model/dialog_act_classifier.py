@@ -12,18 +12,18 @@ class FeatureBased(object):
 
 	def prepare_data(self):
 
-		train_x, train_y = self.load(train_path)
+		train_x, train_y = self.load(self.train_path)
 		train_feat  = text_to_features(train_x)
 		train_label = text_to_label(train_y)
 		self.train = (train_feat, train_label)
 		print(self.train)
 
-		valid_x, valid_y = self.load(valid_path)
+		valid_x, valid_y = self.load(self.valid_path)
 		valid_feat  = text_to_features(valid_x)
 		valid_label = text_to_label(valid_y) 
 		self.valid = (valid_feat, valid_label)
 
-		test_x, test_y = self.load(test_path)
+		test_x, test_y = self.load(self.test_path)
 		test_feat  	= text_to_features(test_x)
 		test_label 	= text_to_label(test_y) 
 		self.test = (test_feat, test_label)
