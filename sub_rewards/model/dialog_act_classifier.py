@@ -13,7 +13,7 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
 logger = logging.getLogger(__name__)
 
 class FeatureBased(object):
-	
+
 	def __init__(self, train_path=None, valid_path=None, test_path=None):
 		
 		self.train_path = train_path
@@ -25,6 +25,8 @@ class FeatureBased(object):
 		logger.info('train_path: %s'%train_path)
 		logger.info('valid_path: %s'%valid_path)
 		logger.info('test_path: %s'%test_path)
+
+		self.model = MultinomialNB()
 
 		self.bow_vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
 
@@ -85,7 +87,7 @@ class FeatureBased(object):
 		'''
 		train the model on the training data
 		'''
-		self.model = MultinomialNB().fit(self.train_data[0], self.train_data[1])
+		self.model = self.model.fit(self.train_data[0], self.train_data[1])
 
 	def eval(self):
 		'''
