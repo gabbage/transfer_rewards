@@ -162,7 +162,7 @@ class FeatureBased(object):
 
 			pickle.dump(self.bow_vectorizer, file)	
 
-		logger.info('mode saved: %s'%model_path)
+		logger.info('model saved: %s'%model_path)
 	
 	def load(self, model_path):
 
@@ -174,7 +174,7 @@ class FeatureBased(object):
 
 			self.bow_vectorizer = pickle.load(file)
 
-		logger.info('mode loaded: %s'%model_path)
+		logger.info('model loaded: %s'%model_path)
 
 if __name__== '__main__':
 
