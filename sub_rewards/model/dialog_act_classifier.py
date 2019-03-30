@@ -114,11 +114,11 @@ class FeatureBased(object):
 		# bag of words
 		if is_trainset:
 			
-			feature_vectors = self.self.bow_vectorizer.fit_transform(data_x)
+			feature_vectors = self.bow_vectorizer.fit_transform(data_x)
 		
 		else:
 
-			feature_vectors = self.self.bow_vectorizer.transform(data_x)
+			feature_vectors = self.bow_vectorizer.transform(data_x)
 		
 		return feature_vectors
 
