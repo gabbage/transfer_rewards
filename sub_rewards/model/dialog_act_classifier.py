@@ -85,13 +85,18 @@ class FeatureBased(object):
 		'''
 		self.clf = MultinomialNB().fit(self.train_data[0], self.train_data[1])
 
-	def eval(self):
+	def eval(self, verbos=False):
 		'''
 		evaluate the model on the test data
 		'''
 		logger.info('validation:')
 
 		valid_pred = self.clf.predict(self.valid_data[0])
+
+		if verbos:
+
+			for i in range(len(valid_pred)):
+				logger.info('pred: %d, gold: %d'%(valid_pred[i], self.valid_data[1][i]))
 
 		self.metric(pred=valid_pred, gold=self.valid_data[1])
 
@@ -148,6 +153,6 @@ if __name__== '__main__':
 
 	fb.train()
 
-	fb.eval()
+	fb.eval(verbos=True)
 
 
