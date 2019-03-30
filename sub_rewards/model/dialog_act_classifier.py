@@ -29,7 +29,7 @@ class FeatureBased(object):
 
 	def prepare_data(self):
 
-		train_x, train_y = self.load(self.train_path)
+		train_x, train_y = self.load_data(self.train_path)
 		logger.info('train data is loaded. #samples: %d, #labels:%d'%(len(train_x), len(train_y)))
 		train_feat  = self.text_to_features(train_x, is_trainset=True)
 		logger.info('train_feat: %s'%str(train_feat.shape))
@@ -38,7 +38,7 @@ class FeatureBased(object):
 		self.train_data = (train_feat, train_label)
 		
 
-		valid_x, valid_y = self.load(self.valid_path)
+		valid_x, valid_y = self.load_data(self.valid_path)
 		logger.info('valid data is loaded. #samples: %d, #labels:%d'%(len(valid_x), len(valid_y)))
 		valid_feat  = self.text_to_features(valid_x)
 		logger.info('valid_feat: %s'%str(valid_feat.shape))
@@ -46,14 +46,14 @@ class FeatureBased(object):
 		self.valid_data = (valid_feat, valid_label)
 		
 
-		test_x, test_y = self.load(self.test_path)
+		test_x, test_y = self.load_data(self.test_path)
 		logger.info('test data is loaded. #samples: %d, #labels:%d'%(len(test_x), len(test_y)))
 		test_feat  	= self.text_to_features(test_x)
 		logger.info('test_feat: %s'%str(test_feat.shape))
 		test_label 	= self.text_to_label(test_y) 
 		self.test_data = (test_feat, test_label)
 		
-	def load(self, data_path):
+	def load_data(self, data_path):
 
 		with open(data_path, 'r') as f:
 			
@@ -158,7 +158,7 @@ class FeatureBased(object):
 
 			pickle.dump(self.model, file)
 	
-	def restore(self, model_path):
+	def load(self, model_path):
 
 		with open(model_path, 'rb') as file:
 
