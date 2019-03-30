@@ -52,5 +52,5 @@ fi
 ###
 ##
 # dialog_act_classifier
-ipython model/dialog_act_classifier.py &> $log_file
+ipython model/dialog_act_classifier.py &> $log_file'.log'
 
