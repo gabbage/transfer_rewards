@@ -16,17 +16,17 @@ class FeatureBased(object):
 		train_x, train_y = self.load(self.train_path)
 		train_feat  = self.text_to_features(train_x)
 		train_label = self.text_to_label(train_y)
-		self.train = (train_feat, train_label)
+		self.train_data = (train_feat, train_label)
 
 		valid_x, valid_y = self.load(self.valid_path)
 		valid_feat  = self.text_to_features(valid_x)
 		valid_label = self.text_to_label(valid_y) 
-		self.valid = (valid_feat, valid_label)
+		self.valid_data = (valid_feat, valid_label)
 
 		test_x, test_y = self.load(self.test_path)
 		test_feat  	= self.text_to_features(test_x)
 		test_label 	= self.text_to_label(test_y) 
-		self.test = (test_feat, test_label)
+		self.test_data = (test_feat, test_label)
 
 	def load(self, data_path):
 
@@ -59,13 +59,13 @@ class FeatureBased(object):
 		'''
 		train the model on the training data
 		'''
-		self.clf = MultinomialNB().fit(self.train[0], self.train[1])
+		self.clf = MultinomialNB().fit(self.train_data[0], self.train_data[1])
 
 	def eval(self):
 		'''
 		evaluate the model on the test data
 		'''
-		valid_pred = self.clf.predict(self.valid[0])
+		valid_pred = self.clf.predict(self.valid_data[0])
 
 		print(valid_pred)
 
