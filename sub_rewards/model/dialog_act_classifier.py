@@ -1,6 +1,6 @@
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn import naive_bayes, svm, linear_model
-from sklearn.metrics import accuracy_score
+from sklearn import metrics
 
 import pickle
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class FeatureBased(object):
 
-	def __init__(self, train_path=None, valid_path=None, test_path=None):
+	def __init__(self, train_path=None, valid_path=None,  test_path=None, model='linreg'):
 		
 		self.train_path = train_path
 
@@ -27,16 +27,20 @@ class FeatureBased(object):
 		logger.info('test_path: %s'%test_path)
 
 		# define the model
-		#self.model = naive_bayes.MultinomialNB()
+		if model == 'linreg':
 
-		self.model = linear_model.LogisticRegression(random_state=1234, 
-													 solver='lbfgs',
-													 multi_class='multinomial',
-													 penalty='l2')
+			self.model = linear_model.LogisticRegression(random_state=1234, 
+														 solver='lbfgs',
+														 multi_class='multinomial',
+														 penalty='l2')
+		elif model == 'linsvm':
 
-		#self.model = svm.LinearSVC(random_state=1234, 
-		#							tol=1e-5,
-		#							penalty='l2')
+			self.model = svm.LinearSVC(random_state=1234, 
+										tol=1e-5,
+										penalty='l2')
+		else:
+
+			raise NotImplemetedError()
 
 		self.bow_vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
 
@@ -119,7 +123,8 @@ class FeatureBased(object):
 
 	def metric(self, pred, gold):
 
-		acc = accuracy_score(gold, pred)*100
+		#acc = metrics.accuracy_score(gold, pred)*100
+		acc = metrics.balanced_accuracy_score(gold, pred)*100
 
 		return acc
 
@@ -194,7 +199,9 @@ if __name__== '__main__':
 
 	fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
 								 valid_path='./data/daily_dialog/validation/act_utt.txt',
-								 test_path='./data/daily_dialog/test/act_utt.txt')
+								 test_path='./data/daily_dialog/test/act_utt.txt',
+								 model='linreg' 
+								 )
 	
 	fb.prepare_data() # convert text data to features
 
