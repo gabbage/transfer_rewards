@@ -86,9 +86,9 @@ class FeatureBased(object):
 
 		# bag of words
 		vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
-
-		feature_vectors = vectorizer(data_x) 
-
+		
+		feature_vectors = vectorizer.fit_transform(data_x)
+		
 		return feature_vectors
 
 
