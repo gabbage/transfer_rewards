@@ -27,7 +27,10 @@ class FeatureBased(object):
 		logger.info('test_path: %s'%test_path)
 
 		# define the model
-		if model == 'linreg':
+		if model =='multinomial':
+			self.model = naive_bayes.MultinomialNB()
+
+		elif model == 'linreg':
 
 			self.model = linear_model.LogisticRegression(random_state=1234, 
 														 solver='lbfgs',
@@ -200,7 +203,7 @@ if __name__== '__main__':
 	fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
 								 valid_path='./data/daily_dialog/validation/act_utt.txt',
 								 test_path='./data/daily_dialog/test/act_utt.txt',
-								 model='linreg' 
+								 model='multinomial' 
 								 )
 	
 	fb.prepare_data() # convert text data to features
