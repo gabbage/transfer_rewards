@@ -1,5 +1,5 @@
 # Setup #
-* install anaconda (my anaconda version:2018.12, python version : 3.7.1.final.0, conda version:4.5.12, conda-build version : 3.17.6) (download it from its website). You can check this information by the following commands:
+* install anaconda (my anaconda version:2018.12, python version : 3.7.1.final.0, conda version:4.6.8, conda-build version : 3.17.6, platform : linux-64) (download it from its website). You can check this information by the following commands:
 ```
 conda list conda$
 conda info
