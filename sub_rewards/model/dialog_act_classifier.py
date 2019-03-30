@@ -13,7 +13,7 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
 logger = logging.getLogger(__name__)
 
 class FeatureBased(object):
-	def __init__(self, train_path, valid_path, test_path):
+	def __init__(self, train_path=None, valid_path=None, test_path=None):
 		
 		self.train_path = train_path
 
