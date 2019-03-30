@@ -31,7 +31,7 @@ class FeatureBased(object):
 		logger.info('train data is loaded. #samples: %d, #labels:%d'%(len(train_x), len(train_y)))
 		train_feat  = self.text_to_features(train_x, is_trainset=True)
 		logger.info('train_feat: %s'%str(train_feat.shape))
-		self.voc = train_feat.vectorizer.vocabulary_ # voc={word:id (feature_index)} 
+		self.voc = self.bow_vectorizer.vocabulary_ # voc={word:id (feature_index)} 
 		train_label = self.text_to_label(train_y)
 		self.train_data = (train_feat, train_label)
 		logger.info('train data is ready')
