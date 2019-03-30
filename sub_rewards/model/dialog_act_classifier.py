@@ -116,7 +116,16 @@ class FeatureBased(object):
 
 		label_pred = self.clf.predict(feat_vecs)
 
-		return label_pred
+		
+
+		labels = {	1: 'inform'，
+					2: 'question', 
+					3: 'directive', 
+					4: 'commissive'
+				 }
+		label_pred_string = [ labels[l] for l in label_pred]
+
+		return label_pred, label_pred_string
 
 	def text_to_label(self, data_y):
 		labels = [ int(label) for label in data_y]
@@ -163,8 +172,9 @@ if __name__== '__main__':
 
 	inp = ['Thank you!','how can I help you?']
 
-	labels_pred = fb.predict(inp)
+	labels_pred, label_pred_string = fb.predict(inp)
 	print(inp)
 	print(labels_pred)
+	print(label_pred_string)
 
 
