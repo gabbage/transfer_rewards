@@ -1,5 +1,5 @@
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.naive_bayes import MultinomialNB
+from sklearn import naive_bayes, svm
 from sklearn.metrics import accuracy_score
 
 import pickle
@@ -26,7 +26,9 @@ class FeatureBased(object):
 		logger.info('valid_path: %s'%valid_path)
 		logger.info('test_path: %s'%test_path)
 
-		self.model = MultinomialNB()
+		# define the model
+		self.model = naive_bayes.MultinomialNB()
+		self.model = svm.SVC(gamma='scale', decision_function_shape='ovo')
 
 		self.bow_vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
 
