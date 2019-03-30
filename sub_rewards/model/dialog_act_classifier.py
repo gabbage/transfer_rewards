@@ -118,11 +118,8 @@ class FeatureBased(object):
 
 		
 
-		labels = {	1: 'inform'，
-					2: 'question', 
-					3: 'directive', 
-					4: 'commissive'
-				 }
+		labels = {	1: 'inform'，2: 'question', 3: 'directive', 4: 'commissive'}
+		
 		label_pred_string = [ labels[l] for l in label_pred]
 
 		return label_pred, label_pred_string
