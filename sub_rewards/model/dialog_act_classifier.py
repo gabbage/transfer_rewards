@@ -128,7 +128,7 @@ class FeatureBased(object):
 
 		acc = metrics.accuracy_score(gold, pred)*100
 		
-		f1 = metrics.f1_score(gold, pred, average='weighted')
+		f1 = metrics.f1_score(gold, pred, average='weighted')*100
 
 		return acc, f1
 
