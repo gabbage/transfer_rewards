@@ -95,7 +95,7 @@ class FeatureBased(object):
 
 if __name__== '__main__':
 
-	fb = FeatureBased(train_path= './data/daily_dialog/act_utt.txt',
+	fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
 								 valid_path='./data/daily_dialog/validation/act_utt.txt',
 								 test_path='./data/daily_dialog/test/act_utt.tx')
 	
