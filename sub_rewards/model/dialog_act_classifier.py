@@ -65,9 +65,9 @@ class FeatureBased(object):
 		evaluate the model on the test data
 		'''
 
-	def text_to_label(self, sample):
-
-		return int(sample)
+	def text_to_label(self, data_y):
+		labels = [ int(label) for label in data_y]
+		return labels
 
 	def tokenizeText(self, sample):
 
