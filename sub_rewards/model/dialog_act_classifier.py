@@ -161,6 +161,8 @@ class FeatureBased(object):
 		with open(model_path+'_vectorizer.mdl', 'wb') as file:  
 
 			pickle.dump(self.bow_vectorizer, file)	
+
+		logger.info('mode saved: %s'%model_path)
 	
 	def load(self, model_path):
 
@@ -171,6 +173,8 @@ class FeatureBased(object):
 		with open(model_path+'_vectorizer.mdl', 'rb') as file:
 
 			self.bow_vectorizer = pickle.load(file)
+
+		logger.info('mode loaded: %s'%model_path)
 
 if __name__== '__main__':
 
@@ -200,7 +204,9 @@ if __name__== '__main__':
 	labels_pred, label_pred_string = new_fb.predict(inp)
 	print(inp)
 	print(labels_pred)
-	print(label_pred_string)	
+	print(label_pred_string)
+
+
 
 
 
