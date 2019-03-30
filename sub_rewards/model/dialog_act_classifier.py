@@ -2,6 +2,14 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 
 
+import logging
+
+logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                datefmt = '%m/%d/%Y %H:%M:%S',
+                level = logging.INFO)
+
+logger = logging.getLogger(__name__)
+
 class FeatureBased(object):
 	def __init__(self, train_path, valid_path, test_path):
 		
@@ -11,22 +19,33 @@ class FeatureBased(object):
 
 		self.test_path  = test_path
 
+		logger.info('train_path: %s'%train_path)
+		logger.info('valid_path: %s'%valid_path)
+		logger.info('test_path: %s'%test_path)
+
 	def prepare_data(self):
 
 		train_x, train_y = self.load(self.train_path)
+		logger.info('train data is loaded. #samples: %d, #labels:%d'%(len(train_x), len(train_y)))
 		train_feat  = self.text_to_features(train_x)
+		logger.info('train_feat: %s'%train_feat.shape)
 		train_label = self.text_to_label(train_y)
 		self.train_data = (train_feat, train_label)
+		logger.info('train data is ready')
 
 		valid_x, valid_y = self.load(self.valid_path)
+		logger.info('valid data is loaded. #samples: %d, #labels:%d'%(len(valid_x), len(valid_y)))
 		valid_feat  = self.text_to_features(valid_x)
 		valid_label = self.text_to_label(valid_y) 
 		self.valid_data = (valid_feat, valid_label)
+		logger.info('valid data is ready')
 
 		test_x, test_y = self.load(self.test_path)
+		logger.info('test data is loaded. #samples: %d, #labels:%d'%(len(test_x), len(test_y)))
 		test_feat  	= self.text_to_features(test_x)
 		test_label 	= self.text_to_label(test_y) 
 		self.test_data = (test_feat, test_label)
+		logger.info('test data is ready')
 
 	def load(self, data_path):
 
@@ -68,8 +87,6 @@ class FeatureBased(object):
 		valid_pred = self.clf.predict(self.valid_data[0])
 
 		print(valid_pred)
-
-
 
 	def text_to_label(self, data_y):
 		labels = [ int(label) for label in data_y]
