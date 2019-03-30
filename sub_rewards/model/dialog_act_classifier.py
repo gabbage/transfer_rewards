@@ -110,6 +110,14 @@ class FeatureBased(object):
 
 		return acc
 
+	def predict(self, list_texts):
+
+		feat_vecs  = self.text_to_features(list_texts)
+
+		label_pred = self.clf.predict(feat_vecs)
+
+		return label_pred
+
 	def text_to_label(self, data_y):
 		labels = [ int(label) for label in data_y]
 		return labels
@@ -152,5 +160,11 @@ if __name__== '__main__':
 	fb.train()
 
 	fb.eval()
+
+	inp = ['Thank you!','how can I help you?']
+
+	labels_pred = fb.pred(inp)
+	print(inp)
+	print(labels_pred)
 
 
