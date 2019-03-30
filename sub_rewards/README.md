@@ -18,7 +18,3 @@ In order to run the agent:
 ```
 ./run.sh
 ```
-
-If you want to finish the conversation, type ```bye```
-
-You can check the log files in the directory ```./logs```
