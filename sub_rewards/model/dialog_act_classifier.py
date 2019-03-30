@@ -1,4 +1,5 @@
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
 
 
 class FeatureBased(object):
@@ -16,7 +17,6 @@ class FeatureBased(object):
 		train_feat  = self.text_to_features(train_x)
 		train_label = self.text_to_label(train_y)
 		self.train = (train_feat, train_label)
-		print(self.train)
 
 		valid_x, valid_y = self.load(self.valid_path)
 		valid_feat  = self.text_to_features(valid_x)
@@ -59,11 +59,17 @@ class FeatureBased(object):
 		'''
 		train the model on the training data
 		'''
+		self.clf = MultinomialNB().fit(self.train[0], self.train[1])
 
 	def eval(self):
 		'''
 		evaluate the model on the test data
 		'''
+		valid_pred = self.clf.predict(self.valid[0])
+
+		print(valid_pred)
+
+
 
 	def text_to_label(self, data_y):
 		labels = [ int(label) for label in data_y]
@@ -101,6 +107,8 @@ if __name__== '__main__':
 	
 	fb.prepare_data() # convert text data to features
 
+	fb.train()
 
+	fb.eval()
 
 
