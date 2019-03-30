@@ -1,6 +1,6 @@
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
-
+from sklearn.metrics import accuracy_score
 
 import logging
 
@@ -89,9 +89,23 @@ class FeatureBased(object):
 		'''
 		evaluate the model on the test data
 		'''
+		logger.info('validation:')
+
 		valid_pred = self.clf.predict(self.valid_data[0])
 
-		print(valid_pred)
+		self.metric(pred=valid_pred, gold=self.valid_data[1])
+
+		logger.info('test:')
+
+		test_pred = self.clf.predict(self.test_data[0])
+
+		self.metric(pred=test_pred, gold=self.test_data[1])
+
+	def metric(self, pred, gold):
+
+		acc = accuracy_score(gold, pred)
+
+		logger.info('acc: %2.f'%acc)
 
 	def text_to_label(self, data_y):
 		labels = [ int(label) for label in data_y]
