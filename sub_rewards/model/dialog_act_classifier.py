@@ -122,13 +122,13 @@ class FeatureBased(object):
 
 		test_acc, test_f1 = self.metric(pred=test_pred, gold=self.test_data[1])
 
-		logger.info('train: (acc = %.2f%%, f1 = %s), valid: (acc = %.2f%%, f1 = %s), test: (acc = %.2f%%, f1 = %s)'%(train_acc,train_f1,valid_acc,valid_f1,test_acc,test_f1))
+		logger.info('train: (acc = %.2f%%, f1 = %.2f), valid: (acc = %.2f%%, f1 = %.2f) test: (acc = %.2f%%, f1 = %.2f)'%(train_acc,train_f1,valid_acc,valid_f1,test_acc,test_f1))
 
 	def metric(self, pred, gold):
 
 		acc = metrics.accuracy_score(gold, pred)*100
 		
-		f1 = metrics.f1_score(gold, pred, average=None )
+		f1 = metrics.f1_score(gold, pred, average='weighted')
 
 		return acc, f1
 
