@@ -127,8 +127,8 @@ class FeatureBased(object):
 	def metric(self, pred, gold):
 
 		#acc = metrics.accuracy_score(gold, pred)*100
-		f = metrics.f1_score(gold,pred)
-		
+		f = metrics.f1_score(gold, pred, average=None )
+
 		return acc
 
 	def predict(self, list_texts):
