@@ -2,6 +2,8 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score
 
+import pickle
+
 import logging
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -51,7 +53,6 @@ class FeatureBased(object):
 		test_label 	= self.text_to_label(test_y) 
 		self.test_data = (test_feat, test_label)
 		
-
 	def load(self, data_path):
 
 		with open(data_path, 'r') as f:
@@ -83,22 +84,22 @@ class FeatureBased(object):
 		'''
 		train the model on the training data
 		'''
-		self.clf = MultinomialNB().fit(self.train_data[0], self.train_data[1])
+		self.model = MultinomialNB().fit(self.train_data[0], self.train_data[1])
 
 	def eval(self):
 		'''
 		evaluate the model on the test data
 		'''
 
-		train_pred = self.clf.predict(self.train_data[0])
+		train_pred = self.model.predict(self.train_data[0])
 
 		train_acc = self.metric(pred=train_pred, gold=self.train_data[1])
 
-		valid_pred = self.clf.predict(self.valid_data[0])
+		valid_pred = self.model.predict(self.valid_data[0])
 
 		valid_acc =  self.metric(pred=valid_pred, gold=self.valid_data[1])
 
-		test_pred = self.clf.predict(self.test_data[0])
+		test_pred = self.model.predict(self.test_data[0])
 
 		test_acc = self.metric(pred=test_pred, gold=self.test_data[1])
 
@@ -114,9 +115,7 @@ class FeatureBased(object):
 
 		feat_vecs  = self.text_to_features(list_texts)
 
-		label_pred = self.clf.predict(feat_vecs)
-
-		
+		label_pred = self.model.predict(feat_vecs)
 
 		labels = {1: 'inform', 2: 'question', 3: 'directive', 4: 'commissive'}
 
@@ -153,7 +152,17 @@ class FeatureBased(object):
 		
 		return feature_vectors
 
+	def save(self, model_path):
 
+		with open(model_path, 'wb') as file:  
+
+			pickle.dump(self.model, file)
+	
+	def restore(self, model_path):
+
+		with open(model_path, 'rb') as file:
+
+			self.model = pickle.load(file)
 
 if __name__== '__main__':
 
@@ -173,5 +182,20 @@ if __name__== '__main__':
 	print(inp)
 	print(labels_pred)
 	print(label_pred_string)
+
+	fb.save('mode_bow.mdl')
+
+	new_fb = FeatureBased()
+
+	new_fb.load('mode_bow.mdl')
+
+	labels_pred, label_pred_string = new_fb.predict(inp)
+	print(inp)
+	print(labels_pred)
+	print(label_pred_string)	
+
+
+
+
 
 
