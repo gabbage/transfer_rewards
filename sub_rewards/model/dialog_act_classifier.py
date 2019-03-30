@@ -70,12 +70,12 @@ class FeatureBased(object):
 		return int(sample)
 
 	def tokenizeText(self, sample):
-    
-    	tokens = sample.split(' ')
 
-    	tokens = [token.lower().strip() for token in tokens if len(token)>0]
+		tokens = sample.split(' ')
+
+		tokens = [token.lower().strip() for token in tokens if len(token)>0]
     
-    	return tokens
+		return tokens
 
 	def text_to_features(self, data_x):
 		'''
