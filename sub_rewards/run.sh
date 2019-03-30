@@ -52,5 +52,5 @@ fi
 ###
 ##
 # Finally execute the model
-
+ipython model/dialog_act_classifier.py
 

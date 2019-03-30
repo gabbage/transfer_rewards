@@ -195,11 +195,11 @@ if __name__== '__main__':
 	print(labels_pred)
 	print(label_pred_string)
 
-	fb.save('./model_pretrained/feature_based')
+	fb.save('./model_pretrained/dialog_act_feature_based')
 
 	new_fb = FeatureBased()
 
-	new_fb.load('./model_pretrained/feature_based')
+	new_fb.load('./model_pretrained/dialog_act_feature_based')
 
 	labels_pred, label_pred_string = new_fb.predict(inp)
 	print(inp)
