@@ -89,29 +89,26 @@ class FeatureBased(object):
 		'''
 		evaluate the model on the test data
 		'''
-		logger.info('train:')
 
 		train_pred = self.clf.predict(self.train_data[0])
 
-		self.metric(pred=train_pred, gold=self.train_data[1])
-		
-		logger.info('validation:')
+		train_acc = self.metric(pred=train_pred, gold=self.train_data[1])
 
 		valid_pred = self.clf.predict(self.valid_data[0])
 
-		self.metric(pred=valid_pred, gold=self.valid_data[1])
-
-		logger.info('test:')
+		valid_acc =  self.metric(pred=valid_pred, gold=self.valid_data[1])
 
 		test_pred = self.clf.predict(self.test_data[0])
 
-		self.metric(pred=test_pred, gold=self.test_data[1])
+		test_acc = self.metric(pred=test_pred, gold=self.test_data[1])
+
+		logger.info('train: (acc = %.2f%%), valid: (acc = %.2f%%), test: (acc = %.2f%%)'%(train_acc,valid_acc,test_acc))
 
 	def metric(self, pred, gold):
 
 		acc = accuracy_score(gold, pred)*100
 
-		logger.info('\tacc = %.2f%%'%acc)
+		return acc
 
 	def text_to_label(self, data_y):
 		labels = [ int(label) for label in data_y]
