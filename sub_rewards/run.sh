@@ -7,7 +7,7 @@ machine='gpu' # possible values: {'local', 'gpu'}, where 'local' has no GPU and 
 
 env='transfer_reward' 
 
-experiment='test'
+experiment='dialog_act_classifier_bow'
  
 log_file='./logs/'$experiment
 
@@ -51,6 +51,6 @@ fi
 
 ###
 ##
-# Finally execute the model
-ipython model/dialog_act_classifier.py
+# dialog_act_classifier
+ipython model/dialog_act_classifier.py &> log_file
 

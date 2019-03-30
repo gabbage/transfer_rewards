@@ -13,6 +13,7 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
 logger = logging.getLogger(__name__)
 
 class FeatureBased(object):
+	
 	def __init__(self, train_path=None, valid_path=None, test_path=None):
 		
 		self.train_path = train_path
@@ -90,7 +91,6 @@ class FeatureBased(object):
 		'''
 		evaluate the model on the test data
 		'''
-
 		train_pred = self.model.predict(self.train_data[0])
 
 		train_acc = self.metric(pred=train_pred, gold=self.train_data[1])
