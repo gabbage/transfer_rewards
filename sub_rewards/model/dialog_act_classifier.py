@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class FeatureBased(object):
 
-	def __init__(self, train_path=None, valid_path=None,  test_path=None, model='linreg'):
+	def __init__(self, train_path=None, valid_path=None,  test_path=None, model='multinomial', feat='bow'):
 		
 		self.train_path = train_path
 
@@ -53,8 +53,23 @@ class FeatureBased(object):
 
 			raise NotImplemetedError()
 
-		self.bow_vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
+		if feat == 'bow':
+		
+			self.vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
 
+			self.feat_name = 'bag_of_words'
+
+		elif feat == 'uni-bi-gram':
+			
+			self.vectorizer =  CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,2))
+
+			self.feat_name = 'uni_bi_grams'
+
+		else:
+
+			raise NotImplemetedError()
+
+		logger.info('feat name: %s'self.feat_name)
 
 		logger.info('model name: %s'%self.model_name)
 
@@ -180,17 +195,17 @@ class FeatureBased(object):
 		# bag of words
 		if is_trainset:
 			
-			feature_vectors = self.bow_vectorizer.fit_transform(data_x)
+			feature_vectors = self.vectorizer.fit_transform(data_x)
 		
 		else:
 
-			feature_vectors = self.bow_vectorizer.transform(data_x)
+			feature_vectors = self.vectorizer.transform(data_x)
 		
 		return feature_vectors
 
 	def save(self, model_path):
 		
-		model_path = model_path+'_'+self.model_name
+		model_path = model_path+'_'+self.model_name+'_'+self.feat_name
 
 		model_vect_path = model_path+'_vectorizer'	
 
@@ -211,7 +226,7 @@ class FeatureBased(object):
 	
 	def load(self, model_path):
 
-		model_path = model_path+'_'+self.model_name
+		model_path = model_path+'_'+self.model_name+'_'+self.feat_name
 
 		model_vect_path = model_path+'_vectorizer'	
 
@@ -234,10 +249,13 @@ if __name__== '__main__':
 
 	model='multinomial'  
 
+	feat = 'uni-bi-gram'
+
 	fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
 								 valid_path='./data/daily_dialog/validation/act_utt.txt',
 								 test_path='./data/daily_dialog/test/act_utt.txt',
-								 model= model
+								 model= model,
+								 feat = feat
 								 )
 	
 	fb.prepare_data() # convert text data to features
@@ -253,11 +271,11 @@ if __name__== '__main__':
 	print(labels_pred)
 	print(label_pred_string)
 
-	fb.save('./model_pretrained/dialog_act_feature_based')
+	fb.save('./model_pretrained/dialog_act')
 
-	new_fb = FeatureBased(model= model)
+	new_fb = FeatureBased(model= model, feat = feat)
 
-	new_fb.load('./model_pretrained/dialog_act_feature_based')
+	new_fb.load('./model_pretrained/dialog_act')
 
 	labels_pred, label_pred_string = new_fb.predict(inp)
 	print(inp)
