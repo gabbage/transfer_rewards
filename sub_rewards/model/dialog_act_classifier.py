@@ -232,10 +232,12 @@ class FeatureBased(object):
 
 if __name__== '__main__':
 
+	model='multinomial'  
+
 	fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
 								 valid_path='./data/daily_dialog/validation/act_utt.txt',
 								 test_path='./data/daily_dialog/test/act_utt.txt',
-								 model='multinomial' 
+								 model= model
 								 )
 	
 	fb.prepare_data() # convert text data to features
@@ -253,7 +255,7 @@ if __name__== '__main__':
 
 	fb.save('./model_pretrained/dialog_act_feature_based')
 
-	new_fb = FeatureBased()
+	new_fb = FeatureBased(model= model)
 
 	new_fb.load('./model_pretrained/dialog_act_feature_based')
 
