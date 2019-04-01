@@ -260,7 +260,10 @@ class FeatureBased(object):
 		logger.info('model loaded: %s'%model_path)
 		logger.info('vectorizer loaded: %s'%model_vect_path)
 
-if __name__== '__main__':
+###
+##
+# out of class. Just for test
+def main():
 
 	models = ['multinomial', 'linreg', 'linsvm']
 	
@@ -301,6 +304,12 @@ if __name__== '__main__':
 			# print(label_pred_string)
 
 			fb.eval()
+			logger.info("\t ################# \t")	
+
+if __name__== '__main__':
+
+	main()
+
 
 
 
