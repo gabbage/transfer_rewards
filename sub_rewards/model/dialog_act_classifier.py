@@ -65,6 +65,12 @@ class FeatureBased(object):
 
 			self.feat_name = 'uni_bi_grams'
 
+		elif feat == 'tf'
+
+			self.vectorizer = TfidfVectorizer(use_idf=False)
+
+			self.feat_name = 'tf'
+
 		elif feat == 'tfidf':
 
 			self.vectorizer = TfidfVectorizer()
@@ -258,7 +264,7 @@ if __name__== '__main__':
 
 	model = 'multinomial'  
 
-	feat  = 'tfidf'#'uni-bi-gram'
+	feat  = 'tf'#'tfidf'#'uni-bi-gram'
 
 	fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
 								 valid_path='./data/daily_dialog/validation/act_utt.txt',
