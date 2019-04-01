@@ -1,4 +1,4 @@
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn import naive_bayes, svm, linear_model
 from sklearn import metrics
 
@@ -64,6 +64,12 @@ class FeatureBased(object):
 			self.vectorizer =  CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,2))
 
 			self.feat_name = 'uni_bi_grams'
+
+		elif feat == 'tfidf':
+
+			self.vectorizer = vectorizer = TfidfVectorizer()
+
+			self.feat_name = 'tfidf'
 
 		else:
 
@@ -250,7 +256,7 @@ if __name__== '__main__':
 
 	model='multinomial'  
 
-	feat = 'uni-bi-gram'
+	feat = 'tfidf'#'uni-bi-gram'
 
 	fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
 								 valid_path='./data/daily_dialog/validation/act_utt.txt',
