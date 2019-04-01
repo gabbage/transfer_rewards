@@ -79,27 +79,28 @@ class FeatureBased(object):
 
 		train_x, train_y = self.load_data(self.train_path)
 		logger.info('train data is loaded. #samples: %d, #labels:%d'%(len(train_x), len(train_y)))
-		train_feat  = self.text_to_features(train_x, is_trainset=True)
-		logger.info('train_feat: %s'%str(train_feat.shape))
-		self.voc = self.bow_vectorizer.vocabulary_ # voc={word:id (feature_index)} 
+		train_feat_vecs  = self.text_to_features(train_x, is_trainset=True)
+		logger.info('train_feat_vecs: %s'%str(train_feat_vecs.shape))
+		self.features = self.vectorizer.vocabulary_ # voc={word:id (feature_index)} 
+		logger.info('number of features: %d'%len(self.features))
 		train_label = self.text_to_label(train_y)
-		self.train_data = (train_feat, train_label)
+		self.train_data = (train_feat_vecs, train_label)
 		
 
 		valid_x, valid_y = self.load_data(self.valid_path)
 		logger.info('valid data is loaded. #samples: %d, #labels:%d'%(len(valid_x), len(valid_y)))
-		valid_feat  = self.text_to_features(valid_x)
-		logger.info('valid_feat: %s'%str(valid_feat.shape))
+		valid_feat_vecs  = self.text_to_features(valid_x)
+		logger.info('valid_feat_vecs: %s'%str(valid_feat_vecs.shape))
 		valid_label = self.text_to_label(valid_y) 
-		self.valid_data = (valid_feat, valid_label)
+		self.valid_data = (valid_feat_vecs, valid_label)
 		
 
 		test_x, test_y = self.load_data(self.test_path)
 		logger.info('test data is loaded. #samples: %d, #labels:%d'%(len(test_x), len(test_y)))
-		test_feat  	= self.text_to_features(test_x)
-		logger.info('test_feat: %s'%str(test_feat.shape))
+		test_feat_vecs = self.text_to_features(test_x)
+		logger.info('test_feat_vecs: %s'%str(test_feat_vecs.shape))
 		test_label 	= self.text_to_label(test_y) 
-		self.test_data = (test_feat, test_label)
+		self.test_data = (test_feat_vecs, test_label)
 		
 	def load_data(self, data_path):
 
@@ -219,7 +220,7 @@ class FeatureBased(object):
 
 		with open(model_vect_path, 'wb') as file:  
 
-			pickle.dump(self.bow_vectorizer, file)	
+			pickle.dump(self.vectorizer, file)	
 
 		logger.info('model saved: %s'%model_path)
 		logger.info('vectorizer saved: %s'%model_vect_path)
@@ -240,7 +241,7 @@ class FeatureBased(object):
 
 		with open(model_vect_path, 'rb') as file:
 
-			self.bow_vectorizer = pickle.load(file)
+			self.vectorizer = pickle.load(file)
 
 		logger.info('model loaded: %s'%model_path)
 		logger.info('vectorizer loaded: %s'%model_vect_path)
