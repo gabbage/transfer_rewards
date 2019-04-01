@@ -77,6 +77,8 @@ class FeatureBased(object):
 
 		logger.info('feat name: %s'%self.feat_name)
 
+		logger.infor('feat vectorizer parameters: %s'%self.vectorizer.get_params())
+
 		logger.info('model name: %s'%self.model_name)
 
 		logger.info('model parameters: %s'%self.model.get_params())
@@ -254,9 +256,9 @@ class FeatureBased(object):
 
 if __name__== '__main__':
 
-	model='multinomial'  
+	model = 'multinomial'  
 
-	feat = 'tfidf'#'uni-bi-gram'
+	feat  = 'tfidf'#'uni-bi-gram'
 
 	fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
 								 valid_path='./data/daily_dialog/validation/act_utt.txt',
