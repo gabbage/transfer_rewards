@@ -67,7 +67,7 @@ class FeatureBased(object):
 
 		elif feat == 'tfidf':
 
-			self.vectorizer = vectorizer = TfidfVectorizer()
+			self.vectorizer = TfidfVectorizer()
 
 			self.feat_name = 'tfidf'
 
@@ -77,7 +77,7 @@ class FeatureBased(object):
 
 		logger.info('feat name: %s'%self.feat_name)
 
-		logger.infor('feat vectorizer parameters: %s'%self.vectorizer.get_params())
+		logger.info('feat vectorizer parameters: %s'%self.vectorizer.get_params())
 
 		logger.info('model name: %s'%self.model_name)
 
