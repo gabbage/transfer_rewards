@@ -52,7 +52,7 @@ class FeatureBased(object):
 
 
 		
-		logger.info('model: %s'%self.model.get_params())
+		logger.info('model parameters: %s'%self.model.get_params())
 	def prepare_data(self):
 
 		train_x, train_y = self.load_data(self.train_path)
