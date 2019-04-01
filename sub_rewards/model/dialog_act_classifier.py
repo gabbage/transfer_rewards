@@ -26,9 +26,12 @@ class FeatureBased(object):
 		logger.info('valid_path: %s'%valid_path)
 		logger.info('test_path: %s'%test_path)
 
+
 		# define the model
 		if model =='multinomial':
 			self.model = naive_bayes.MultinomialNB()
+			
+			self.model_name =  'multinomial'
 
 		elif model == 'linreg':
 
@@ -36,14 +39,16 @@ class FeatureBased(object):
 														 solver='lbfgs',
 														 multi_class='multinomial',
 														 penalty='l2')
-			logger.info('model: linear_model.LogisticRegression')
+			
+			self.model_name =  'linear_model.LogisticRegression'
 
 		elif model == 'linsvm':
 
 			self.model = svm.LinearSVC(random_state=1234, 
 										tol=1e-5,
 										penalty='l2')
-			logger.info('model: svm.LinearSVC')
+
+			self.model_name =  'svm.LinearSVC'			
 		else:
 
 			raise NotImplemetedError()
@@ -51,8 +56,10 @@ class FeatureBased(object):
 		self.bow_vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
 
 
-		
+		logger.info('model name: %s'%self.model_name)
+
 		logger.info('model parameters: %s'%self.model.get_params())
+
 	def prepare_data(self):
 
 		train_x, train_y = self.load_data(self.train_path)
