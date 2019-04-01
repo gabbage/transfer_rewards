@@ -262,40 +262,45 @@ class FeatureBased(object):
 
 if __name__== '__main__':
 
-	model = 'multinomial'  
-
-	feat  = 'tf'#'tfidf'#'uni-bi-gram'
-
-	fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
-								 valid_path='./data/daily_dialog/validation/act_utt.txt',
-								 test_path='./data/daily_dialog/test/act_utt.txt',
-								 model= model,
-								 feat = feat
-								 )
+	models = ['multinomial', 'linreg', 'linsvm']
 	
-	fb.prepare_data() # convert text data to features
+	feats = ['bow','uni-bi-gram', 'tf', 'tfidf']
 
-	fb.train()
+	for model in models:
 
-	fb.eval()
+		for feat in feats: 
 
-	inp = ['Thank you!','how can I help you?']
+			fb = FeatureBased(train_path= './data/daily_dialog/train/act_utt.txt',
+										 valid_path='./data/daily_dialog/validation/act_utt.txt',
+										 test_path='./data/daily_dialog/test/act_utt.txt',
+										 model= model,
+										 feat = feat
+										 )
+			
+			fb.prepare_data() # convert text data to features
 
-	labels_pred, label_pred_string = fb.predict(inp)
-	print(inp)
-	print(labels_pred)
-	print(label_pred_string)
+			fb.train()
 
-	fb.save('./model_pretrained/dialog_act')
+			fb.eval()
 
-	new_fb = FeatureBased(model= model, feat = feat)
+			#inp = ['Thank you!','how can I help you?']
+			# labels_pred, label_pred_string = fb.predict(inp)
+			# print(inp)
+			# print(labels_pred)
+			# print(label_pred_string)
 
-	new_fb.load('./model_pretrained/dialog_act')
+			fb.save('./model_pretrained/dialog_act')
 
-	labels_pred, label_pred_string = new_fb.predict(inp)
-	print(inp)
-	print(labels_pred)
-	print(label_pred_string)
+			new_fb = FeatureBased(model= model, feat = feat)
+
+			new_fb.load('./model_pretrained/dialog_act')
+
+			# labels_pred, label_pred_string = new_fb.predict(inp)
+			# print(inp)
+			# print(labels_pred)
+			# print(label_pred_string)
+
+			fb.eval()
 
 
 
