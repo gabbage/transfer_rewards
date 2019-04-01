@@ -69,7 +69,7 @@ class FeatureBased(object):
 
 			raise NotImplemetedError()
 
-		logger.info('feat name: %s'self.feat_name)
+		logger.info('feat name: %s'%self.feat_name)
 
 		logger.info('model name: %s'%self.model_name)
 
