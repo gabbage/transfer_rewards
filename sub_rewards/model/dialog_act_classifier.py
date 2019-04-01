@@ -65,7 +65,7 @@ class FeatureBased(object):
 
 			self.feat_name = 'uni_bi_grams'
 
-		elif feat == 'tf'
+		elif feat == 'tf':
 
 			self.vectorizer = TfidfVectorizer(use_idf=False)
 
