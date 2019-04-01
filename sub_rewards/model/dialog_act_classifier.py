@@ -36,17 +36,23 @@ class FeatureBased(object):
 														 solver='lbfgs',
 														 multi_class='multinomial',
 														 penalty='l2')
+			logger.info('model: linear_model.LogisticRegression')
+
 		elif model == 'linsvm':
 
 			self.model = svm.LinearSVC(random_state=1234, 
 										tol=1e-5,
 										penalty='l2')
+			logger.info('model: svm.LinearSVC')
 		else:
 
 			raise NotImplemetedError()
 
 		self.bow_vectorizer = CountVectorizer(tokenizer=self.tokenizeText, ngram_range=(1,1))
 
+
+		
+		logger.info('model: %s'%self.model.get_params())
 	def prepare_data(self):
 
 		train_x, train_y = self.load_data(self.train_path)
