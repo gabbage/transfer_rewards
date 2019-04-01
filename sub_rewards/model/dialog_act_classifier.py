@@ -189,28 +189,46 @@ class FeatureBased(object):
 		return feature_vectors
 
 	def save(self, model_path):
+		
+		model_path = model_path+'_'+self.model_name
 
-		with open(model_path+'_model.mdl', 'wb') as file:  
+		model_vect_path = model_path+'_vectorizer'	
+
+		model_path += '.mdl'
+
+		model_vect_path += '.mdl'
+
+		with open(model_path, 'wb') as file:  
 
 			pickle.dump(self.model, file)
 
-		with open(model_path+'_vectorizer.mdl', 'wb') as file:  
+		with open(model_vect_path, 'wb') as file:  
 
 			pickle.dump(self.bow_vectorizer, file)	
 
 		logger.info('model saved: %s'%model_path)
+		logger.info('vectorizer saved: %s'%model_vect_path)
 	
 	def load(self, model_path):
 
-		with open(model_path+'_model.mdl', 'rb') as file:
+		model_path = model_path+'_'+self.model_name
+
+		model_vect_path = model_path+'_vectorizer'	
+
+		model_path += '.mdl'
+
+		model_vect_path += '.mdl'
+
+		with open(model_path, 'rb') as file:
 
 			self.model = pickle.load(file)
 
-		with open(model_path+'_vectorizer.mdl', 'rb') as file:
+		with open(model_vect_path, 'rb') as file:
 
 			self.bow_vectorizer = pickle.load(file)
 
 		logger.info('model loaded: %s'%model_path)
+		logger.info('vectorizer loaded: %s'%model_vect_path)
 
 if __name__== '__main__':
 
