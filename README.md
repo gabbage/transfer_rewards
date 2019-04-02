@@ -1,3 +1,9 @@
+# A Reward Training Framework
+
+### Note ###
+
+Your interest to this project is highly appreciated. Please give a Github star (on top right) if you use the code in anyhow.
+
 # Setup #
 * install anaconda (my anaconda version:2018.12, python version : 3.7.1.final.0, conda version:4.5.12, conda-build version : 3.17.6) (download it from its website). You can check this information by the following commands:
 ```
