@@ -1,4 +1,6 @@
 import os
+import logging
+import datetime
 import argparse
 import numpy as np
 import argparse
@@ -105,12 +107,33 @@ def main():
                         default=output_dir,
                         type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
+    parser.add_argument("--logdir",
+                        default="/home/sebi/code/transfer_rewards/sub_rewards",
+                        type=str,
+                        help="the folder to save the logfile to.")
     args = parser.parse_args()
     
     # Device configuration
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     output_model_file = os.path.join(args.output_dir, 'elmo_model.ckpt')
+    
+    # Logging file
+    now = datetime.datetime.now()
+    logfile = os.path.join(args.logdir, 'CNN_{}.log'.format(now.strftime("%Y-%m-%d_%H:%M:%S")))
+    logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format='%(levelname)s:%(message)s')
+    print("Logging to ", logfile)
+
+    # Log all Hyperparameters
+    logging.info("Used Hyperparameters:")
+    logging.info("hidden_size = {}".format(hidden_size))
+    logging.info("num_layers = {}".format(num_layers))
+    logging.info("batch_size = {}".format(batch_size))
+    logging.info("max_seq_len = {}".format(max_seq_len))
+    logging.info("num_classes = {}".format(num_classes))
+    logging.info("warmup_proportion = {}".format(warmup_proportion))
+    logging.info("learning_rate = {}".format(learning_rate))
+    logging.info("num_epochs = {}".format(num_epochs))
     
     TEXT = tt.data.Field(sequential=True, tokenize=word_tokenize, use_vocab=False)
     LABEL = tt.data.Field(sequential=False, use_vocab=False)
@@ -153,6 +176,7 @@ def main():
             train_iter.reset()
 
         torch.save(model.state_dict(), output_model_file)
+        logging.info("Saved learned model in file: {}".format(output_model_file))
 
     if args.do_eval:
         if not args.do_train:
@@ -189,6 +213,7 @@ def main():
         preds = np.argmax(preds[0], axis=1)
         result = acc_and_f1(preds, np.array(all_labels))
         print(result)
+        logging.info("Final Evaluation Result: {}".format(result))
 
 
 if __name__ == '__main__':

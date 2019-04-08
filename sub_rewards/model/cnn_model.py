@@ -1,4 +1,5 @@
 import os
+import datetime
 import argparse
 import numpy as np
 import torch
@@ -101,16 +102,38 @@ def main():
                         default=output_dir,
                         type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
-    parser.add_argument("--dict_file",
-                        default="/home/sebi/code/transfer_rewards/sub_rewards/data/daily_dialog/word2id.pkl",
+    parser.add_argument("--logdir",
+                        default="/home/sebi/code/transfer_rewards/sub_rewards",
                         type=str,
-                        help="the pickled file created by create_vocab.py in data/daily_dialog.")
+                        help="the folder to save the logfile to.")
     args = parser.parse_args()
 
     # Device configuration
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     output_model_file = os.path.join(args.output_dir, 'elmo_model.ckpt')
+    
+    # Logging file
+    now = datetime.datetime.now()
+    logfile = os.path.join(args.logdir, 'CNN_{}.log'.format(now.strftime("%Y-%m-%d_%H:%M:%S")))
+    logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format='%(levelname)s:%(message)s')
+    print("Logging to ", logfile)
+
+    # Log all Hyperparameters
+    logging.info("Used Hyperparameters:")
+    logging.info("embed_dim = {}".format(embed_dim))
+    logging.info("kernel_num = {}".format(kernel_num))
+    logging.info("kernel_sizes = {}".format(kernel_sizes))
+    logging.info("static = {}".format(static))
+    logging.info("dropout = {}".format(dropout))
+    logging.info("num_layers = {}".format(num_layers))
+    logging.info("batch_size = {}".format(batch_size))
+    logging.info("max_seq_len = {}".format(max_seq_len))
+    logging.info("num_classes = {}".format(num_classes))
+    logging.info("warmup_proportion = {}".format(warmup_proportion))
+    logging.info("learning_rate = {}".format(learning_rate))
+    logging.info("num_epochs = {}".format(num_epochs))
+    logging.info("========================")
 
     # preprocess to have all sents padded up to length at least 6
     preprocess = lambda x: x if len(x) >= 6 else x + (['<pad>']*(5-len(x)))
@@ -142,9 +165,7 @@ def main():
         criterion = nn.CrossEntropyLoss()
         except_count = 0
         
-        t = trange(num_epochs, desc="Epoch")
-        t.set_postfix(str="#Exception: {}".format(except_count))
-        for _ in t:
+        for _ in trange(num_epochs, desc="Epoch"):
             for step, batch in tqdm(enumerate(train_iter), desc="Iteration", total=len(train_iter)):
                 try:
                     ones = torch.ones(batch.Label.size(0), dtype=torch.long)*(-1)
@@ -162,6 +183,7 @@ def main():
                     except_count += 1
 
         torch.save(model.state_dict(), output_model_file)
+        logging.info("Saved learned model in file: {}".format(output_model_file))
 
     if args.do_eval:
         if not args.do_train:
@@ -205,7 +227,7 @@ def main():
         preds = np.argmax(preds[0], axis=1)
         result = acc_and_f1(preds, np.array(all_labels))
         print(result)
-
+        logging.info("Final Evaluation Result: {}".format(result))
 
 if __name__ == '__main__':
     main()
