@@ -1,4 +1,4 @@
-2|Good morning , sir . Is there a bank near here ? 
+2| Good morning , sir . Is there a bank near here ? 
 1| There is one . 5 blocks away from here ? 
 3| Well , that's too far.Can you change some money for me ? 
 2| Surely , of course . What kind of currency have you got ? 

@@ -17,7 +17,7 @@ options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_5
 weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 
 hidden_size = 300
-num_layers = 2
+num_layers = 1
 batch_size = 4
 max_seq_len = 294
 num_classes = 4
@@ -111,6 +111,10 @@ def main():
                         default="/home/sebi/code/transfer_rewards/sub_rewards",
                         type=str,
                         help="the folder to save the logfile to.")
+    parser.add_argument('--seed',
+                        type=int,
+                        default=42,
+                        help="random seed for initialization")
     args = parser.parse_args()
     
     # Device configuration
@@ -118,9 +122,14 @@ def main():
 
     output_model_file = os.path.join(args.output_dir, 'elmo_model.ckpt')
     
+    # Init randomization
+    # random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    
     # Logging file
     now = datetime.datetime.now()
-    logfile = os.path.join(args.logdir, 'CNN_{}.log'.format(now.strftime("%Y-%m-%d_%H:%M:%S")))
+    logfile = os.path.join(args.logdir, 'ELMO_{}.log'.format(now.strftime("%Y-%m-%d_%H:%M:%S")))
     logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format='%(levelname)s:%(message)s')
     print("Logging to ", logfile)
 
@@ -134,6 +143,7 @@ def main():
     logging.info("warmup_proportion = {}".format(warmup_proportion))
     logging.info("learning_rate = {}".format(learning_rate))
     logging.info("num_epochs = {}".format(num_epochs))
+    logging.info("random_seed = {}".format(args.seed))
     
     TEXT = tt.data.Field(sequential=True, tokenize=word_tokenize, use_vocab=False)
     LABEL = tt.data.Field(sequential=False, use_vocab=False)

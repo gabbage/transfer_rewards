@@ -32,9 +32,9 @@ def convert(dset, max_seq_len, word2id):
     token_masks = []
     labels = []
 
-    for i in range(len(dset)):
-    # for i in range(1000):
-        tok = [t for t in dset[i].Text]
+    # for i in range(len(dset)):
+    for i in range(10):
+        tok = ["[CLS]"] + [t for t in dset[i].Text]
         tok_ids = word2id(tok)
         padding = [0] * (max_seq_len - len(tok_ids))
         mask = [1] * len(tok_ids) + padding
@@ -74,7 +74,16 @@ def main():
                         default="/home/sebi/code/transfer_rewards/sub_rewards",
                         type=str,
                         help="the folder to save the logfile to.")
+    parser.add_argument('--seed',
+                        type=int,
+                        default=42,
+                        help="random seed for initialization")
     args = parser.parse_args()
+
+    # Init randomization
+    # random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
 
     output_model_file = os.path.join(args.output_dir, WEIGHTS_NAME)
     output_config_file = os.path.join(args.output_dir, CONFIG_NAME)
@@ -94,6 +103,7 @@ def main():
     logging.info("warmup_proportion = {}".format(warmup_proportion))
     logging.info("learning_rate = {}".format(learning_rate))
     logging.info("num_epochs = {}".format(num_epochs))
+    logging.info("random_seed = {}".format(args.seed))
     logging.info("========================")
 
     # BERT Tokenizer
@@ -215,7 +225,7 @@ def main():
         preds = np.argmax(preds[0], axis=1)
         result = acc_and_f1(preds, torch_val_labels.numpy())
         print(result)
-        logging.info("Final Evaluation Result: {}".format(result)
+        logging.info("Final Evaluation Result: {}".format(result))
 
 if __name__ == '__main__':
     main()

@@ -24,61 +24,29 @@ max_seq_len = 294
 num_classes = 4
 warmup_proportion = 0.1
 learning_rate = 5e-5
-num_epochs = 50
+num_epochs = 5
 output_dir = '/home/sebi/code/transfer_rewards/sub_rewards/data/'
 
-class CNN_Text(nn.Module):
+class AVG_Model(nn.Module):
     # copied from https://github.com/Shawn1993/cnn-text-classification-pytorch
-    def __init__(self, embed_num, embed_dim, vocab, class_num, kernel_num, kernel_sizes, dropout, static=False):
-        super(CNN_Text, self).__init__()
-        V = embed_num
-        D = embed_dim
-        C = class_num
-        Ci = 1
-        Co = kernel_num
-        Ks = kernel_sizes
+    def __init__(self, embed_dim, vocab, class_num, dropout, static=False):
+        super(AVG_Model, self).__init__()
+        self.embed_dim = embed_dim
+        self.class_num = class_num
         self.static = static
 
         self.embed = nn.Embedding(len(vocab), embed_dim)
         self.embed.weight.data.copy_(vocab.vectors)
         # self.convs1 = [nn.Conv2d(Ci, Co, (K, D)) for K in Ks]
-        self.convs1 = nn.ModuleList([nn.Conv2d(Ci, Co, (K, D)) for K in Ks])
-        '''
-        self.conv13 = nn.Conv2d(Ci, Co, (3, D))
-        self.conv14 = nn.Conv2d(Ci, Co, (4, D))
-        self.conv15 = nn.Conv2d(Ci, Co, (5, D))
-        '''
         self.dropout = nn.Dropout(dropout)
-        self.fc1 = nn.Linear(len(Ks)*Co, C)
-
-    def conv_and_pool(self, x, conv):
-        x = F.relu(conv(x)).squeeze(3)  # (N, Co, W)
-        x = F.max_pool1d(x, x.size(2)).squeeze(2)
-        return x
+        self.fc1 = nn.Linear(embed_dim, class_num)
 
     def forward(self, x):
         x = self.embed(x)  # (N, W, D)
+        x = self.dropout(x.mean(1))
+        x = self.fc1(x)
         
-        if self.static:
-            x = Variable(x)
-
-        x = x.unsqueeze(1)  # (N, Ci, W, D)
-
-        x = [F.relu(conv(x)).squeeze(3) for conv in self.convs1]  # [(N, Co, W), ...]*len(Ks)
-
-        x = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x]  # [(N, Co), ...]*len(Ks)
-
-        x = torch.cat(x, 1)
-
-        '''
-        x1 = self.conv_and_pool(x,self.conv13) #(N,Co)
-        x2 = self.conv_and_pool(x,self.conv14) #(N,Co)
-        x3 = self.conv_and_pool(x,self.conv15) #(N,Co)
-        x = torch.cat((x1, x2, x3), 1) # (N,len(Ks)*Co)
-        '''
-        x = self.dropout(x)  # (N, len(Ks)*Co)
-        logit = self.fc1(x)  # (N, C)
-        return logit
+        return x
 
 def simple_accuracy(preds, labels):
     return (preds == labels).mean()
@@ -121,11 +89,11 @@ def main():
     # Device configuration
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    output_model_file = os.path.join(args.output_dir, 'cnn_model.ckpt')
+    output_model_file = os.path.join(args.output_dir, 'avg_model.ckpt')
     
     # Logging file
     now = datetime.datetime.now()
-    logfile = os.path.join(args.logdir, 'CNN_{}.log'.format(now.strftime("%Y-%m-%d_%H:%M:%S")))
+    logfile = os.path.join(args.logdir, 'AVG_{}.log'.format(now.strftime("%Y-%m-%d_%H:%M:%S")))
     logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format='%(levelname)s:%(message)s')
     print("Logging to ", logfile)
 
@@ -169,7 +137,7 @@ def main():
     # ones = torch.ones(batch_size, dtype=torch.long)*(-1)
 
     if args.do_train:
-        model = CNN_Text(len(TEXT.vocab), embed_dim, TEXT.vocab, num_classes, kernel_num, kernel_sizes, dropout)
+        model = AVG_Model(embed_dim, TEXT.vocab, num_classes, dropout)
         model.to(device)
         model.train()
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -199,7 +167,7 @@ def main():
     if args.do_eval:
         if not args.do_train:
             assert os.path.isfile(output_model_file), "the learnend model file does not exist, execute with --do_train first"
-            model = CNN_Text(len(TEXT.vocab), embed_dim, TEXT.vocab, num_classes, kernel_num, kernel_sizes, dropout)
+            model = AVG_Model(embed_dim, TEXT.vocab, num_classes, dropout)
             model.load_state_dict(torch.load(output_model_file))
             model.to(device)
         model.eval()
