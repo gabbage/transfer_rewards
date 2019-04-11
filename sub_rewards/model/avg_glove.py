@@ -28,7 +28,6 @@ num_epochs = 5
 output_dir = '/home/sebi/code/transfer_rewards/sub_rewards/data/'
 
 class AVG_Model(nn.Module):
-    # copied from https://github.com/Shawn1993/cnn-text-classification-pytorch
     def __init__(self, embed_dim, vocab, class_num, dropout, static=False):
         super(AVG_Model, self).__init__()
         self.embed_dim = embed_dim
