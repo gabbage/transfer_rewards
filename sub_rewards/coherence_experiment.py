@@ -36,21 +36,27 @@ def preprocess(sent):
     padlen = 50
     stop = set(stopwords.words('english'))
     sent_wo_stop = [w.lower() for w in sent if w.lower() not in stop]
-    return sent_wo_stop + ["<pad>"]*(padlen-len(sent_wo_stop))
+    # for the cosine coherence add padding
+    return sent_wo_stop #+ ["<pad>"]*(padlen-len(sent_wo_stop))
 
 def main():
+    """------------ Test Sentences -------------------"""
     sent1 = word_tokenize("let us use our forks that we just ate spaghetti with to kill tom")
     sent1 = preprocess(sent1)
     sent2 = word_tokenize("no i dont like eating spaghetti with forks")
     sent2 = preprocess(sent2)
     sent3 = word_tokenize("spaghetti was invented in the nineteenth century")
     sent3 = preprocess(sent3)
+
+    """------------ DailyDialog Sentences -------------"""
     ref1 = word_tokenize("Say Jim how about going for a few beers after dinner")
     ref1 = preprocess(ref1)
     ref2 = word_tokenize("You know that is tempting but is really not good for our fitness")
     ref2 = preprocess(ref2)
     ref3 = word_tokenize("What do you mean It will help us to relax")
     ref3 = preprocess(ref3)
+    
+    """------------ ASAP Sentences --------------------"""
     asap1 = word_tokenize("Computers a good because you can get infermation you can play games you can get pictures But when you on the computer you might find something or someone that is bad or is viris")
     asap1 = preprocess(asap1)
     asap2 = word_tokenize("If ther is a vris you might want shut off the computers so it does not get worse")
@@ -60,20 +66,20 @@ def main():
 
     # Always only have one of the following (Glove or Elmo) uncommented
     # Use GloVe
-    cnt = Counter()
-    for w in sent1+sent2+sent3+ref1+ref2+ref3:
-        cnt[w.lower()] += 1
+    # cnt = Counter()
+    # for w in sent1+sent2+sent3+ref1+ref2+ref3:
+        # cnt[w.lower()] += 1
 
-    vocab = tt.vocab.Vocab(cnt)
-    vocab.load_vectors("glove.42B.300d")
-    embed = nn.Embedding(len(vocab), 300)
-    embed.weight.data.copy_(vocab.vectors)
+    # vocab = tt.vocab.Vocab(cnt)
+    # vocab.load_vectors("glove.42B.300d")
+    # embed = nn.Embedding(len(vocab), 300)
+    # embed.weight.data.copy_(vocab.vectors)
     
-    embed_fn = lambda x: embed(torch.tensor([vocab.stoi[w] for w in x], dtype=torch.long))
+    # embed_fn = lambda x: embed(torch.tensor([vocab.stoi[w] for w in x], dtype=torch.long))
 
     # Use Elmo
-    # elmo = Elmo(options_file, weight_file, 1, dropout=0)
-    # embed_fn = lambda x: elmo_rep(elmo, x)
+    elmo = Elmo(options_file, weight_file, 1, dropout=0)
+    embed_fn = lambda x: elmo_rep(elmo, x)
 
     print("------------ Test Sentences -------------------")
     es1 = embed_fn(sent1)
@@ -100,11 +106,12 @@ def main():
     print("similarity of sentences: ", sim(f1, f2).item()/ 300)
     print("words: (", asap1[f1_ix[0]], ",", asap2[f1_ix[1]],") , (", asap2[f2_ix[0]],",",asap3[f2_ix[1]],")")
 
-    print('--------------Coherence ------------------------')
-    cos = CosineSimilarity(dim=0)
-    print("test sentences: ", cos(es1.mean(1), es2.mean(1)).item(), ", ",cos(es2.mean(1), es3.mean(1)).item())
-    print("daily sentenes: ", cos(rs1.mean(1), rs2.mean(1)).item(), ", ",cos(rs2.mean(1), rs3.mean(1)).item())
-    print("asap sentenes: ", cos(as1.mean(1), as2.mean(1)).item(),  ", ",cos(as2.mean(1), as3.mean(1)).item())
+    # if you want to test the cosine coherence metric, add the padding in the preprocess function
+    # print('--------------Coherence ------------------------')
+    # cos = CosineSimilarity(dim=0)
+    # print("test sentences: ", cos(es1.mean(1), es2.mean(1)).item(), ", ",cos(es2.mean(1), es3.mean(1)).item())
+    # print("daily sentenes: ", cos(rs1.mean(1), rs2.mean(1)).item(), ", ",cos(rs2.mean(1), rs3.mean(1)).item())
+    # print("asap sentenes: ", cos(as1.mean(1), as2.mean(1)).item(),  ", ",cos(as2.mean(1), as3.mean(1)).item())
 
 if __name__ == '__main__':
     main()
