@@ -18,12 +18,12 @@ weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_51
 
 hidden_size = 300
 num_layers = 1
-batch_size = 4
+batch_size = 32
 max_seq_len = 294
 num_classes = 4
 warmup_proportion = 0.1
 learning_rate = 5e-5
-num_epochs = 2
+num_epochs = 3
 output_dir = '/home/sebi/code/transfer_rewards/sub_rewards/data/'
 
 def simple_accuracy(preds, labels):
@@ -41,7 +41,7 @@ class ELMo_BiRNN(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_classes):
         super(ELMo_BiRNN, self).__init__()
 
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
@@ -118,7 +118,7 @@ def main():
     args = parser.parse_args()
     
     # Device configuration
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
     output_model_file = os.path.join(args.output_dir, 'elmo_model.ckpt')
     
@@ -144,6 +144,8 @@ def main():
     logging.info("learning_rate = {}".format(learning_rate))
     logging.info("num_epochs = {}".format(num_epochs))
     logging.info("random_seed = {}".format(args.seed))
+    logging.info("device = {}".format(device))
+
     
     TEXT = tt.data.Field(sequential=True, tokenize=word_tokenize, use_vocab=False)
     LABEL = tt.data.Field(sequential=False, use_vocab=False)
@@ -191,10 +193,11 @@ def main():
     if args.do_eval:
         if not args.do_train:
             assert os.path.isfile(output_model_file), "the learnend model file does not exist, execute with --do_train first"
+            model = ELMo_BiRNN(1024, hidden_size, num_layers, num_classes)
             model.load_state_dict(torch.load(output_model_file))
             model.to(device)
         model.eval()
-        val_iter = DL_Text_It(val, batch_size)
+        test_iter = DL_Text_It(train, batch_size)
         
         eval_loss = 0
         nb_eval_steps = 0
@@ -203,7 +206,7 @@ def main():
         # Loss function
         loss_fct = torch.nn.CrossEntropyLoss()
         
-        for step, (text_b, lbl_b) in tqdm(enumerate(val_iter), desc="Validation"):
+        for step, (text_b, lbl_b) in tqdm(enumerate(test_iter), desc="Validation"):
             char_ids = batch_to_ids(text_b)
             embedding = elmo(char_ids)['elmo_representations'][0].to(device)
             torch_labels = torch.tensor(lbl_b, dtype=torch.long).to(device)

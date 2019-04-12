@@ -19,12 +19,12 @@ from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
 
 BERT_MODEL_NAME = "bert-base-uncased"
-batch_size = 4
+batch_size = 32
 max_seq_len = 294
 num_classes = 4
 warmup_proportion = 0.1
 learning_rate = 5e-5
-num_epochs = 2
+num_epochs = 3
 output_dir = '/home/sebi/code/transfer_rewards/sub_rewards/data/'
 
 def convert(dset, max_seq_len, word2id):
@@ -110,7 +110,7 @@ def main():
     tokenizer = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
 
     # Device configuration
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
     TEXT = tt.data.Field(sequential=True, tokenize=lambda x:tokenizer.tokenize(x))
     LABEL = tt.data.Field(sequential=False, use_vocab=False)
@@ -150,7 +150,6 @@ def main():
             ]
         optimizer = BertAdam(optimizer_grouped_parameters,
                                  lr=learning_rate,
-                                 warmup=warmup_proportion,
                                  t_total=num_train_optimization_steps)
 
         # Loss function
