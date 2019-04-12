@@ -85,8 +85,11 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
+    # set number of threads to two, for fair usage on the server
+    torch.set_num_threads(2)
+
     # Device configuration
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
     output_model_file = os.path.join(args.output_dir, 'avg_model.ckpt')
     
@@ -110,6 +113,7 @@ def main():
     logging.info("warmup_proportion = {}".format(warmup_proportion))
     logging.info("learning_rate = {}".format(learning_rate))
     logging.info("num_epochs = {}".format(num_epochs))
+    logging.info("device = {}".format(device))
     logging.info("========================")
 
     # preprocess to have all sents padded up to length at least 6
