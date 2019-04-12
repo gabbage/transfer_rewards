@@ -119,6 +119,7 @@ def main():
     
     # Device configuration
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(device)
 
     output_model_file = os.path.join(args.output_dir, 'elmo_model.ckpt')
     
