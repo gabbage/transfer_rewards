@@ -7,25 +7,42 @@ import numpy as np
 from sklearn.metrics import f1_score
 from tqdm import tqdm, trange
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torchtext as tt
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
                               TensorDataset)
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
-from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertConfig, WEIGHTS_NAME, CONFIG_NAME
+from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
 
 BERT_MODEL_NAME = "bert-base-uncased"
-batch_size = 32
+batch_size = 4
 max_seq_len = 294
 num_classes = 4
 warmup_proportion = 0.1
 learning_rate = 5e-5
 num_epochs = 3
 output_dir = '/home/sebi/code/transfer_rewards/sub_rewards/data/'
+
+class BertFF(nn.Module):
+    def __init__(self, hidden_size, num_labels, dropout_prob):
+        super(BertFF, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_labels = num_labels
+        self.dropout = nn.Dropout(dropout_prob)
+        self.classifier = nn.Linear(hidden_size, num_labels)
+        # self.apply(self.init_bert_weights)
+
+    def forward(self, pooled_output):
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
+
+        return logits
 
 def convert(dset, max_seq_len, word2id):
     token_ids = []
@@ -118,6 +135,7 @@ def main():
         path='./data/daily_dialog/', train='train/act_utt.txt',
         validation='validation/act_utt.txt', test='test/act_utt.txt', format='csv', csv_reader_params={'delimiter':'|'},
         fields=[('Label', LABEL), ('Text', TEXT)])
+
     model = None
 
     if args.do_train:
@@ -135,22 +153,24 @@ def main():
 
         # Model configuration
         cache_dir = os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(-1))
-        model = BertForSequenceClassification.from_pretrained(BERT_MODEL_NAME,
-                  cache_dir=cache_dir,
-                  num_labels=num_classes).to(device)
+
+        bert = BertModel.from_pretrained(BERT_MODEL_NAME,
+                  cache_dir=cache_dir).to(device)
+        model = BertFF(bert.config.hidden_size, num_classes, bert.config.hidden_dropout_prob).to(device)
         model.train()
 
         # Optimizer
-        num_train_optimization_steps = int(len(train_data) / batch_size * num_epochs)
-        param_optimizer = list(model.named_parameters())
-        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-        optimizer_grouped_parameters = [
-            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
-            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-            ]
-        optimizer = BertAdam(optimizer_grouped_parameters,
-                                 lr=learning_rate,
-                                 t_total=num_train_optimization_steps)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        # num_train_optimization_steps = int(len(train_data) / batch_size * num_epochs)
+        # param_optimizer = list(model.named_parameters())
+        # no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        # optimizer_grouped_parameters = [
+            # {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            # {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+            # ]
+        # optimizer = BertAdam(optimizer_grouped_parameters,
+                                 # lr=learning_rate,
+                                 # t_total=num_train_optimization_steps)
 
         # Loss function
         loss_fct = torch.nn.CrossEntropyLoss()
@@ -163,7 +183,9 @@ def main():
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, labels = batch
 
-                logits = model(input_ids, token_type_ids=None, attention_mask=input_mask, labels=None)
+                with torch.no_grad():
+                    _, pooled_output = bert(input_ids, token_type_ids=None, attention_mask=input_mask)
+                logits = model(pooled_output)
                 loss = loss_fct(logits.view(-1, num_classes), labels.view(-1))
 
                 loss.backward()
@@ -176,7 +198,7 @@ def main():
         torch.save(model.state_dict(), output_model_file)
         logging.info("saved model in file: {}".format(output_model_file))
         with open(output_config_file, 'w') as f:
-            f.write(model.config.to_json_string())
+            f.write(bert.config.to_json_string())
             logging.info("saved BERT config in file: {}".format(output_config_file))
 
     if args.do_eval:
@@ -210,7 +232,8 @@ def main():
             batch = tuple(t.to(device) for t in batch)
             input_ids, input_mask, labels = batch
             with torch.no_grad():
-                logits = model(input_ids, token_type_ids=None, attention_mask=input_mask, labels=None)
+                _, pooled_output = bert(input_ids, token_type_ids=None, attention_mask=input_mask)
+                logits = model(pooled_output)
             tmp_eval_loss = loss_fct(logits.view(-1, num_classes), labels.view(-1))
             eval_loss += tmp_eval_loss.mean().item()
             nb_eval_steps += 1
