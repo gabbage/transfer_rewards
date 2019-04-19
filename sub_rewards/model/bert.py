@@ -14,6 +14,9 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
                               TensorDataset)
 
+from torch.nn.modules.distance import CosineSimilarity
+from torch.optim.lr_scheduler import MultiStepLR
+
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 from pytorch_pretrained_bert.tokenization import BertTokenizer
@@ -21,12 +24,13 @@ from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
 
 BERT_MODEL_NAME = "bert-base-uncased"
-batch_size = 4
-max_seq_len = 294
+batch_size = 32
+max_seq_len = 295
 num_classes = 4
 warmup_proportion = 0.1
-learning_rate = 5e-5
-num_epochs = 3
+learning_rate = 5e-2
+num_epochs = 12
+lr_schedule = [4,7,10]
 output_dir = '/home/sebi/code/transfer_rewards/sub_rewards/data/'
 
 class BertFF(nn.Module):
@@ -37,6 +41,9 @@ class BertFF(nn.Module):
         self.dropout = nn.Dropout(dropout_prob)
         self.classifier = nn.Linear(hidden_size, num_labels)
         # self.apply(self.init_bert_weights)
+        torch.nn.init.normal_(self.classifier.weight, mean=0, std=1)
+        print("classifier weight")
+        print(self.classifier.weight)
 
     def forward(self, pooled_output):
         pooled_output = self.dropout(pooled_output)
@@ -121,6 +128,7 @@ def main():
     logging.info("learning_rate = {}".format(learning_rate))
     logging.info("num_epochs = {}".format(num_epochs))
     logging.info("random_seed = {}".format(args.seed))
+    logging.info("lr_schedule = {}".format(lr_schedule))
     logging.info("========================")
 
     # BERT Tokenizer
@@ -137,6 +145,7 @@ def main():
         fields=[('Label', LABEL), ('Text', TEXT)])
 
     model = None
+    
 
     if args.do_train:
         train_ids, train_masks, train_labels = convert(train, max_seq_len, lambda x: tokenizer.convert_tokens_to_ids(x))
@@ -156,11 +165,20 @@ def main():
 
         bert = BertModel.from_pretrained(BERT_MODEL_NAME,
                   cache_dir=cache_dir).to(device)
-        model = BertFF(bert.config.hidden_size, num_classes, bert.config.hidden_dropout_prob).to(device)
+        model = BertFF(bert.config.hidden_size, num_classes, 0.1).to(device)
+
         model.train()
+        bert.eval()
+
+        # plt
+        # plt.axis([0, (num_epochs+1)*len(train_dataloader), 0.0, 12.0])
+        # loss_vals = np.array([])
+        # cos = CosineSimilarity(dim=0)
+        # o = torch.ones(model.classifier.weight.size(1))
 
         # Optimizer
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        scheduler = MultiStepLR(optimizer, milestones=lr_schedule, gamma=0.1)
         # num_train_optimization_steps = int(len(train_data) / batch_size * num_epochs)
         # param_optimizer = list(model.named_parameters())
         # no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
@@ -175,9 +193,10 @@ def main():
         # Loss function
         loss_fct = torch.nn.CrossEntropyLoss()
 
-        for _ in trange(num_epochs, desc="Epoch"):
+        for epoch in trange(num_epochs, desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
+            scheduler.step()
 
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
@@ -189,6 +208,10 @@ def main():
                 loss = loss_fct(logits.view(-1, num_classes), labels.view(-1))
 
                 loss.backward()
+                # plt.scatter((epoch*len(train_dataloader))+step, loss.item(), color='black')
+                # loss_vals = np.append(loss_vals, [loss.item()])
+                # plt.scatter((epoch*len(train_dataloader))+step, loss_vals.mean(), color='red')
+                # plt.pause(0.05)
                 tr_loss += loss.item()
                 nb_tr_examples += input_ids.size(0)
                 nb_tr_steps += 1
@@ -200,6 +223,8 @@ def main():
         with open(output_config_file, 'w') as f:
             f.write(bert.config.to_json_string())
             logging.info("saved BERT config in file: {}".format(output_config_file))
+
+        # plt.show()
 
     if args.do_eval:
         if not args.do_train:
