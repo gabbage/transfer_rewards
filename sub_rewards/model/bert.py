@@ -16,6 +16,7 @@ from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
 
 from torch.nn.modules.distance import CosineSimilarity
 from torch.optim.lr_scheduler import MultiStepLR
+from matplotlib import pyplot as plt
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
@@ -23,14 +24,14 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
 
-BERT_MODEL_NAME = "bert-base-uncased"
+BERT_MODEL_NAME = "bert-large-uncased"
 batch_size = 32
 max_seq_len = 295
 num_classes = 4
 warmup_proportion = 0.1
 learning_rate = 5e-2
-num_epochs = 12
-lr_schedule = [4,7,10]
+num_epochs = 6
+lr_schedule = [2,3,5]
 output_dir = '/home/sebi/code/transfer_rewards/sub_rewards/data/'
 
 class BertFF(nn.Module):
@@ -56,8 +57,8 @@ def convert(dset, max_seq_len, word2id):
     token_masks = []
     labels = []
 
-    # for i in range(len(dset)):
-    for i in range(10):
+    for i in range(len(dset)):
+    # for i in range(200):
         tok = ["[CLS]"] + [t for t in dset[i].Text]
         tok_ids = word2id(tok)
         padding = [0] * (max_seq_len - len(tok_ids))
@@ -145,7 +146,9 @@ def main():
         fields=[('Label', LABEL), ('Text', TEXT)])
 
     model = None
-    
+
+    # Model configuration
+    cache_dir = os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(-1))
 
     if args.do_train:
         train_ids, train_masks, train_labels = convert(train, max_seq_len, lambda x: tokenizer.convert_tokens_to_ids(x))
@@ -160,9 +163,6 @@ def main():
         train_dataloader = DataLoader(train_data, batch_size=batch_size)
 
 
-        # Model configuration
-        cache_dir = os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(-1))
-
         bert = BertModel.from_pretrained(BERT_MODEL_NAME,
                   cache_dir=cache_dir).to(device)
         model = BertFF(bert.config.hidden_size, num_classes, 0.1).to(device)
@@ -171,10 +171,7 @@ def main():
         bert.eval()
 
         # plt
-        # plt.axis([0, (num_epochs+1)*len(train_dataloader), 0.0, 12.0])
-        # loss_vals = np.array([])
-        # cos = CosineSimilarity(dim=0)
-        # o = torch.ones(model.classifier.weight.size(1))
+        loss_vals = np.array([])
 
         # Optimizer
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -193,10 +190,16 @@ def main():
         # Loss function
         loss_fct = torch.nn.CrossEntropyLoss()
 
+        # live data file
+        live_data = open('live_data.csv', 'w', buffering=1)
+        live_data.write("{},{},{},{},{}\n".format('step', 'loss', 'avg_loss', 'acc', 'f1'))
+
         for epoch in trange(num_epochs, desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
             scheduler.step()
+            nb_eval_steps = 0
+            preds = []
 
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
@@ -208,15 +211,26 @@ def main():
                 loss = loss_fct(logits.view(-1, num_classes), labels.view(-1))
 
                 loss.backward()
-                # plt.scatter((epoch*len(train_dataloader))+step, loss.item(), color='black')
-                # loss_vals = np.append(loss_vals, [loss.item()])
-                # plt.scatter((epoch*len(train_dataloader))+step, loss_vals.mean(), color='red')
-                # plt.pause(0.05)
+                loss_vals = np.append(loss_vals, [loss.item()])
+
+                #write to live data file
+                if step >= 1:
+                    result = acc_and_f1(np.argmax(preds[0], axis=1), torch_train_labels.numpy()[0:len(preds[0])])
+                    live_data.write("{},{},{},{},{}\n".format((epoch*len(train_dataloader))+step, loss.item(), loss_vals[-100:-1].mean(), result['acc'], result['f1']))
+                    live_data.flush()
+
                 tr_loss += loss.item()
                 nb_tr_examples += input_ids.size(0)
                 nb_tr_steps += 1
                 optimizer.step()
                 optimizer.zero_grad()
+
+                nb_eval_steps += 1
+                if len(preds) == 0:
+                    preds.append(logits.detach().cpu().numpy())
+                else:
+                    preds[0] = np.append(preds[0], logits.detach().cpu().numpy(), axis=0)
+
 
         torch.save(model.state_dict(), output_model_file)
         logging.info("saved model in file: {}".format(output_model_file))
@@ -224,13 +238,13 @@ def main():
             f.write(bert.config.to_json_string())
             logging.info("saved BERT config in file: {}".format(output_config_file))
 
-        # plt.show()
-
     if args.do_eval:
         if not args.do_train:
             assert os.path.isfile(output_model_file), "the learnend model file does not exist, execute with --do_train first"
             config = BertConfig(output_config_file)
-            model = BertForSequenceClassification(config, num_labels=num_classes)
+            bert = BertModel.from_pretrained(BERT_MODEL_NAME,
+                      cache_dir=cache_dir).to(device)
+            model = BertFF(bert.config.hidden_size, num_classes, 0.1)
             model.load_state_dict(torch.load(output_model_file))
         model.eval()
         model.to(device)
