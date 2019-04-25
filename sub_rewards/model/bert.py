@@ -16,6 +16,7 @@ from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
 
 from torch.nn.modules.distance import CosineSimilarity
 from torch.optim.lr_scheduler import MultiStepLR
+from torch.utils.data import RandomSampler 
 from matplotlib import pyplot as plt
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
@@ -160,7 +161,10 @@ def main():
         # take these for gpu processing
         # train_sampler = DistributedSampler(train_data)
         # train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
-        train_dataloader = DataLoader(train_data, batch_size=batch_size)
+        #TODO: define a sampler!!!
+        #TODO: use different random seed !!!
+        rand_sampler = RandomSampler(train_data)
+        train_dataloader = DataLoader(train_data, batch_size=batch_size, sampler=rand_sampler)
 
 
         bert = BertModel.from_pretrained(BERT_MODEL_NAME,
