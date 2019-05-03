@@ -9,6 +9,7 @@ from tqdm import tqdm, trange
 import argparse
 import numpy as np
 from pytorch_pretrained_bert.tokenization import BertTokenizer
+from allennlp.modules.elmo import batch_to_ids
 
 act2word = {1:"inform",2:"question", 3:"directive", 4:"commissive"}
 BERT_MODEL_NAME = "bert-large-uncased"
@@ -98,8 +99,13 @@ class DailyDialogConverter:
             act_data = [acts]+permuted_DAs+random_DAs
             coh_data = [1.0] + [0.0]*(len(sent_data)-1)
 
+            """ write the original and created datapoints in random order to the file """
             for i in np.random.permutation(len(sent_data)):
-                of.write("{}|{}|{}\n".format(str(coh_data[i]), " ".join([str(a) for a in act_data[i]]), " ".join([str(s) for s in sent_data[i]])))
+                c = str(coh_data[i])
+                a = " ".join([str(a) for a in act_data[i]])
+                # u = " ".join([str(s) for s in sent_data[i]])
+                u = str(sent_data[i])
+                of.write("{}|{}|{}\n".format(c, a, u))
 
 
 def main():
@@ -114,6 +120,14 @@ def main():
                         type=int,
                         default=42,
                         help="random seed for initialization")
+    parser.add_argument('--embedding',
+                        type=str,
+                        default="bert",
+                        help="""from which embedding should the word ids be used.
+                                alternatives: bert|elmo|glove """)
+
+    #TODO: implement the elmo and glove representations (ids). maybe for glove just put the words into the file, load vectors in other parts.
+
     args = parser.parse_args()
 
     random.seed(args.seed)
