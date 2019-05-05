@@ -16,6 +16,7 @@ BERT_MODEL_NAME = "bert-large-uncased"
 # how many sentence permutations and random inserts should be created per coherent dialog
 PERMUTATIONS_PER_DIALOG = 2
 RANDINSERTS_PER_DIALOG = 2
+PLAIN_COPIES_PER_DIALOG = 3
 
 def permute(sents, sent_DAs, amount):
     """ return a list of different! permuted sentences and their respective dialog acts """
@@ -86,7 +87,11 @@ class DailyDialogConverter:
         for line_count, (dial, act) in tqdm(enumerate(zip(df, af)), total=11118):
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
+            if len(seqs) > 15:
+                continue # Values above create memory allocation errors with BERT
+
             tok_seqs = [self.word2id(self.tokenizer(seq)) for seq in seqs]
+            tok_seqs = [[w.lower() for w in utt] for utt in tok_seqs]
 
             acts = act.split(' ')
             acts = acts[:-1]
@@ -95,9 +100,9 @@ class DailyDialogConverter:
             permuted_sents, permuted_DAs = permute(tok_seqs, acts, PERMUTATIONS_PER_DIALOG)
             random_sents, random_DAs = random_insert(tok_seqs, acts, rand_generator, RANDINSERTS_PER_DIALOG)
 
-            sent_data = [tok_seqs]+permuted_sents+random_sents
-            act_data = [acts]+permuted_DAs+random_DAs
-            coh_data = [1.0] + [0.0]*(len(sent_data)-1)
+            sent_data = [tok_seqs]*PLAIN_COPIES_PER_DIALOG + permuted_sents + random_sents
+            act_data = [acts]*PLAIN_COPIES_PER_DIALOG + permuted_DAs + random_DAs
+            coh_data = [1.0]*PLAIN_COPIES_PER_DIALOG + [0.0]*(len(sent_data)-1)
 
             """ write the original and created datapoints in random order to the file """
             for i in np.random.permutation(len(sent_data)):
@@ -111,16 +116,16 @@ class DailyDialogConverter:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--datadir",
-                        # required=True,
+                        required=True,
                         type=str,
                         help="""The input directory where the files of daily
-                        dialog are located. the folder should have
-                        train/test/validation as subfolders""")
+                        dialog are located. """)
     parser.add_argument('--seed',
                         type=int,
                         default=42,
                         help="random seed for initialization")
     parser.add_argument('--embedding',
+                        required=True,
                         type=str,
                         default="bert",
                         help="""from which embedding should the word ids be used.
@@ -134,9 +139,24 @@ def main():
     np.random.seed(args.seed)
     # torch.manual_seed(args.seed)
 
-    bert_tok = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
-    word2id = lambda x: bert_tok.convert_tokens_to_ids(x)
-    tokenizer = lambda x:bert_tok.tokenize(x)
+    if args.embedding == 'bert':
+        # Bert Settings
+        bert_tok = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
+        word2id = lambda x: x # don't convert words to ids (yet). It gets done in the glove wrapper of mtl_coherence.py
+        tokenizer = lambda x:bert_tok.tokenize(x)
+
+    elif args.embedding == 'elmo':
+        assert False, "elmo not yet supported"
+        #Elmo Settings
+        # word2id = lambda x: batch_to_ids([sent])
+
+    elif args.embedding == 'glove':
+        tokenizer = word_tokenize
+        word2id = lambda x: x # don't convert words to ids (yet). It gets done in the glove wrapper of mtl_coherence.py
+
+    else:
+        assert False, "the --embedding argument could not be detected. either bert, elmo or glove!"
+
 
     converter = DailyDialogConverter(args.datadir, tokenizer, word2id)
     converter.convert_dset()

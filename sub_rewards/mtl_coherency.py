@@ -5,6 +5,7 @@ import sys
 import argparse
 import numpy as np
 import pandas as pd
+from collections import Counter
 from ast import literal_eval
 from tqdm import tqdm, trange
 from nltk.corpus import stopwords
@@ -13,6 +14,7 @@ from sklearn.metrics import mean_squared_error, f1_score, accuracy_score
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchtext as tt
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
                               TensorDataset, Dataset)
@@ -94,13 +96,19 @@ class UtterancesWrapper(Dataset):
         return (act, [utt])
 
 class BertWrapper(Dataset):
-    def __init__(self, base_dset, device, cache_dir, cls_id, sep_id, return_embeddding=True):
+    def __init__(self, base_dset, device, return_embeddding=True):
         super(BertWrapper, self).__init__()
         self.base = base_dset
         self.device = device
+        cache_dir = os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(-1))
         self.bert = BertModel.from_pretrained(BERT_MODEL_NAME,
                   cache_dir=cache_dir).to(device)
         self.bert.eval()
+        
+        self.bert_tok = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
+        self.word2id = lambda x: self.bert_tok.convert_tokens_to_ids(x)
+        
+        cls_id, sep_id = self.word2id(["[CLS]"])[0], self.word2id(["[SEP]"])[0]
 
         self.cls = [cls_id] 
         self.sep = [sep_id]
@@ -112,10 +120,10 @@ class BertWrapper(Dataset):
     def __getitem__(self, idx):
         labels, utts = self.base[idx]
         outputs = []
-        
+
         max_len = max( map(len, utts))
         for utt in utts:
-            bert_input = self.cls + utt + (max_len-len(utt))*[0]
+            bert_input = self.cls + self.word2id(utt) + (max_len-len(utt))*[0]
             bert_input = torch.LongTensor(bert_input).unsqueeze(0).to(self.device)
             encoding, cls_vec = self.bert(bert_input, output_all_encoded_layers=False)
 
@@ -124,7 +132,41 @@ class BertWrapper(Dataset):
             else:
                 outputs.append(cls_vec.squeeze(0))
 
+        #TODO later: add type and attention vectors
         return (labels, outputs)
+
+class GloveWrapper(Dataset):
+    def __init__(self, base_dset, device):
+        super(GloveWrapper, self).__init__()
+        self.base = base_dset
+        self.vocab = self._build_vocab()
+        self.vocab.load_vectors("glove.42B.300d")
+        self.embed = nn.Embedding(len(self.vocab), 300)
+        self.embed.weight.data.copy_(self.vocab.vectors)
+
+    def __len__(self):
+        return len(self.base)
+
+    def __getitem__(self, idx):
+        (label, dialogue) = self.base[idx]
+        seq_len = max([len(utt) for utt in dialogue])
+        pad_dialogue = [utt + ["<pad>"]*(seq_len-len(utt)) for utt in dialogue]
+        glove_dialogue = [self.embed(
+                torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long))
+                    for utt in pad_dialogue]
+
+        return (label, glove_dialogue)
+    
+    def get_word2id(self):
+        return self.vocab.stoi
+
+    def _build_vocab(self):
+        cnt = Counter()
+        for d in self.base.dialogues:
+            for sent in d:
+                for word in sent:
+                    cnt[word.lower()] += 1
+        return tt.vocab.Vocab(cnt)
 
 class MTL_Loss(nn.Module):
     # see: https://spandan-madan.github.io/A-Collection-of-important-tasks-in-pytorch/
@@ -166,39 +208,39 @@ def main():
     torch.manual_seed(args.seed)
     
     # BERT cache dir
-    cache_dir = os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(-1))
-    bert_tok = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
-    word2id = lambda x: bert_tok.convert_tokens_to_ids(x)
-    cls_id, sep_id = word2id(["[CLS]"])[0], word2id(["[SEP]"])[0]
 
     device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
-    stop = [word2id(x) for x in stopwords.words('english')]
+    stop = [x for x in stopwords.words('english')]
     stop = [i for sublist in stop for i in sublist]
     dset = CoherencyDataSet(args.datadir, 'train', word_filter=lambda c: c not in stop)
 
-    bert_dset = BertWrapper(dset, device, cache_dir, cls_id, sep_id, True)
-    cos = CosineSimilarity(dim=0)
+    # embed_dset = BertWrapper(dset, device, True)
+    embed_dset = GloveWrapper(dset, device)
+    cos = CosineSimilarity(dim=0).to(device)
     cos_values = []
     coh_values = []
 
-    for i,(lbl, output) in tqdm(enumerate(bert_dset), total=len(bert_dset)):
-        if i > 10: break
+    for i,(lbl, output) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
+        # if i > 10: break
         dialog_coherencies = []
         for j in range(len(output)-1):
             vec1 = output[j]
             vec2 = output[j+1]
-            c = cos(vec1.mean(0), vec2.mean(0)).item()
+            c = cos(vec1.mean(0), vec2.mean(0)).cpu().item()
             dialog_coherencies.append(c)
 
         coh = float(lbl[0])
         cos_values.append( np.array(c).mean())
         coh_values.append(coh)
 
+        output.detach()
+        torch.cuda.empty_cache()
+
     print(mean_squared_error(coh_values, cos_values))
-    cos_pred = list(map(round, cos_values))
+    cos_pred = list(map(lambda x: 0.0 if round(x) == 1.0 else 1.0, cos_values))
     print("accuracy = ", accuracy_score(coh_values, cos_pred))
-    print("F1 score = ", f1_score(coh_values, cos_pred))
+    print("F1 score = ", f1_score(coh_values, cos_pred, average='macro'))
 
 if __name__ == '__main__':
     main()
