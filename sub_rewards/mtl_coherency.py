@@ -35,10 +35,10 @@ class CoherencyDataSet(Dataset):
         super(CoherencyDataSet, self).__init__()
 
         """ dataset needs to be either 'train', 'test', 'validation' """
-        data_file = os.path.join(data_dir, dataset, "coherency_dset.txt")
+        # data_file = os.path.join(data_dir, dataset, "coherency_dset.txt")
         #shuffled file, s.t. the permuted and random inserted datapoints are not directly next to the original
-        data_file_shuf = os.path.join(data_dir, dataset, "coherency_dset_shuf.txt")
-        assert os.path.isfile(data_file), "could not find dataset file"
+        data_file_shuf = os.path.join(data_dir, "coherency_dset_shuf.txt")
+        assert os.path.isfile(data_file_shuf), "could not find dataset file: {}".format(data_file_shuf)
 
         self.word_filter = word_filter
 
@@ -234,7 +234,8 @@ def main():
         cos_values.append( np.array(c).mean())
         coh_values.append(coh)
 
-        output.detach()
+        for ten in output:
+            ten.detach()
         torch.cuda.empty_cache()
 
     print(mean_squared_error(coh_values, cos_values))

@@ -14,9 +14,11 @@ from allennlp.modules.elmo import batch_to_ids
 act2word = {1:"inform",2:"question", 3:"directive", 4:"commissive"}
 BERT_MODEL_NAME = "bert-large-uncased"
 # how many sentence permutations and random inserts should be created per coherent dialog
-PERMUTATIONS_PER_DIALOG = 2
-RANDINSERTS_PER_DIALOG = 2
-PLAIN_COPIES_PER_DIALOG = 3
+PERMUTATIONS_PER_DIALOG = 1
+RANDINSERTS_PER_DIALOG = 1
+HALF_PERTURBATIONS_PER_DIALOG = 1
+# how many original examples should be included in the dataset
+PLAIN_COPIES_PER_DIALOG = 1
 
 def permute(sents, sent_DAs, amount):
     """ return a list of different! permuted sentences and their respective dialog acts """
@@ -57,6 +59,30 @@ def random_insert(sents, sent_DAs, generator, amount):
         random_DAs[-1][pos] = rDA
     return random_sents, random_DAs
 
+def half_perturb(sents, sent_DAs, amount):
+    assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
+
+    perturbed_sents, perturbed_DAs = [], []
+    for _ in range(amount):
+        speaker = random.randint(0,1) # choose one of the speakers
+        speaker_ix = list(filter(lambda x: (x-speaker) % 2 == 0, range(len(sents))))
+        if len(speaker_ix) < 2:
+            return [], []
+
+        permuted_speaker_ix = np.random.permutation(speaker_ix)
+        while speaker_ix == permuted_speaker_ix.tolist():
+            permuted_speaker_ix = np.random.permutation(speaker_ix)
+        new_sents = deepcopy(sents)
+        new_DA = deepcopy(sent_DAs)
+        for (i_to, i_from) in zip(speaker_ix, permuted_speaker_ix):
+            new_sents[i_to] = sents[i_from]
+            new_DA[i_to] = sent_DAs[i_from]
+
+        perturbed_sents.append(new_sents)
+        perturbed_DAs.append(new_DA)
+
+    return perturbed_sents, perturbed_DAs
+
 
 class DailyDialogConverter:
     def __init__(self, data_dir, tokenizer, word2id):
@@ -96,13 +122,14 @@ class DailyDialogConverter:
             acts = act.split(' ')
             acts = acts[:-1]
             acts = [int(act) for act in acts]
-            
+
             permuted_sents, permuted_DAs = permute(tok_seqs, acts, PERMUTATIONS_PER_DIALOG)
             random_sents, random_DAs = random_insert(tok_seqs, acts, rand_generator, RANDINSERTS_PER_DIALOG)
+            half_perturb_sents, half_perturb_DAs = half_perturb(tok_seqs, acts, HALF_PERTURBATIONS_PER_DIALOG)
 
-            sent_data = [tok_seqs]*PLAIN_COPIES_PER_DIALOG + permuted_sents + random_sents
-            act_data = [acts]*PLAIN_COPIES_PER_DIALOG + permuted_DAs + random_DAs
-            coh_data = [1.0]*PLAIN_COPIES_PER_DIALOG + [0.0]*(len(sent_data)-1)
+            sent_data = [tok_seqs]*PLAIN_COPIES_PER_DIALOG + permuted_sents + random_sents + half_perturb_sents
+            act_data = [acts]*PLAIN_COPIES_PER_DIALOG + permuted_DAs + random_DAs + half_perturb_DAs
+            coh_data = [1.0]*PLAIN_COPIES_PER_DIALOG + [0.0]*(len(sent_data)-PLAIN_COPIES_PER_DIALOG)
 
             """ write the original and created datapoints in random order to the file """
             for i in np.random.permutation(len(sent_data)):
