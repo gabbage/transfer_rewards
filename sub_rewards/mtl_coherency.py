@@ -219,6 +219,10 @@ def main():
                         type=bool,
                         default = False,
                         help= "just do a test run on small amount of data")
+    parser.add_argument('--cuda',
+                        type=int,
+                        default = 0,
+                        help= "which cuda device to take")
     args = parser.parse_args()
 
     # Init randomization
@@ -228,7 +232,8 @@ def main():
     
     # BERT cache dir
 
-    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    cuda_device_name = "cuda:{}".format(args.cuda)
+    device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
 
     stop = [x for x in stopwords.words('english')]
     stop = [i for sublist in stop for i in sublist]
