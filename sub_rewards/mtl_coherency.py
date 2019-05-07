@@ -25,19 +25,16 @@ from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, Bert
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 
 ### Hyper Parameters ###
-BERT_MODEL_NAME = "bert-large-uncased"
+BERT_MODEL_NAME = "bert-base-uncased"
 batch_size = 32
 
 ########################
 
 class CoherencyDataSet(Dataset):
-    def __init__(self, data_dir, dataset, word_filter=None):
+    def __init__(self, data_dir, task, word_filter=None):
         super(CoherencyDataSet, self).__init__()
-
-        """ dataset needs to be either 'train', 'test', 'validation' """
-        # data_file = os.path.join(data_dir, dataset, "coherency_dset.txt")
-        #shuffled file, s.t. the permuted and random inserted datapoints are not directly next to the original
-        data_file_shuf = os.path.join(data_dir, "coherency_dset_shuf.txt")
+        assert task == 'up' or task =='us' or task == 'hup' 
+        data_file_shuf = os.path.join(data_dir, "coherency_dset_{}_shuf.txt".format(task))
         assert os.path.isfile(data_file_shuf), "could not find dataset file: {}".format(data_file_shuf)
 
         self.word_filter = word_filter
@@ -98,6 +95,8 @@ class UtterancesWrapper(Dataset):
 class BertWrapper(Dataset):
     def __init__(self, base_dset, device, return_embeddding=True):
         super(BertWrapper, self).__init__()
+        assert isinstance(base_dset, CoherencyDataSet)
+
         self.base = base_dset
         self.device = device
         cache_dir = os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(-1))
@@ -138,6 +137,8 @@ class BertWrapper(Dataset):
 class GloveWrapper(Dataset):
     def __init__(self, base_dset, device):
         super(GloveWrapper, self).__init__()
+        assert isinstance(base_dset, CoherencyDataSet)
+
         self.base = base_dset
         self.vocab = self._build_vocab()
         self.vocab.load_vectors("glove.42B.300d")
@@ -183,7 +184,7 @@ class MTL_Loss(nn.Module):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--outputdir",
-                        required=True,
+                        required=False,
                         type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
     parser.add_argument("--datadir",
@@ -200,6 +201,24 @@ def main():
                         type=int,
                         default=42,
                         help="random seed for initialization")
+    parser.add_argument('--embedding',
+                        required=True,
+                        type=str,
+                        default="bert",
+                        help="""from which embedding should the word ids be used.
+                                alternatives: bert|elmo|glove """)
+    parser.add_argument('--task',
+                        required=True,
+                        type=str,
+                        default="up",
+                        help="""for which task the dataset should be created.
+                                alternatives: up (utterance permutation)
+                                              us (utterance sampling)
+                                              hup (half utterance petrurbation) """)
+    parser.add_argument('--test',
+                        type=bool,
+                        default = False,
+                        help= "just do a test run on small amount of data")
     args = parser.parse_args()
 
     # Init randomization
@@ -213,16 +232,23 @@ def main():
 
     stop = [x for x in stopwords.words('english')]
     stop = [i for sublist in stop for i in sublist]
-    dset = CoherencyDataSet(args.datadir, 'train', word_filter=lambda c: c not in stop)
+    dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
 
-    # embed_dset = BertWrapper(dset, device, True)
-    embed_dset = GloveWrapper(dset, device)
+    if args.embedding == 'bert':
+        embed_dset = BertWrapper(dset, device, True)
+    elif args.embedding == 'glove':
+        embed_dset = GloveWrapper(dset, device)
+    elif args.embedding == 'elmo':
+        assert False, "elmo not yet supported!"
+
     cos = CosineSimilarity(dim=0).to(device)
     cos_values = []
     coh_values = []
+    print(len(dset))
 
     for i,(lbl, output) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
-        # if i > 10: break
+        if args.test and i > 10: break
+
         dialog_coherencies = []
         for j in range(len(output)-1):
             vec1 = output[j]
@@ -238,8 +264,9 @@ def main():
             ten.detach()
         torch.cuda.empty_cache()
 
-    print(mean_squared_error(coh_values, cos_values))
+    # print(mean_squared_error(coh_values, cos_values))
     cos_pred = list(map(lambda x: 0.0 if round(x) == 1.0 else 1.0, cos_values))
+    #TODO: print accuracy for both classes, see how good it can discriminate!
     print("accuracy = ", accuracy_score(coh_values, cos_pred))
     print("F1 score = ", f1_score(coh_values, cos_pred, average='macro'))
 

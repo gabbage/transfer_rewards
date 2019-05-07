@@ -12,11 +12,11 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from allennlp.modules.elmo import batch_to_ids
 
 act2word = {1:"inform",2:"question", 3:"directive", 4:"commissive"}
-BERT_MODEL_NAME = "bert-large-uncased"
+BERT_MODEL_NAME = "bert-base-uncased"
 # how many sentence permutations and random inserts should be created per coherent dialog
 PERMUTATIONS_PER_DIALOG = 1
-RANDINSERTS_PER_DIALOG = 1
-HALF_PERTURBATIONS_PER_DIALOG = 1
+RANDINSERTS_PER_DIALOG = 0
+HALF_PERTURBATIONS_PER_DIALOG = 0
 # how many original examples should be included in the dataset
 PLAIN_COPIES_PER_DIALOG = 1
 
@@ -24,6 +24,9 @@ def permute(sents, sent_DAs, amount):
     """ return a list of different! permuted sentences and their respective dialog acts """
     """ if amount is greater than the possible amount of permutations, only the uniquely possible ones are returned """
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
+
+    if amount == 0:
+        return [], []
 
     permuted_sents, permuted_DAs = [], []
     previous = [list(range(len(sents)))]
@@ -42,12 +45,15 @@ def draw_rand_sent_from_df(df, tokenizer, word2id):
     """ df is supposed to be a pandas dataframe with colums 'act' and 'utt' (utterance), 
         with act being a number from 1 to 4 and utt being a sentence """
 
-    pos = random.randint(0, len(df))
+    pos = random.randint(0, len(df)-1)
     return int(df['act'][pos]), word2id(tokenizer(df['utt'][pos]))
 
 
 def random_insert(sents, sent_DAs, generator, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
+    
+    if amount == 0:
+        return [], []
 
     random_sents, random_DAs = [], []
     for _ in range(amount):
@@ -61,6 +67,9 @@ def random_insert(sents, sent_DAs, generator, amount):
 
 def half_perturb(sents, sent_DAs, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
+    
+    if amount == 0:
+        return [], []
 
     perturbed_sents, perturbed_DAs = [], []
     for _ in range(amount):
@@ -85,18 +94,20 @@ def half_perturb(sents, sent_DAs, amount):
 
 
 class DailyDialogConverter:
-    def __init__(self, data_dir, tokenizer, word2id):
+    def __init__(self, data_dir, tokenizer, word2id, task=''):
         self.data_dir = data_dir
         self.act_utt_file = os.path.join(data_dir, 'act_utt.txt')
 
         self.tokenizer = tokenizer
         self.word2id = word2id
+        self.output_file = None
+        self.task = task
 
     def convert_dset(self):
         # data_dir is supposed to be the dir with the respective train/test/val-dataset files
         dial_file = os.path.join(self.data_dir, 'dialogues.txt')
         act_file = os.path.join(self.data_dir, 'dialogues_act.txt')
-        output_file = os.path.join(self.data_dir, 'coherency_dset.txt')
+        self.output_file = os.path.join(self.data_dir, 'coherency_dset_{}.txt'.format(self.task))
 
         assert os.path.isfile(dial_file) and os.path.isfile(act_file), "could not find input files"
         assert os.path.isfile(self.act_utt_file), "missing act_utt.txt in data_dir"
@@ -108,13 +119,13 @@ class DailyDialogConverter:
 
         df = open(dial_file, 'r')
         af = open(act_file, 'r')
-        of = open(output_file, 'w')
+        of = open(self.output_file, 'w')
 
         for line_count, (dial, act) in tqdm(enumerate(zip(df, af)), total=11118):
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
-            if len(seqs) > 15:
-                continue # Values above create memory allocation errors with BERT
+            # if len(seqs) > 15:
+                # continue # Values above create memory allocation errors with BERT
 
             tok_seqs = [self.word2id(self.tokenizer(seq)) for seq in seqs]
             tok_seqs = [[w.lower() for w in utt] for utt in tok_seqs]
@@ -139,6 +150,13 @@ class DailyDialogConverter:
                 u = str(sent_data[i])
                 of.write("{}|{}|{}\n".format(c, a, u))
 
+    def call_shuf_on_output(self):
+        """ randomly suffle/permute the output file, s.t. samples drawn from the same input are 
+            not next to each other in the output """
+        shuf_file = os.path.join(self.data_dir, 'coherency_dset_{}_shuf.txt'.format(self.task))
+        cmd = "shuf {} > {}".format(self.output_file, shuf_file)
+        os.system(cmd)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -157,14 +175,35 @@ def main():
                         default="bert",
                         help="""from which embedding should the word ids be used.
                                 alternatives: bert|elmo|glove """)
-
-    #TODO: implement the elmo and glove representations (ids). maybe for glove just put the words into the file, load vectors in other parts.
-
+    parser.add_argument('--task',
+                        required=True,
+                        type=str,
+                        default="up",
+                        help="""for which task the dataset should be created.
+                                alternatives: up (utterance permutation)
+                                              us (utterance sampling)
+                                              hup (half utterance petrurbation) """)
     args = parser.parse_args()
 
     random.seed(args.seed)
     np.random.seed(args.seed)
     # torch.manual_seed(args.seed)
+
+    if args.task == 'up':
+        PERMUTATIONS_PER_DIALOG = 1
+        RANDINSERTS_PER_DIALOG = 0
+        HALF_PERTURBATIONS_PER_DIALOG = 0
+        PLAIN_COPIES_PER_DIALOG = 1
+    elif args.task == 'us':
+        PERMUTATIONS_PER_DIALOG = 0
+        RANDINSERTS_PER_DIALOG = 1
+        HALF_PERTURBATIONS_PER_DIALOG = 0
+        PLAIN_COPIES_PER_DIALOG = 1
+    elif args.task == 'hup':
+        PERMUTATIONS_PER_DIALOG = 0
+        RANDINSERTS_PER_DIALOG = 0
+        HALF_PERTURBATIONS_PER_DIALOG = 1
+        PLAIN_COPIES_PER_DIALOG = 1
 
     if args.embedding == 'bert':
         # Bert Settings
@@ -185,8 +224,9 @@ def main():
         assert False, "the --embedding argument could not be detected. either bert, elmo or glove!"
 
 
-    converter = DailyDialogConverter(args.datadir, tokenizer, word2id)
+    converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
     converter.convert_dset()
+    converter.call_shuf_on_output()
 
     ### Test
     # act_utt_file = os.path.join(args.datadir, 'act_utt.txt')
