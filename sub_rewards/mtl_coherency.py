@@ -9,7 +9,7 @@ from collections import Counter
 from ast import literal_eval
 from tqdm import tqdm, trange
 from nltk.corpus import stopwords
-from sklearn.metrics import mean_squared_error, f1_score, accuracy_score
+from sklearn.metrics import mean_squared_error, f1_score, accuracy_score, label_ranking_average_precision_score
 
 import torch
 import torch.nn as nn
@@ -265,10 +265,11 @@ def main():
         torch.cuda.empty_cache()
 
     # print(mean_squared_error(coh_values, cos_values))
-    cos_pred = list(map(lambda x: 0.0 if round(x) == 1.0 else 1.0, cos_values))
+    cos_pred = list(map(round, cos_values))
     #TODO: print accuracy for both classes, see how good it can discriminate!
     print("accuracy = ", accuracy_score(coh_values, cos_pred))
     print("F1 score = ", f1_score(coh_values, cos_pred, average='macro'))
+    print("MRR = ", label_ranking_average_precision_score(coh_values, cos_values))
 
 if __name__ == '__main__':
     main()
