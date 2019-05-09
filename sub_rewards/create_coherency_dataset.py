@@ -26,27 +26,25 @@ def permute(sents, sent_DAs, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
 
     if amount == 0:
-        return [], []
+        return []
 
-    permuted_sents, permuted_DAs = [], []
-    previous = [list(range(len(sents)))]
+    permutations = [list(range(len(sents)))]
     amount = min(amount, factorial(len(sents))-1)
     for i in range(amount):
         permutation = np.random.permutation(len(sents))
-        while permutation.tolist() in previous:
+        while permutation.tolist() in permutations:
             permutation = np.random.permutation(len(sents))
 
-        previous.append(permutation.tolist())
-        permuted_sents.append([sents[i] for i in permutation])
-        permuted_DAs.append([sent_DAs[i] for i in permutation])
-    return permuted_sents, permuted_DAs
+        permutations.append(permutation.tolist())
+    return permutations[1:] #the first one is the original, which was included s.t. won't be generated
 
-def draw_rand_sent_from_df(df, tokenizer, word2id):
+def draw_rand_sent_from_df(df, tokenizer):
     """ df is supposed to be a pandas dataframe with colums 'act' and 'utt' (utterance), 
         with act being a number from 1 to 4 and utt being a sentence """
 
-    pos = random.randint(0, len(df)-1)
-    return int(df['act'][pos]), word2id(tokenizer(df['utt'][pos]))
+    dialogue_pos = random.randint(0, len(df)-1)
+    utt_pos = random.randint(0, len(tokenizer(df['utt'][dialogue_pos])) -1)
+    return [[dialogue_pos, utt_pos]]
 
 
 def random_insert(sents, sent_DAs, generator, amount):
@@ -69,32 +67,35 @@ def half_perturb(sents, sent_DAs, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
     
     if amount == 0:
-        return [], []
+        return []
 
-    perturbed_sents, perturbed_DAs = [], []
+    permutations = []
     for _ in range(amount):
         speaker = random.randint(0,1) # choose one of the speakers
         speaker_ix = list(filter(lambda x: (x-speaker) % 2 == 0, range(len(sents))))
         if len(speaker_ix) < 2:
-            return [], []
+            return []
 
         permuted_speaker_ix = np.random.permutation(speaker_ix)
         while speaker_ix == permuted_speaker_ix.tolist():
             permuted_speaker_ix = np.random.permutation(speaker_ix)
-        new_sents = deepcopy(sents)
-        new_DA = deepcopy(sent_DAs)
+        new_sents = list(range(len(sents)))
         for (i_to, i_from) in zip(speaker_ix, permuted_speaker_ix):
-            new_sents[i_to] = sents[i_from]
-            new_DA[i_to] = sent_DAs[i_from]
+            new_sents[i_to] = i_from
+        permutations.append(new_sents)
 
-        perturbed_sents.append(new_sents)
-        perturbed_DAs.append(new_DA)
+    return permutations
 
-    return perturbed_sents, perturbed_DAs
-
+#TODO: these functions are for later, when classification is relevant again
+def generate_permutations(sents, sent_DAs, permutations):
+    # use deepcopy !
+    pass
+# for a dialogue index and and utterance index, return the sentence from the df
+def draw_sent_from_df(df, dialogue_ix, utt_ix): 
+    pass
 
 class DailyDialogConverter:
-    def __init__(self, data_dir, tokenizer, word2id, task=''):
+    def __init__(self, data_dir, tokenizer, word2id, task='', ranking_dataset = True):
         self.data_dir = data_dir
         self.act_utt_file = os.path.join(data_dir, 'act_utt.txt')
 
@@ -102,9 +103,20 @@ class DailyDialogConverter:
         self.word2id = word2id
         self.output_file = None
         self.task = task
+        self.ranking_dataset = ranking_dataset
+        self.perturbation_statistics = 0
 
-    def convert_dset(self):
+
+    def convert_dset(self, amounts):
         # data_dir is supposed to be the dir with the respective train/test/val-dataset files
+        print("Converting Settings:")
+        print("PERMUTATIONS_PER_DIALOG", amounts[0])
+        self.ppd = amounts[0]
+        print("RANDINSERTS_PER_DIALOG", amounts[1])
+        self.rpd = amounts[1]
+        print("HALF_PERTURBATIONS_PER_DIALOG", amounts[2])
+        self.hppd = amounts[2]
+
         dial_file = os.path.join(self.data_dir, 'dialogues.txt')
         act_file = os.path.join(self.data_dir, 'dialogues_act.txt')
         self.output_file = os.path.join(self.data_dir, 'coherency_dset_{}.txt'.format(self.task))
@@ -121,6 +133,7 @@ class DailyDialogConverter:
         af = open(act_file, 'r')
         of = open(self.output_file, 'w')
 
+        
         for line_count, (dial, act) in tqdm(enumerate(zip(df, af)), total=11118):
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
@@ -134,21 +147,22 @@ class DailyDialogConverter:
             acts = acts[:-1]
             acts = [int(act) for act in acts]
 
-            permuted_sents, permuted_DAs = permute(tok_seqs, acts, PERMUTATIONS_PER_DIALOG)
-            random_sents, random_DAs = random_insert(tok_seqs, acts, rand_generator, RANDINSERTS_PER_DIALOG)
-            half_perturb_sents, half_perturb_DAs = half_perturb(tok_seqs, acts, HALF_PERTURBATIONS_PER_DIALOG)
+            if self.task == 'up':
+                permuted_ixs = permute(tok_seqs, acts, self.ppd)
+            elif self.task == 'us':
+                permuted_ixs = draw_rand_sent_from_df(act_utt_df, self.tokenizer)
+                permuted_ixs[0].append(random.randint(0, len(tok_seqs)-1))
+            elif self.task == 'hup':
+                permuted_ixs = half_perturb(tok_seqs, acts, self.hppd)
 
-            sent_data = [tok_seqs]*PLAIN_COPIES_PER_DIALOG + permuted_sents + random_sents + half_perturb_sents
-            act_data = [acts]*PLAIN_COPIES_PER_DIALOG + permuted_DAs + random_DAs + half_perturb_DAs
-            coh_data = [1.0]*PLAIN_COPIES_PER_DIALOG + [0.0]*(len(sent_data)-PLAIN_COPIES_PER_DIALOG)
+            self.perturbation_statistics += len(permuted_ixs)
 
             """ write the original and created datapoints in random order to the file """
-            for i in np.random.permutation(len(sent_data)):
-                c = str(coh_data[i])
-                a = " ".join([str(a) for a in act_data[i]])
-                # u = " ".join([str(s) for s in sent_data[i]])
-                u = str(sent_data[i])
-                of.write("{}|{}|{}\n".format(c, a, u))
+            a = " ".join([str(a) for a in acts])
+            # u = " ".join([str(s) for s in sent_data[i]])
+            u = str(tok_seqs)
+            d = str(permuted_ixs)
+            of.write("{}|{}|{}\n".format(a, u, d))
 
     def call_shuf_on_output(self):
         """ randomly suffle/permute the output file, s.t. samples drawn from the same input are 
@@ -190,19 +204,22 @@ def main():
     # torch.manual_seed(args.seed)
 
     if args.task == 'up':
-        PERMUTATIONS_PER_DIALOG = 1
+        print("Preparing Dataset for Utterance Permutation")
+        PERMUTATIONS_PER_DIALOG = 20
         RANDINSERTS_PER_DIALOG = 0
         HALF_PERTURBATIONS_PER_DIALOG = 0
         PLAIN_COPIES_PER_DIALOG = 1
     elif args.task == 'us':
+        print("Preparing Dataset for Utterance Sampling")
         PERMUTATIONS_PER_DIALOG = 0
-        RANDINSERTS_PER_DIALOG = 1
+        RANDINSERTS_PER_DIALOG = 20
         HALF_PERTURBATIONS_PER_DIALOG = 0
         PLAIN_COPIES_PER_DIALOG = 1
     elif args.task == 'hup':
+        print("Preparing Dataset for Half Utterance Peturbation")
         PERMUTATIONS_PER_DIALOG = 0
         RANDINSERTS_PER_DIALOG = 0
-        HALF_PERTURBATIONS_PER_DIALOG = 1
+        HALF_PERTURBATIONS_PER_DIALOG = 20
         PLAIN_COPIES_PER_DIALOG = 1
 
     if args.embedding == 'bert':
@@ -225,8 +242,8 @@ def main():
 
 
     converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
-    converter.convert_dset()
-    converter.call_shuf_on_output()
+    converter.convert_dset(amounts=(PERMUTATIONS_PER_DIALOG, RANDINSERTS_PER_DIALOG, HALF_PERTURBATIONS_PER_DIALOG))
+    print("Amount of created pertubations for task {} is: {}".format(args.task, converter.perturbation_statistics))
 
     ### Test
     # act_utt_file = os.path.join(args.datadir, 'act_utt.txt')
