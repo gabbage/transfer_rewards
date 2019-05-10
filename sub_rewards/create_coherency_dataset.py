@@ -38,13 +38,12 @@ def permute(sents, sent_DAs, amount):
         permutations.append(permutation.tolist())
     return permutations[1:] #the first one is the original, which was included s.t. won't be generated
 
-def draw_rand_sent_from_df(df, tokenizer):
+def draw_rand_sent_from_df(df):
     """ df is supposed to be a pandas dataframe with colums 'act' and 'utt' (utterance), 
         with act being a number from 1 to 4 and utt being a sentence """
 
-    dialogue_pos = random.randint(0, len(df)-1)
-    utt_pos = random.randint(0, len(tokenizer(df['utt'][dialogue_pos])) -1)
-    return [[dialogue_pos, utt_pos]]
+    dialogue_pos = random.randint(0, len(df['utt'])-1)
+    return [[dialogue_pos]]
 
 
 def random_insert(sents, sent_DAs, generator, amount):
@@ -127,7 +126,7 @@ class DailyDialogConverter:
         with open(self.act_utt_file, 'r') as f:
             act_utt_df = pd.read_csv(f, sep='|', names=['act','utt'])
         
-        rand_generator = lambda: draw_rand_sent_from_df(act_utt_df, self.tokenizer, self.word2id)
+        rand_generator = lambda: draw_rand_sent_from_df(act_utt_df)
 
         df = open(dial_file, 'r')
         af = open(act_file, 'r')
@@ -150,7 +149,7 @@ class DailyDialogConverter:
             if self.task == 'up':
                 permuted_ixs = permute(tok_seqs, acts, self.ppd)
             elif self.task == 'us':
-                permuted_ixs = draw_rand_sent_from_df(act_utt_df, self.tokenizer)
+                permuted_ixs = draw_rand_sent_from_df(act_utt_df)
                 permuted_ixs[0].append(random.randint(0, len(tok_seqs)-1))
             elif self.task == 'hup':
                 permuted_ixs = half_perturb(tok_seqs, acts, self.hppd)
