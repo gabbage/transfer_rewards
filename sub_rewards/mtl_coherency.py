@@ -143,7 +143,7 @@ def main():
     rankings = []
     # model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
-    model = MTL_Model3(embed_dset.embed_dim, 300, 2, 4).to(device)
+    model = MTL_Model3(embed_dset.embed_dim, 100, 2, 4, device).to(device)
 
     if args.do_train:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
