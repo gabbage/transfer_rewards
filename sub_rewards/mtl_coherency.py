@@ -20,6 +20,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
                               TensorDataset, Dataset)
 from torch.nn.modules.distance import CosineSimilarity
+from torch.nn.modules import HingeEmbeddingLoss
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
@@ -27,10 +28,13 @@ from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, Bert
 from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper
 from model.coh_random import RandomCoherenceRanker
 from model.cos_ranking import CosineCoherenceRanker
+from model.coh_model3 import MTL_Model3
 
 ### Hyper Parameters ###
 BERT_MODEL_NAME = "bert-base-uncased"
 batch_size = 32
+learning_rate = 5e-3
+num_epochs = 3
 
 max_seq_len = 285 # for glove using the nltk tokenizer
 
@@ -42,11 +46,11 @@ def ranking_score(model, orig_sents, orig_DAs, permutations_sents, permutations_
         return 0.0
     score = 0.0
     for (perm_sent, perm_DA) in zip(permutations_sents, permutations_DAs):
-        score += model(orig_sents, orig_DAs, perm_sent, perm_DA)
-    for (perm_sent, perm_DA) in zip(permutations_sents, permutations_DAs):
-        score += model( perm_sent, perm_DA, orig_sents, orig_DAs)
+        score += model.compare(orig_sents, orig_DAs, perm_sent, perm_DA)
+    # for (perm_sent, perm_DA) in zip(permutations_sents, permutations_DAs):
+        # score += model( perm_sent, perm_DA, orig_sents, orig_DAs)
 
-    return score/(2.0*len(permutations_sents))
+    return score/(len(permutations_sents)) # len *2 if top uncommented
 
 def insertion_score(model, orig_sents):
     max_i = len(orig_sents)-1
@@ -55,7 +59,7 @@ def insertion_score(model, orig_sents):
         for y in range(len(orig_sents)):
             curr_removed = orig_sents[0:i] + [] if i == max_i else orig_sents[i+1:]
             curr_removed.insert(y, sent)
-            score = model(curr_removed, [], [], [])
+            score = model(curr_removed, [])
             values.append((0 if y != i else 1, score))
 
     # values = values + [(0, 0.0)]*(pad_len-len(values))
@@ -105,6 +109,12 @@ def main():
                         type=int,
                         default = 0,
                         help= "which cuda device to take")
+    parser.add_argument('--do_train',
+                        action='store_true',
+                        help= "just do a test run on small amount of data")
+    parser.add_argument('--do_eval',
+                        action='store_true',
+                        help= "just do a test run on small amount of data")
     args = parser.parse_args()
 
     # Init randomization
@@ -116,6 +126,8 @@ def main():
 
     cuda_device_name = "cuda:{}".format(args.cuda)
     device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
+
+    output_model_file =os.path.join(args.datadir, "model.ckpt")
 
     stop = [x for x in stopwords.words('english')]
     stop = [i for sublist in stop for i in sublist]
@@ -130,23 +142,49 @@ def main():
 
     rankings = []
     # model = RandomCoherenceRanker(args.seed)
-    model = CosineCoherenceRanker(args.seed)
+    # model = CosineCoherenceRanker(args.seed)
+    model = MTL_Model3(embed_dset.embed_dim, 300, 2, 4).to(device)
 
-    for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
-        if args.test and i > 3: break
+    if args.do_train:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        hinge = HingeEmbeddingLoss(reduction='none', margin=0.0)
 
-        if args.task == 'ui':
-            x = insertion_score(model, d)
-            rankings.append(x)
-        else:
-            score = ranking_score(model, d, a, pds, pas)
-            rankings.append(score)
+        for _ in trange(num_epochs, desc="Epoch"):
+            for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
+                if args.test and i > 3: break
 
-        # for ten in pds:
-            # ten.detach()
-        # d.detach()
-        # torch.cuda.empty_cache()
-    print(np.array(rankings).mean())
+                coh_base, loss_base = model(d,a)
+                loss = torch.tensor(0.0)
+                for pd, pa in zip(pds, pas):
+                    coh_p, loss_p = model(pd, pa)
+                    loss += loss_base + loss_p + hinge(coh_base, coh_p)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+        
+        torch.save(model.state_dict(), output_model_file)
+
+    if args.do_eval:
+
+        model.load_state_dict(torch.load(output_model_file)).to(device)
+        model.eval()
+
+        for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
+            if args.test and i > 3: break
+
+            if args.task == 'ui':
+                x = insertion_score(model, d)
+                rankings.append(x)
+            else:
+                score = ranking_score(model, d, a, pds, pas)
+                rankings.append(score)
+
+            # for ten in pds:
+                # ten.detach()
+            # d.detach()
+            # torch.cuda.empty_cache()
+        print(np.array(rankings).mean())
 
     # if args.task == 'ui':
         # print(len(rankings[0]))

@@ -152,6 +152,7 @@ class BertWrapper(Dataset):
         
         self.bert_tok = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
         self.word2id = lambda x: self.bert_tok.convert_tokens_to_ids(x)
+        self.embed_dim = self.bert.config.hidden_size
         
         cls_id, sep_id = self.word2id(["[CLS]"])[0], self.word2id(["[SEP]"])[0]
 
@@ -186,10 +187,12 @@ class GloveWrapper(Dataset):
         assert isinstance(base_dset, CoherencyDataSet)
 
         self.base = base_dset
+        self.device = device
         self.max_seq_len = max_seq_len
+        self.embed_dim = 300
         self.vocab = self._build_vocab()
         self.vocab.load_vectors("glove.42B.300d")
-        self.embed = nn.Embedding(len(self.vocab), 300)
+        self.embed = nn.Embedding(len(self.vocab), self.embed_dim)
         self.embed.weight.data.copy_(self.vocab.vectors)
 
     def __len__(self):
@@ -203,13 +206,16 @@ class GloveWrapper(Dataset):
 
         def _embed_dialog(d):
             return [self.embed(
-                torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long))
+                torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long).to(self.device))
                     for utt in d]
             # dial_ten = torch.cat([x.unsqueeze(0) for x in dial_list], 0)
             # return dial_ten
 
         glove_dialogue = _embed_dialog(pad_dialogue)
         glove_perm_utts = [_embed_dialog(d) for d in pad_perm_utts]
+        # act-1 since the input classes are [1.4], but we get [0..3] predicted
+        acts = [torch.tensor([act-1]).to(self.device) for act in acts]
+        perm_acts = [[torch.tensor([act-1]).to(self.device) for act in pact] for pact in perm_acts]
 
         return (glove_dialogue, acts), (glove_perm_utts, perm_acts)
     

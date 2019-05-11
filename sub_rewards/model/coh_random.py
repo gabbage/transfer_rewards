@@ -7,5 +7,9 @@ class RandomCoherenceRanker(nn.Module):
         self.seed = seed
         random.seed(seed)
 
-    def forward(self, x_sents, x_acts, y_sents, y_acts):
+    def forward(self, x_sents, x_acts):
         return float(random.randint(0,1))
+
+    def compare(self, x_sents, x_acts, y_sents, y_acts):
+        return float(random.randint(0,1))
+
