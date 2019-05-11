@@ -48,9 +48,23 @@ def ranking_score(model, orig_sents, orig_DAs, permutations_sents, permutations_
 
     return score/(2.0*len(permutations_sents))
 
+def insertion_score(model, orig_sents):
+    max_i = len(orig_sents)-1
+    values = []
+    for i, sent in enumerate(orig_sents):
+        for y in range(len(orig_sents)):
+            curr_removed = orig_sents[0:i] + [] if i == max_i else orig_sents[i+1:]
+            curr_removed.insert(y, sent)
+            score = model(curr_removed, [], [], [])
+            values.append((0 if y != i else 1, score))
+
+    # values = values + [(0, 0.0)]*(pad_len-len(values))
+    true = np.array([[i for (i,x) in values]])
+    score = np.array([[x for (i,x) in values]])
+    return label_ranking_average_precision_score(true, score)
+    # return values
+
 def main():
-    #TODO: research why sometimes there are length 0 inputs to ranking score
-    # look into created permutations, do they make sense?
     parser = argparse.ArgumentParser()
     parser.add_argument("--outputdir",
                         required=False,
@@ -105,8 +119,7 @@ def main():
 
     stop = [x for x in stopwords.words('english')]
     stop = [i for sublist in stop for i in sublist]
-    # dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
-    dset = CoherencyDataSet(args.datadir, args.task, word_filter=None)
+    dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
 
     if args.embedding == 'bert':
         embed_dset = BertWrapper(dset, device, True)
@@ -116,20 +129,32 @@ def main():
         assert False, "elmo not yet supported!"
 
     rankings = []
-    model = RandomCoherenceRanker(args.seed)
+    # model = RandomCoherenceRanker(args.seed)
+    model = CosineCoherenceRanker(args.seed)
 
     for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
         if args.test and i > 3: break
 
-        score = ranking_score(model, d, a, pds, pas)
-        rankings.append(score)
+        if args.task == 'ui':
+            x = insertion_score(model, d)
+            rankings.append(x)
+        else:
+            score = ranking_score(model, d, a, pds, pas)
+            rankings.append(score)
 
         # for ten in pds:
             # ten.detach()
         # d.detach()
         # torch.cuda.empty_cache()
-
     print(np.array(rankings).mean())
+
+    # if args.task == 'ui':
+        # print(len(rankings[0]))
+        # print(len(rankings[1]))
+        # true = np.array([[i for (i,x) in values] for values in rankings])
+        # score = np.array([[x for (i,x) in values] for values in rankings])
+        # print(label_ranking_average_precision_score(true, score))
+    # else :
 
     # print(mean_squared_error(coh_values, cos_values))
     # cos_pred = list(map(round, cos_values))

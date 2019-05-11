@@ -29,7 +29,7 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 class CoherencyDataSet(Dataset):
     def __init__(self, data_dir, task, word_filter=None):
         super(CoherencyDataSet, self).__init__()
-        assert task == 'up' or task =='us' or task == 'hup' 
+        assert task == 'up' or task =='us' or task == 'hup' or task == 'ui'
         data_file_shuf = os.path.join(data_dir, "coherency_dset_{}.txt".format(task))
         assert os.path.isfile(data_file_shuf), "could not find dataset file: {}".format(data_file_shuf)
 
@@ -42,6 +42,8 @@ class CoherencyDataSet(Dataset):
 
         self.indices_convert = dict()
         utt_idx = 0
+
+        self.max_dialogue_len = 0
 
         with open(data_file_shuf, 'r') as f:
             coh_df = pd.read_csv(f, sep='|', names=['acts', 'utts', 'perm'])
@@ -57,6 +59,7 @@ class CoherencyDataSet(Dataset):
 
             r_utts = literal_eval(row['utts'])
             self.dialogues.append(r_utts)
+            self.max_dialogue_len = max(self.max_dialogue_len, len(r_utts))
             
             r_perms = literal_eval(row['perm'])
             self.permutations.append(r_perms)
@@ -69,7 +72,9 @@ class CoherencyDataSet(Dataset):
 
         perm_sents = []
         perm_acts = []
-        if self.task == 'us':
+        if self.task == 'ui':
+            pass
+        elif self.task == 'us':
             dialogue_ix, curr_ix = perms[0][0], perms[0][1]
 
             (act, utt) = self.get_utt_by_idx(dialogue_ix)
@@ -99,7 +104,6 @@ class CoherencyDataSet(Dataset):
         perms = self.permutations[idx]
         perm_utts, perm_acts = self.create_permutations(idx)
         if self.word_filter is not None:
-            assert False, "word filtering not yet implemented"
             dialog = [list(filter(self.word_filter, x)) for x in dialog]
             for p in perm_utts:
                 p = [list(filter(self.word_filter, x)) for x in p]
@@ -201,6 +205,8 @@ class GloveWrapper(Dataset):
             return [self.embed(
                 torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long))
                     for utt in d]
+            # dial_ten = torch.cat([x.unsqueeze(0) for x in dial_list], 0)
+            # return dial_ten
 
         glove_dialogue = _embed_dialog(pad_dialogue)
         glove_perm_utts = [_embed_dialog(d) for d in pad_perm_utts]

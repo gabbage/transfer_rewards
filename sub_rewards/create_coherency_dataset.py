@@ -153,8 +153,13 @@ class DailyDialogConverter:
                 permuted_ixs[0].append(random.randint(0, len(tok_seqs)-1))
             elif self.task == 'hup':
                 permuted_ixs = half_perturb(tok_seqs, acts, self.hppd)
+            elif self.task == 'ui':
+                permuted_ixs = [[]]
 
-            self.perturbation_statistics += len(permuted_ixs)
+            if self.task == 'ui':
+                self.perturbation_statistics += len(tok_seqs)*(len(tok_seqs)-1)
+            else:
+                self.perturbation_statistics += len(permuted_ixs)
 
             """ write the original and created datapoints in random order to the file """
             a = " ".join([str(a) for a in acts])
@@ -195,7 +200,9 @@ def main():
                         help="""for which task the dataset should be created.
                                 alternatives: up (utterance permutation)
                                               us (utterance sampling)
-                                              hup (half utterance petrurbation) """)
+                                              hup (half utterance petrurbation)
+                                              ui (utterance insertion, nothing directly added!)""")
+
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -220,6 +227,12 @@ def main():
         RANDINSERTS_PER_DIALOG = 0
         HALF_PERTURBATIONS_PER_DIALOG = 20
         PLAIN_COPIES_PER_DIALOG = 1
+    elif args.task == 'ui':
+        print("Preparing Dataset for Utterance Insertion")
+        PERMUTATIONS_PER_DIALOG = 0
+        RANDINSERTS_PER_DIALOG = 0
+        HALF_PERTURBATIONS_PER_DIALOG = 0
+        PLAIN_COPIES_PER_DIALOG = 1
 
     if args.embedding == 'bert':
         # Bert Settings
@@ -242,19 +255,7 @@ def main():
 
     converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
     converter.convert_dset(amounts=(PERMUTATIONS_PER_DIALOG, RANDINSERTS_PER_DIALOG, HALF_PERTURBATIONS_PER_DIALOG))
-    print("Amount of created pertubations for task {} is: {}".format(args.task, converter.perturbation_statistics))
-
-    ### Test
-    # act_utt_file = os.path.join(args.datadir, 'act_utt.txt')
-    # with open(act_utt_file, 'r') as f:
-        # act_utt_df = pd.read_csv(f, sep='|', names=['act','utt'])
-
-    # sents = [["hello", "word"], ["whats", "up"]]
-    # a = [[1,2,3],[4,5,6],[7,8,9]]
-    # b = ['a', 'b', 'c']
-    # print(permute(a,b,9))
-
-    ###
+    print("Amount of pertubations for task {} is: {}".format(args.task, converter.perturbation_statistics))
 
 if __name__ == "__main__":
     main()
