@@ -33,8 +33,10 @@ from model.coh_model3 import MTL_Model3
 ### Hyper Parameters ###
 BERT_MODEL_NAME = "bert-base-uncased"
 batch_size = 32
-learning_rate = 5e-3
-num_epochs = 3
+learning_rate = 5e-4 # inc!
+num_epochs = 10
+lstm_hidden_size = 50
+lstm_layers = 1 #keep 1
 
 max_seq_len = 285 # for glove using the nltk tokenizer
 
@@ -42,7 +44,7 @@ max_seq_len = 285 # for glove using the nltk tokenizer
 
 def ranking_score(model, orig_sents, orig_DAs, permutations_sents, permutations_DAs):
     if len(permutations_sents) == 0:
-        print("caught permutations with length 0")
+        # print("caught permutations with length 0")
         return 0.0
     score = 0.0
     for (perm_sent, perm_DA) in zip(permutations_sents, permutations_DAs):
@@ -140,10 +142,9 @@ def main():
     elif args.embedding == 'elmo':
         assert False, "elmo not yet supported!"
 
-    rankings = []
     # model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
-    model = MTL_Model3(embed_dset.embed_dim, 100, 2, 4, device).to(device)
+    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
     if args.do_train:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -153,8 +154,9 @@ def main():
             for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
                 if args.test and i > 3: break
 
+                #TODO: do sth like 'x = cat(d, pd_1, .., pd_n); model(x); '
                 coh_base, loss_base = model(d,a)
-                loss = torch.tensor(0.0)
+                loss = torch.tensor(0.0).to(device)
                 for pd, pa in zip(pds, pas):
                     coh_p, loss_p = model(pd, pa)
                     loss += loss_base + loss_p + hinge(coh_base, coh_p)
@@ -167,18 +169,15 @@ def main():
 
     if args.do_eval:
 
-        model.load_state_dict(torch.load(output_model_file)).to(device)
+        model.load_state_dict(torch.load(output_model_file))
         model.eval()
+        rankings = []
 
         for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
             if args.test and i > 3: break
 
-            if args.task == 'ui':
-                x = insertion_score(model, d)
-                rankings.append(x)
-            else:
-                score = ranking_score(model, d, a, pds, pas)
-                rankings.append(score)
+            score = ranking_score(model, d, a, pds, pas)
+            rankings.append(score)
 
             # for ten in pds:
                 # ten.detach()
@@ -202,8 +201,6 @@ def main():
     # print(confusion_matrix(coh_values, cos_pred))
     # print("MRR = ", label_ranking_average_precision_score(np.array(coh_values), np.array(cos_values)))
 
-if __name__ == '__main__':
-    main()
 
     # output_model_file = os.path.join(args.outputdir, WEIGHTS_NAME)
     # output_config_file = os.path.join(args.outputdir, CONFIG_NAME)
@@ -245,3 +242,8 @@ def bert_experiment():
     print(sent.unsqueeze(0).size())
     logits, cls = bert(sent.unsqueeze(0), output_all_encoded_layers=False)
     print(logits.size())
+
+
+
+if __name__ == '__main__':
+    main()

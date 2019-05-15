@@ -38,12 +38,16 @@ def permute(sents, sent_DAs, amount):
         permutations.append(permutation.tolist())
     return permutations[1:] #the first one is the original, which was included s.t. won't be generated
 
-def draw_rand_sent_from_df(df):
+def draw_rand_sent_from_df(df, amount, dialogue_len):
     """ df is supposed to be a pandas dataframe with colums 'act' and 'utt' (utterance), 
         with act being a number from 1 to 4 and utt being a sentence """
 
-    dialogue_pos = random.randint(0, len(df['utt'])-1)
-    return [[dialogue_pos]]
+    permutations = []
+    for _ in range(amount):
+        permutations.append(
+                [random.randint(0, len(df['utt'])-1),
+                 random.randint(0, dialogue_len)])
+    return permutations
 
 
 def random_insert(sents, sent_DAs, generator, amount):
@@ -84,6 +88,20 @@ def half_perturb(sents, sent_DAs, amount):
         permutations.append(new_sents)
 
     return permutations
+
+def utterance_insertions(length):
+    permutations = []
+    original = list(range(length))
+    for ix in original:
+        for y in range(length):
+            if ix == y: continue
+
+            ix_removed = original[0:ix] + ([] if ix == length-1 else original[ix+1:])
+            ix_removed.insert(y, ix)
+            permutations.append(deepcopy(ix_removed))
+
+    return permutations
+
 
 #TODO: these functions are for later, when classification is relevant again
 def generate_permutations(sents, sent_DAs, permutations):
@@ -149,12 +167,11 @@ class DailyDialogConverter:
             if self.task == 'up':
                 permuted_ixs = permute(tok_seqs, acts, self.ppd)
             elif self.task == 'us':
-                permuted_ixs = draw_rand_sent_from_df(act_utt_df)
-                permuted_ixs[0].append(random.randint(0, len(tok_seqs)-1))
+                permuted_ixs = draw_rand_sent_from_df(act_utt_df, 20, len(tok_seqs)-1)
             elif self.task == 'hup':
                 permuted_ixs = half_perturb(tok_seqs, acts, self.hppd)
             elif self.task == 'ui':
-                permuted_ixs = [[]]
+                permuted_ixs = utterance_insertions(len(tok_seqs))
 
             if self.task == 'ui':
                 self.perturbation_statistics += len(tok_seqs)*(len(tok_seqs)-1)
@@ -251,7 +268,6 @@ def main():
 
     else:
         assert False, "the --embedding argument could not be detected. either bert, elmo or glove!"
-
 
     converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
     converter.convert_dset(amounts=(PERMUTATIONS_PER_DIALOG, RANDINSERTS_PER_DIALOG, HALF_PERTURBATIONS_PER_DIALOG))

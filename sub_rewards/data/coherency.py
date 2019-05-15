@@ -63,7 +63,6 @@ class CoherencyDataSet(Dataset):
             
             r_perms = literal_eval(row['perm'])
             self.permutations.append(r_perms)
-        print(len(self.acts))
 
     def create_permutations(self, idx):
         acts = self.acts[idx]
@@ -72,18 +71,17 @@ class CoherencyDataSet(Dataset):
 
         perm_sents = []
         perm_acts = []
-        if self.task == 'ui':
-            pass
-        elif self.task == 'us':
-            dialogue_ix, curr_ix = perms[0][0], perms[0][1]
+        if self.task == 'us':
+            for perm in perms:
+                dialogue_ix, curr_ix = perm[0], perm[1]
 
-            (act, utt) = self.get_utt_by_idx(dialogue_ix)
-            perm_sents.append(deepcopy(sents))
-            perm_acts.append(deepcopy(acts))
-            perm_sents[-1][curr_ix] = deepcopy(utt)
-            perm_acts[-1][curr_ix] = act
+                (act, utt) = self.get_utt_by_idx(dialogue_ix)
+                perm_sents.append(deepcopy(sents))
+                perm_acts.append(deepcopy(acts))
+                perm_sents[-1][curr_ix] = deepcopy(utt)
+                perm_acts[-1][curr_ix] = act
 
-        elif self.task == 'up' or self.task == 'hup':
+        elif self.task == 'up' or self.task == 'hup' or self.task == 'ui':
             for perm in perms:
                 perm_sents.append(deepcopy(sents))
                 perm_acts.append(deepcopy(acts))
@@ -205,9 +203,10 @@ class GloveWrapper(Dataset):
         pad_perm_utts = [[utt + ["<pad>"]*(self.max_seq_len-len(utt)) for utt in p] for p in perm_utts]
 
         def _embed_dialog(d):
-            return [self.embed(
-                torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long).to(self.device))
+            x = [self.embed(
+                torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long))
                     for utt in d]
+            return x
             # dial_ten = torch.cat([x.unsqueeze(0) for x in dial_list], 0)
             # return dial_ten
 
