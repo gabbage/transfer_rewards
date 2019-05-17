@@ -44,7 +44,7 @@ max_seq_len = 285 # for glove using the nltk tokenizer
 
 def ranking_score(model, orig_sents, orig_DAs, permutations_sents, permutations_DAs):
     if len(permutations_sents) == 0:
-        # print("caught permutations with length 0")
+        print("caught permutations with length 0")
         return 0.0
     score = 0.0
     for (perm_sent, perm_DA) in zip(permutations_sents, permutations_DAs):
@@ -151,15 +151,19 @@ def main():
         hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
 
         for _ in trange(num_epochs, desc="Epoch"):
-            for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
+            # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
+            for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
                 if args.test and i > 3: break
 
-                #TODO: do sth like 'x = cat(d, pd_1, .., pd_n); model(x); '
-                coh_base, loss_base = model(d,a)
-                loss = torch.tensor(0.0).to(device)
-                for pd, pa in zip(pds, pas):
-                    coh_p, loss_p = model(pd, pa)
-                    loss += loss_base + loss_p + hinge(coh_base, coh_p)
+                coh_base, loss_base = model(all_dialogues, all_acts, len_dialog)
+                hinge_pred = coh_base[1:]
+                hinge_target = torch.cat([coh_base[0].unsqueeze(0) for _ in range(hinge_pred.size(0))], 0)
+                h = hinge(hinge_target, hinge_pred)
+                loss = loss_base[0] * hinge_pred.size(0) + torch.sum(loss_base[1:]) + torch.sum(h)
+                # loss = torch.tensor(0.0).to(device)
+                # for pd, pa in zip(pds, pas):
+                    # coh_p, loss_p = model(pd, pa)
+                    # loss += loss_base + loss_p + hinge(coh_base, coh_p)
 
                 optimizer.zero_grad()
                 loss.backward()

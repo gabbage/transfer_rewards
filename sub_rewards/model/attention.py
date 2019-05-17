@@ -27,6 +27,16 @@ class Attention(nn.Module):
 
         return condensed_x
 
-attn = Attention(100)
-x = Variable(torch.randn(16,30,100))
-print(attn(x).size() == (16,100))
+# attn = Attention(100)
+# x = Variable(torch.randn(16,30,100))
+# print(x.size(-2))
+# t = torch.ones(size=(16,100), dtype=torch.long)
+# # print(attn(x).size() == (16,100))
+# nll = nn.NLLLoss(reduction='none')
+# # print(nll(x, t).size())
+
+# x = torch.randn(2,10,4)
+# t = torch.ones(2,10, dtype=torch.long)
+# a = nll(x,t)
+# print(torch.sum(a.view(2,5), dim=1))
+

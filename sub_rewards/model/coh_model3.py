@@ -27,27 +27,32 @@ class MTL_Model3(nn.Module):
         nn.init.normal_(self.ff_d.weight, mean=0, std=1)
         nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
-        self.nll = nn.NLLLoss(reduction='sum')
+        self.nll = nn.NLLLoss(reduction='none')
+        # TODO: remove 'sum' -> 'none', implement a view after the nll loss, do a sum on that
 
-    def forward(self, x_sents, x_acts):
+    def forward(self, x_sents, x_acts, len_dialog):
         ten_sents = x_sents # torch.cat([x.unsqueeze(0) for x in x_sents], 0)
-        ten_acts = torch.cat(x_acts, 0)
+        ten_acts = x_acts #.view(int(x_acts.size(0)/len_dialog), len_dialog) #torch.cat(x_acts, 0)
+
         loss_da = torch.zeros(ten_acts.size(0)).to(self.device)
         h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
         c0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)
         out, _ = self.bilstm_u(ten_sents, (h0, c0))
         H = self.attn_u(out)
-        m = self.ff_u(H)
-        pda = F.log_softmax(m, dim=1)
-        loss_da = self.nll(pda, ten_acts)
+        view_size1 = int(H.size(0)/len_dialog)
+        H1 = H.view(view_size1, len_dialog, H.size(1))
+        m = self.ff_u(H1)
+        pda = F.log_softmax(m, dim=2)
+        loss_da = self.nll(pda.view(view_size1*len_dialog, pda.size(2)), ten_acts)
+        loss2 = torch.sum(loss_da.view(view_size1, len_dialog), dim=1)
 
-        H = H.unsqueeze(0)
-        h0 = torch.zeros(self.num_layers*2, H.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
-        c0 = torch.zeros(self.num_layers*2, H.size(0), self.hidden_size).to(self.device)
-        out, _ = self.bilstm_d(H, (h0, c0))
+        # H = H.unsqueeze(0)
+        h0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
+        c0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)
+        out, _ = self.bilstm_d(H1, (h0, c0))
         hd = self.attn_d(out)
-        s_coh = self.ff_d(hd).squeeze(0).squeeze(0)
-        return (s_coh, loss_da)
+        s_coh = self.ff_d(hd).squeeze(1)
+        return (s_coh, loss2)
 
     def compare(self, x_sents, x_acts, y_sents, y_acts):
         coh1, _ = self.forward(x_sents, x_acts)

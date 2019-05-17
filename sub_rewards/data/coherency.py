@@ -203,22 +203,26 @@ class GloveWrapper(Dataset):
         pad_perm_utts = [[utt + ["<pad>"]*(self.max_seq_len-len(utt)) for utt in p] for p in perm_utts]
 
         def _embed_dialog(d):
+            # return [self.embed(
+                # torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long)).to(self.device)
+                    # for utt in d]
             x = [self.embed(
                 torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long))
                     for utt in d]
-            # x = [self.embed(
-                # torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long)).to(self.device)
-                    # for utt in d]
-            dial_ten = torch.cat([y.unsqueeze(0) for y in x], 0).to(self.device)
+            dial_ten = torch.cat([y.unsqueeze(0) for y in x], 0)
             return dial_ten
 
         glove_dialogue = _embed_dialog(pad_dialogue)
         glove_perm_utts = [_embed_dialog(d) for d in pad_perm_utts]
-        # act-1 since the input classes are [1.4], but we get [0..3] predicted
-        acts = [torch.tensor([act-1]).to(self.device) for act in acts]
-        perm_acts = [[torch.tensor([act-1]).to(self.device) for act in pact] for pact in perm_acts]
+        all_dialogues = torch.cat([glove_dialogue] + glove_perm_utts, 0).to(self.device)
 
-        return (glove_dialogue, acts), (glove_perm_utts, perm_acts)
+        # act-1 since the input classes are [1.4], but we get [0..3] predicted
+        acts = torch.tensor([act-1 for act in acts])
+        perm_acts = [torch.tensor([act-1 for act in pact]) for pact in perm_acts]
+        all_acts = torch.cat([acts] + perm_acts, 0)
+
+        return (all_dialogues, all_acts, len(dialog))
+        # return (glove_dialogue, acts), (glove_perm_utts, perm_acts)
     
     def get_word2id(self):
         return self.vocab.stoi
