@@ -143,8 +143,8 @@ def main():
         assert False, "elmo not yet supported!"
 
     # model = RandomCoherenceRanker(args.seed)
-    model = CosineCoherenceRanker(args.seed)
-    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    # model = CosineCoherenceRanker(args.seed)
+    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
     if args.do_train:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)

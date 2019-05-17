@@ -30,7 +30,7 @@ class MTL_Model3(nn.Module):
         self.nll = nn.NLLLoss(reduction='sum')
 
     def forward(self, x_sents, x_acts):
-        ten_sents = torch.cat([x.unsqueeze(0) for x in x_sents], 0)
+        ten_sents = x_sents # torch.cat([x.unsqueeze(0) for x in x_sents], 0)
         ten_acts = torch.cat(x_acts, 0)
         loss_da = torch.zeros(ten_acts.size(0)).to(self.device)
         h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
