@@ -6,7 +6,7 @@ from nltk.corpus import stopwords
 from nltk import word_tokenize
 from torch.nn.modules.distance import CosineSimilarity
 
-from allennlp.modules.elmo import Elmo, batch_to_ids
+# from allennlp.modules.elmo import Elmo, batch_to_ids
 
 options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
 weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
@@ -66,23 +66,24 @@ def main():
 
     # Always only have one of the following (Glove or Elmo) uncommented
     # Use GloVe
-    # cnt = Counter()
-    # for w in sent1+sent2+sent3+ref1+ref2+ref3:
-        # cnt[w.lower()] += 1
+    cnt = Counter()
+    for w in sent1+sent2+sent3+ref1+ref2+ref3:
+        cnt[w.lower()] += 1
 
-    # vocab = tt.vocab.Vocab(cnt)
-    # vocab.load_vectors("glove.42B.300d")
-    # embed = nn.Embedding(len(vocab), 300)
-    # embed.weight.data.copy_(vocab.vectors)
+    vocab = tt.vocab.Vocab(cnt)
+    vocab.load_vectors("glove.42B.300d")
+    embed = nn.Embedding(len(vocab), 300)
+    embed.weight.data.copy_(vocab.vectors)
     
-    # embed_fn = lambda x: embed(torch.tensor([vocab.stoi[w] for w in x], dtype=torch.long))
+    embed_fn = lambda x: embed(torch.tensor([vocab.stoi[w] for w in x], dtype=torch.long))
 
     # Use Elmo
-    elmo = Elmo(options_file, weight_file, 1, dropout=0)
-    embed_fn = lambda x: elmo_rep(elmo, x)
+    # elmo = Elmo(options_file, weight_file, 1, dropout=0)
+    # embed_fn = lambda x: elmo_rep(elmo, x)
 
     print("------------ Test Sentences -------------------")
     es1 = embed_fn(sent1)
+    print(es1)
     es2 = embed_fn(sent2)
     es3 = embed_fn(sent3)
     f1_ix, f1 = sent_sim(es1, es2)

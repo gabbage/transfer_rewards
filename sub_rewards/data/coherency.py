@@ -204,7 +204,7 @@ class GloveWrapper(Dataset):
 
         def _embed_dialog(d):
             x = [self.embed(
-                torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long))
+                torch.tensor([self.vocab.stoi[w] for w in utt], dtype=torch.long)).to(self.device)
                     for utt in d]
             return x
             # dial_ten = torch.cat([x.unsqueeze(0) for x in dial_list], 0)

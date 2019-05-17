@@ -89,8 +89,8 @@ def half_perturb(sents, sent_DAs, amount):
 
     return permutations
 
-def utterance_insertions(length):
-    permutations = []
+def utterance_insertions(length, amount):
+    possible_permutations = []
     original = list(range(length))
     for ix in original:
         for y in range(length):
@@ -98,7 +98,12 @@ def utterance_insertions(length):
 
             ix_removed = original[0:ix] + ([] if ix == length-1 else original[ix+1:])
             ix_removed.insert(y, ix)
-            permutations.append(deepcopy(ix_removed))
+            possible_permutations.append(deepcopy(ix_removed))
+
+    permutations = []
+    for _ in range(amount):
+        i = random.randint(0, len(possible_permutations)-1)
+        permutations.append(possible_permutations[i])
 
     return permutations
 
@@ -126,13 +131,7 @@ class DailyDialogConverter:
 
     def convert_dset(self, amounts):
         # data_dir is supposed to be the dir with the respective train/test/val-dataset files
-        print("Converting Settings:")
-        print("PERMUTATIONS_PER_DIALOG", amounts[0])
-        self.ppd = amounts[0]
-        print("RANDINSERTS_PER_DIALOG", amounts[1])
-        self.rpd = amounts[1]
-        print("HALF_PERTURBATIONS_PER_DIALOG", amounts[2])
-        self.hppd = amounts[2]
+        print("Creating {} perturbations for task {}".format(amounts, self.task))
 
         dial_file = os.path.join(self.data_dir, 'dialogues.txt')
         act_file = os.path.join(self.data_dir, 'dialogues_act.txt')
@@ -165,18 +164,15 @@ class DailyDialogConverter:
             acts = [int(act) for act in acts]
 
             if self.task == 'up':
-                permuted_ixs = permute(tok_seqs, acts, self.ppd)
+                permuted_ixs = permute(tok_seqs, acts, amounts)
             elif self.task == 'us':
-                permuted_ixs = draw_rand_sent_from_df(act_utt_df, 20, len(tok_seqs)-1)
+                permuted_ixs = draw_rand_sent_from_df(act_utt_df, amounts, len(tok_seqs)-1)
             elif self.task == 'hup':
-                permuted_ixs = half_perturb(tok_seqs, acts, self.hppd)
+                permuted_ixs = half_perturb(tok_seqs, acts, amounts)
             elif self.task == 'ui':
-                permuted_ixs = utterance_insertions(len(tok_seqs))
+                permuted_ixs = utterance_insertions(len(tok_seqs), amounts)
 
-            if self.task == 'ui':
-                self.perturbation_statistics += len(tok_seqs)*(len(tok_seqs)-1)
-            else:
-                self.perturbation_statistics += len(permuted_ixs)
+            self.perturbation_statistics += len(permuted_ixs)
 
             """ write the original and created datapoints in random order to the file """
             a = " ".join([str(a) for a in acts])
@@ -204,6 +200,10 @@ def main():
                         type=int,
                         default=42,
                         help="random seed for initialization")
+    parser.add_argument('--amount',
+                        type=int,
+                        default=20,
+                        help="random seed for initialization")
     parser.add_argument('--embedding',
                         required=True,
                         type=str,
@@ -226,31 +226,6 @@ def main():
     np.random.seed(args.seed)
     # torch.manual_seed(args.seed)
 
-    if args.task == 'up':
-        print("Preparing Dataset for Utterance Permutation")
-        PERMUTATIONS_PER_DIALOG = 20
-        RANDINSERTS_PER_DIALOG = 0
-        HALF_PERTURBATIONS_PER_DIALOG = 0
-        PLAIN_COPIES_PER_DIALOG = 1
-    elif args.task == 'us':
-        print("Preparing Dataset for Utterance Sampling")
-        PERMUTATIONS_PER_DIALOG = 0
-        RANDINSERTS_PER_DIALOG = 20
-        HALF_PERTURBATIONS_PER_DIALOG = 0
-        PLAIN_COPIES_PER_DIALOG = 1
-    elif args.task == 'hup':
-        print("Preparing Dataset for Half Utterance Peturbation")
-        PERMUTATIONS_PER_DIALOG = 0
-        RANDINSERTS_PER_DIALOG = 0
-        HALF_PERTURBATIONS_PER_DIALOG = 20
-        PLAIN_COPIES_PER_DIALOG = 1
-    elif args.task == 'ui':
-        print("Preparing Dataset for Utterance Insertion")
-        PERMUTATIONS_PER_DIALOG = 0
-        RANDINSERTS_PER_DIALOG = 0
-        HALF_PERTURBATIONS_PER_DIALOG = 0
-        PLAIN_COPIES_PER_DIALOG = 1
-
     if args.embedding == 'bert':
         # Bert Settings
         bert_tok = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
@@ -270,7 +245,7 @@ def main():
         assert False, "the --embedding argument could not be detected. either bert, elmo or glove!"
 
     converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
-    converter.convert_dset(amounts=(PERMUTATIONS_PER_DIALOG, RANDINSERTS_PER_DIALOG, HALF_PERTURBATIONS_PER_DIALOG))
+    converter.convert_dset(amounts=args.amount)
     print("Amount of pertubations for task {} is: {}".format(args.task, converter.perturbation_statistics))
 
 if __name__ == "__main__":

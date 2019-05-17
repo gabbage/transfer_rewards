@@ -24,6 +24,8 @@ class MTL_Model3(nn.Module):
 
         self.ff_u = nn.Linear(2*hidden_size, num_dialogacts)
         self.ff_d = nn.Linear(2*hidden_size, 1)
+        nn.init.normal_(self.ff_d.weight, mean=0, std=1)
+        nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
         self.nll = nn.NLLLoss(reduction='sum')
 
@@ -38,7 +40,7 @@ class MTL_Model3(nn.Module):
         m = self.ff_u(H)
         pda = F.log_softmax(m, dim=1)
         loss_da = self.nll(pda, ten_acts)
-        
+
         H = H.unsqueeze(0)
         h0 = torch.zeros(self.num_layers*2, H.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
         c0 = torch.zeros(self.num_layers*2, H.size(0), self.hidden_size).to(self.device)

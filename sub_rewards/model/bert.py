@@ -16,7 +16,6 @@ from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
 
 from torch.nn.modules.distance import CosineSimilarity
 from torch.optim.lr_scheduler import MultiStepLR
-from torch.utils.data import RandomSampler 
 from matplotlib import pyplot as plt
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE

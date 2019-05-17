@@ -184,7 +184,7 @@ def main():
             for step, batch in tqdm(enumerate(train_iter), desc="Iteration", total=len(train_iter)):
                 try:
                     ones = torch.ones(batch.Label.size(0), dtype=torch.long)*(-1)
-                    feature, target = batch.Text, batch.Label.add(ones)
+                    feature, target = batch.Text, batch.Label.add(ones.to(device))
                     outputs = model(feature)
                     loss = criterion(outputs, target)
                     optimizer.zero_grad()

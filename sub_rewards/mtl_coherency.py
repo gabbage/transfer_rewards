@@ -143,12 +143,12 @@ def main():
         assert False, "elmo not yet supported!"
 
     # model = RandomCoherenceRanker(args.seed)
-    # model = CosineCoherenceRanker(args.seed)
-    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    model = CosineCoherenceRanker(args.seed)
+    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
     if args.do_train:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-        hinge = HingeEmbeddingLoss(reduction='none', margin=0.0)
+        hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
 
         for _ in trange(num_epochs, desc="Epoch"):
             for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
@@ -169,7 +169,7 @@ def main():
 
     if args.do_eval:
 
-        model.load_state_dict(torch.load(output_model_file))
+        # model.load_state_dict(torch.load(output_model_file))
         model.eval()
         rankings = []
 
