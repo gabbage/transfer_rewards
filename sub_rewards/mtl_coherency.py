@@ -42,17 +42,30 @@ max_seq_len = 285 # for glove using the nltk tokenizer
 
 ########################
 
-def ranking_score(model, orig_sents, orig_DAs, permutations_sents, permutations_DAs):
-    if len(permutations_sents) == 0:
-        print("caught permutations with length 0")
-        return 0.0
+# def ranking_score(model, orig_sents, orig_DAs, permutations_sents, permutations_DAs):
+def ranking_score(model, all_dialogues, all_acts, len_dialog):
+    # if len(permutations_sents) == 0:
+        # print("caught permutations with length 0")
+        # return 0.0
+    scores, loss = model(all_dialogues, all_acts, len_dialog)
     score = 0.0
-    for (perm_sent, perm_DA) in zip(permutations_sents, permutations_DAs):
-        score += model.compare(orig_sents, orig_DAs, perm_sent, perm_DA)
-    # for (perm_sent, perm_DA) in zip(permutations_sents, permutations_DAs):
-        # score += model( perm_sent, perm_DA, orig_sents, orig_DAs)
+    
+    coh_scores = scores.cpu().numpy().tolist()
+    orig_score = coh_scores[0]
+    perturb_amount = len(coh_scores[1:])
 
-    return score/(len(permutations_sents)) # len *2 if top uncommented
+    for perm_score in coh_scores[1:]:
+        if orig_score >= perm_score:
+            score += 1.0
+
+    return score/perturb_amount
+
+    # for (perm_sent, perm_DA) in zip(permutations_sents, permutations_DAs):
+        # score += model.compare(orig_sents, orig_DAs, perm_sent, perm_DA)
+    # # for (perm_sent, perm_DA) in zip(permutations_sents, permutations_DAs):
+        # # score += model( perm_sent, perm_DA, orig_sents, orig_DAs)
+
+    # return score/(len(permutations_sents)) # len *2 if top uncommented
 
 def insertion_score(model, orig_sents):
     max_i = len(orig_sents)-1
@@ -173,14 +186,15 @@ def main():
 
     if args.do_eval:
 
-        # model.load_state_dict(torch.load(output_model_file))
+        model.load_state_dict(torch.load(output_model_file))
         model.eval()
         rankings = []
 
-        for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
+        # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
+        for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
             if args.test and i > 3: break
 
-            score = ranking_score(model, d, a, pds, pas)
+            score = ranking_score(model, all_dialogues, all_acts, len_dialog)
             rankings.append(score)
 
             # for ten in pds:
