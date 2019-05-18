@@ -163,7 +163,8 @@ def main():
 
     stop = [x for x in stopwords.words('english')]
     stop = [i for sublist in stop for i in sublist]
-    dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
+    # dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
+    dset = CoherencyDataSet(args.datadir, args.task, word_filter=None)
 
     if args.embedding == 'bert':
         embed_dset = BertWrapper(dset, device, True)
@@ -208,7 +209,9 @@ def main():
                     score = ranking_score_live(coh_base, loss_base, len_dialog)
                     live_data.write("{},{},{}\n".format((epoch*len(embed_dset))+i, loss.item(), score))
                     live_data.flush()
-        
+
+            torch.cuda.empty_cache()
+
         torch.save(model.state_dict(), output_model_file)
 
     if args.do_eval:

@@ -219,7 +219,7 @@ class GloveWrapper(Dataset):
         # act-1 since the input classes are [1.4], but we get [0..3] predicted
         acts = torch.tensor([act-1 for act in acts])
         perm_acts = [torch.tensor([act-1 for act in pact]) for pact in perm_acts]
-        all_acts = torch.cat([acts] + perm_acts, 0)
+        all_acts = torch.cat([acts] + perm_acts, 0).to(self.device)
 
         return (all_dialogues, all_acts, len(dialog))
         # return (glove_dialogue, acts), (glove_perm_utts, perm_acts)
