@@ -29,6 +29,7 @@ from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, Glo
 from model.coh_random import RandomCoherenceRanker
 from model.cos_ranking import CosineCoherenceRanker
 from model.coh_model3 import MTL_Model3
+from model.coh_model4 import MTL_Model4
 
 ### Hyper Parameters ###
 BERT_MODEL_NAME = "bert-base-uncased"
@@ -50,7 +51,7 @@ def ranking_score(model, all_dialogues, all_acts, len_dialog):
     scores, loss = model(all_dialogues, all_acts, len_dialog)
     score = 0.0
     
-    coh_scores = scores.cpu().numpy().tolist()
+    coh_scores = scores.cpu().detach().numpy().tolist()
     orig_score = coh_scores[0]
     perturb_amount = len(coh_scores[1:])
 
@@ -66,6 +67,22 @@ def ranking_score(model, all_dialogues, all_acts, len_dialog):
         # # score += model( perm_sent, perm_DA, orig_sents, orig_DAs)
 
     # return score/(len(permutations_sents)) # len *2 if top uncommented
+
+def ranking_score_live(scores, loss, len_dialog):
+    # if len(permutations_sents) == 0:
+        # print("caught permutations with length 0")
+        # return 0.0
+    score = 0.0
+    
+    coh_scores = scores.cpu().detach().numpy().tolist()
+    orig_score = coh_scores[0]
+    perturb_amount = len(coh_scores[1:])
+
+    for perm_score in coh_scores[1:]:
+        if orig_score >= perm_score:
+            score += 1.0
+
+    return score/perturb_amount
 
 def insertion_score(model, orig_sents):
     max_i = len(orig_sents)-1
@@ -157,13 +174,18 @@ def main():
 
     # model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
-    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
     if args.do_train:
+
+        live_data = open('live_data.csv', 'w', buffering=1)
+        live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
+
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
 
-        for _ in trange(num_epochs, desc="Epoch"):
+        for epoch in trange(num_epochs, desc="Epoch"):
             # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
             for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
                 if args.test and i > 3: break
@@ -181,6 +203,11 @@ def main():
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+
+                if i % 10 == 0: # write to live_data file
+                    score = ranking_score_live(coh_base, loss_base, len_dialog)
+                    live_data.write("{},{},{}\n".format((epoch*len(embed_dset))+i, loss.item(), score))
+                    live_data.flush()
         
         torch.save(model.state_dict(), output_model_file)
 

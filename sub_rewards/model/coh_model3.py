@@ -28,7 +28,6 @@ class MTL_Model3(nn.Module):
         nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
         self.nll = nn.NLLLoss(reduction='none')
-        # TODO: remove 'sum' -> 'none', implement a view after the nll loss, do a sum on that
 
     def forward(self, x_sents, x_acts, len_dialog):
         ten_sents = x_sents # torch.cat([x.unsqueeze(0) for x in x_sents], 0)
@@ -39,6 +38,7 @@ class MTL_Model3(nn.Module):
         c0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)
         out, _ = self.bilstm_u(ten_sents, (h0, c0))
         H = self.attn_u(out)
+
         view_size1 = int(H.size(0)/len_dialog)
         H1 = H.view(view_size1, len_dialog, H.size(1))
         m = self.ff_u(H1)

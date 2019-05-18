@@ -55,7 +55,6 @@ class MTL_Model4(nn.Module):
         pda = F.log_softmax(m, dim=1)
         loss_da = self.nll(pda, ten_acts)
         loss2 = torch.sum(loss_da.view(view_size1, len_dialog), dim=1)
-        print(loss2.size())
 
         return (s_coh, loss2)
 
