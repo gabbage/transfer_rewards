@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchtext as tt
+from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
                               TensorDataset, Dataset)
@@ -34,8 +35,8 @@ from model.coh_model4 import MTL_Model4
 ### Hyper Parameters ###
 BERT_MODEL_NAME = "bert-base-uncased"
 batch_size = 32
-learning_rate = 5e-4 # inc!
-num_epochs = 10
+learning_rate = 5e-2 # inc!
+num_epochs = 50
 lstm_hidden_size = 50
 lstm_layers = 1 #keep 1
 
@@ -184,9 +185,11 @@ def main():
         live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
 
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        scheduler = MultiStepLR(optimizer, milestones=[15,30], gamma=0.1)
         hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
 
         for epoch in trange(num_epochs, desc="Epoch"):
+            scheduler.step()
             # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
             for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
                 if args.test and i > 3: break
