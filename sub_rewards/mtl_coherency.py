@@ -129,6 +129,7 @@ def main():
     # model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
     model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    # model.load_state_dict(torch.load(output_model_file))
     # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
     if args.do_train:
@@ -165,7 +166,7 @@ def main():
 
                 if i % 10 == 0: # write to live_data file
                     score = ranking_score_live(coh_base, loss_base, len_dialog)
-                    live_data.write("{},{},{}\n".format((epoch*len(embed_dset))+i, loss.item(), score))
+                    live_data.write("{},{},{}\n".format(((epoch*len(embed_dset))+i)/10, loss.item(), score))
                     live_data.flush()
 
             torch.cuda.empty_cache()
