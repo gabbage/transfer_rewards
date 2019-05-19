@@ -195,6 +195,9 @@ def main():
             for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
                 if args.test and i > 3: break
 
+                if all_dialogues.size(0) < 2:
+                    continue # sometimes for task HUP, the dialog is just to short to create permutations
+
                 coh_base, loss_base = model(all_dialogues, all_acts, len_dialog)
                 hinge_pred = coh_base[1:]
                 hinge_target = torch.cat([coh_base[0].unsqueeze(0) for _ in range(hinge_pred.size(0))], 0)
