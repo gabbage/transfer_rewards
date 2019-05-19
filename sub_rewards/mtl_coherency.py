@@ -33,13 +33,12 @@ from model.coh_model3 import MTL_Model3
 from model.coh_model4 import MTL_Model4
 
 ### Hyper Parameters ###
-BERT_MODEL_NAME = "bert-base-uncased"
 batch_size = 32
 learning_rate = 5e-2 # inc!
-num_epochs = 50
-lstm_hidden_size = 50
+num_epochs = 10
+lstm_hidden_size = 150
+lr_schedule = [2,4]
 lstm_layers = 1 #keep 1
-
 max_seq_len = 285 # for glove using the nltk tokenizer
 
 ########################
@@ -102,6 +101,117 @@ def insertion_score(model, orig_sents):
     # return values
 
 def main():
+    args = parse_args()
+    init_logging(args)
+    # Init randomization
+    # random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    
+    cuda_device_name = "cuda:{}".format(args.cuda)
+    device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
+
+    output_model_file =os.path.join(args.datadir, "model_{}.ckpt".format(args.task))
+    logging.info("Model output file: {}".format(output_model_file))
+
+    stop = [x for x in stopwords.words('english')]
+    stop = [i for sublist in stop for i in sublist]
+    # dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
+    dset = CoherencyDataSet(args.datadir, args.task, word_filter=None)
+
+    if args.embedding == 'bert':
+        embed_dset = BertWrapper(dset, device, True)
+    elif args.embedding == 'glove':
+        embed_dset = GloveWrapper(dset, device, max_seq_len)
+    elif args.embedding == 'elmo':
+        assert False, "elmo not yet supported!"
+
+    # model = RandomCoherenceRanker(args.seed)
+    # model = CosineCoherenceRanker(args.seed)
+    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+
+    if args.do_train:
+
+        live_data = open("live_data_{}.csv".format(args.task), 'w', buffering=1)
+        live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        scheduler = MultiStepLR(optimizer, milestones=lr_schedule, gamma=0.1)
+        hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
+
+        for epoch in trange(num_epochs, desc="Epoch"):
+            scheduler.step()
+            # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
+            for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
+                if args.test and i > 3: break
+
+                if all_dialogues.size(0) < 2*len_dialog:
+                    continue # sometimes for task HUP, the dialog is just to short to create permutations
+
+                coh_base, loss_base = model(all_dialogues, all_acts, len_dialog)
+                hinge_pred = coh_base[1:]
+                hinge_target = torch.cat([coh_base[0].unsqueeze(0) for _ in range(hinge_pred.size(0))], 0)
+                h = hinge(hinge_target, hinge_pred)
+                loss = loss_base[0] * hinge_pred.size(0) + torch.sum(loss_base[1:]) + torch.sum(h)
+                # loss = torch.tensor(0.0).to(device)
+                # for pd, pa in zip(pds, pas):
+                    # coh_p, loss_p = model(pd, pa)
+                    # loss += loss_base + loss_p + hinge(coh_base, coh_p)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                if i % 10 == 0: # write to live_data file
+                    score = ranking_score_live(coh_base, loss_base, len_dialog)
+                    live_data.write("{},{},{}\n".format((epoch*len(embed_dset))+i, loss.item(), score))
+                    live_data.flush()
+
+            torch.cuda.empty_cache()
+
+        torch.save(model.state_dict(), output_model_file)
+
+    if args.do_eval:
+
+        model.load_state_dict(torch.load(output_model_file))
+        model.eval()
+        rankings = []
+
+        # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
+        for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
+            if args.test and i > 3: break
+
+            score = ranking_score(model, all_dialogues, all_acts, len_dialog)
+            rankings.append(score)
+
+            # for ten in pds:
+                # ten.detach()
+            # d.detach()
+            # torch.cuda.empty_cache()
+        print(np.array(rankings).mean())
+        logging.info("Accuracy Result: {}".format(np.array(rankings).mean()))
+
+def init_logging(args):
+    now = datetime.datetime.now()
+    logfile = os.path.join(args.logdir, 'coherency_task_{}_{}.log'.format(args.task, now.strftime("%Y-%m-%d_%H:%M:%S")))
+    logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format='%(levelname)s:%(message)s')
+    print("Logging to ", logfile)
+
+    logging.info("Used Hyperparameters:")
+
+    logging.info("learning_rate = {}".format(learning_rate))
+    logging.info("num_epochs = {}".format(num_epochs))
+    logging.info("lstm_hidden_size = {}".format(lstm_hidden_size))
+    logging.info("lr_schedule = {}".format(lr_schedule))
+    logging.info("lstm_layers = {}".format(lstm_layers))
+    logging.info("max_seq_len = {}".format(max_seq_len))
+    logging.info("========================")
+    logging.info("task = {}".format(args.task))
+    logging.info("seed = {}".format(args.seed))
+    logging.info("embedding = {}".format(args.embedding))
+
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--outputdir",
                         required=False,
@@ -148,126 +258,8 @@ def main():
     parser.add_argument('--do_eval',
                         action='store_true',
                         help= "just do a test run on small amount of data")
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    # Init randomization
-    # random.seed(args.seed)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    
-    # BERT cache dir
-
-    cuda_device_name = "cuda:{}".format(args.cuda)
-    device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
-
-    output_model_file =os.path.join(args.datadir, "model.ckpt")
-
-    stop = [x for x in stopwords.words('english')]
-    stop = [i for sublist in stop for i in sublist]
-    # dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
-    dset = CoherencyDataSet(args.datadir, args.task, word_filter=None)
-
-    if args.embedding == 'bert':
-        embed_dset = BertWrapper(dset, device, True)
-    elif args.embedding == 'glove':
-        embed_dset = GloveWrapper(dset, device, max_seq_len)
-    elif args.embedding == 'elmo':
-        assert False, "elmo not yet supported!"
-
-    # model = RandomCoherenceRanker(args.seed)
-    # model = CosineCoherenceRanker(args.seed)
-    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
-    model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
-
-    if args.do_train:
-
-        live_data = open('live_data.csv', 'w', buffering=1)
-        live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
-
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-        scheduler = MultiStepLR(optimizer, milestones=[15,30], gamma=0.1)
-        hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
-
-        for epoch in trange(num_epochs, desc="Epoch"):
-            scheduler.step()
-            # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
-            for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
-                if args.test and i > 3: break
-
-                if all_dialogues.size(0) < 2:
-                    continue # sometimes for task HUP, the dialog is just to short to create permutations
-
-                coh_base, loss_base = model(all_dialogues, all_acts, len_dialog)
-                hinge_pred = coh_base[1:]
-                hinge_target = torch.cat([coh_base[0].unsqueeze(0) for _ in range(hinge_pred.size(0))], 0)
-                h = hinge(hinge_target, hinge_pred)
-                loss = loss_base[0] * hinge_pred.size(0) + torch.sum(loss_base[1:]) + torch.sum(h)
-                # loss = torch.tensor(0.0).to(device)
-                # for pd, pa in zip(pds, pas):
-                    # coh_p, loss_p = model(pd, pa)
-                    # loss += loss_base + loss_p + hinge(coh_base, coh_p)
-
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-                if i % 10 == 0: # write to live_data file
-                    score = ranking_score_live(coh_base, loss_base, len_dialog)
-                    live_data.write("{},{},{}\n".format((epoch*len(embed_dset))+i, loss.item(), score))
-                    live_data.flush()
-
-            torch.cuda.empty_cache()
-
-        torch.save(model.state_dict(), output_model_file)
-
-    if args.do_eval:
-
-        model.load_state_dict(torch.load(output_model_file))
-        model.eval()
-        rankings = []
-
-        # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
-        for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
-            if args.test and i > 3: break
-
-            score = ranking_score(model, all_dialogues, all_acts, len_dialog)
-            rankings.append(score)
-
-            # for ten in pds:
-                # ten.detach()
-            # d.detach()
-            # torch.cuda.empty_cache()
-        print(np.array(rankings).mean())
-
-    # if args.task == 'ui':
-        # print(len(rankings[0]))
-        # print(len(rankings[1]))
-        # true = np.array([[i for (i,x) in values] for values in rankings])
-        # score = np.array([[x for (i,x) in values] for values in rankings])
-        # print(label_ranking_average_precision_score(true, score))
-    # else :
-
-    # print(mean_squared_error(coh_values, cos_values))
-    # cos_pred = list(map(round, cos_values))
-    # #TODO: print accuracy for both classes, see how good it can discriminate!
-    # print("accuracy = ", accuracy_score(coh_values, cos_pred))
-    # print("F1 score = ", f1_score(coh_values, cos_pred, average='macro'))
-    # print(confusion_matrix(coh_values, cos_pred))
-    # print("MRR = ", label_ranking_average_precision_score(np.array(coh_values), np.array(cos_values)))
-
-
-    # output_model_file = os.path.join(args.outputdir, WEIGHTS_NAME)
-    # output_config_file = os.path.join(args.outputdir, CONFIG_NAME)
-
-    # # Logging file
-    # now = datetime.datetime.now()
-    # logfile = os.path.join(args.logdir, 'MTL_{}.log'.format(now.strftime("%Y-%m-%d_%H:%M:%S")))
-    # logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format='%(levelname)s:%(message)s')
-    # print("Logging to ", logfile)
-
-    # logging.info("Used Hyperparameters:")
-    # logging.info("BERT_MODEL_NAME = {}".format(BERT_MODEL_NAME))
-    # logging.info("batch_size = {}".format(batch_size))
 
 class MTL_Loss(nn.Module):
     # see: https://spandan-madan.github.io/A-Collection-of-important-tasks-in-pytorch/
