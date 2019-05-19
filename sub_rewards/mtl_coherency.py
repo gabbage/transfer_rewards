@@ -36,8 +36,8 @@ from model.coh_model4 import MTL_Model4
 BERT_MODEL_NAME = "bert-base-uncased"
 batch_size = 32
 learning_rate = 5e-2 # inc!
-num_epochs = 50
-lstm_hidden_size = 50
+num_epochs = 10
+lstm_hidden_size = 150
 lstm_layers = 1 #keep 1
 
 max_seq_len = 285 # for glove using the nltk tokenizer
@@ -160,7 +160,7 @@ def main():
     cuda_device_name = "cuda:{}".format(args.cuda)
     device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
 
-    output_model_file =os.path.join(args.datadir, "model.ckpt")
+    output_model_file =os.path.join(args.datadir, "model_{}.ckpt".format(args.task))
 
     stop = [x for x in stopwords.words('english')]
     stop = [i for sublist in stop for i in sublist]
@@ -176,8 +176,9 @@ def main():
 
     # model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
-    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
-    model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    # model.load_state_dict(torch.load(output_model_file))
+    # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
     if args.do_train:
 
@@ -185,7 +186,7 @@ def main():
         live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
 
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-        scheduler = MultiStepLR(optimizer, milestones=[15,30], gamma=0.1)
+        scheduler = MultiStepLR(optimizer, milestones=[2,4], gamma=0.1)
         hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
 
         for epoch in trange(num_epochs, desc="Epoch"):
@@ -210,7 +211,7 @@ def main():
 
                 if i % 10 == 0: # write to live_data file
                     score = ranking_score_live(coh_base, loss_base, len_dialog)
-                    live_data.write("{},{},{}\n".format((epoch*len(embed_dset))+i, loss.item(), score))
+                    live_data.write("{},{},{}\n".format(((epoch*len(embed_dset))+i)/10, loss.item(), score))
                     live_data.flush()
 
             torch.cuda.empty_cache()
