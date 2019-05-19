@@ -24,7 +24,7 @@ def animate(i):
     ax1.set_xlabel('#batches')
     ax1.set_ylabel('Loss')
     ax2.set_ylabel('%')
-    print(df['score'].mean())
+    print(df['score'][-100:].mean())
     if only_last_batch:
         ax1.plot(df['step'][-2725:-1], df['loss'][-2725:-1], 'o', color='black', label='loss')
         ax2.plot(df['step'][-2725:-1], df['score'][-2725:-1], 'o', color='blue', label='accuracy [wrt current epoch]')
