@@ -54,6 +54,9 @@ def ranking_score(model, all_dialogues, all_acts, len_dialog):
     coh_scores = scores.cpu().detach().numpy().tolist()
     orig_score = coh_scores[0]
     perturb_amount = len(coh_scores[1:])
+    
+    if perturb_amount == 0:
+        return None
 
     for perm_score in coh_scores[1:]:
         if orig_score >= perm_score:
@@ -126,9 +129,9 @@ def main():
     elif args.embedding == 'elmo':
         assert False, "elmo not yet supported!"
 
-    # model = RandomCoherenceRanker(args.seed)
+    model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
-    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
     # model.load_state_dict(torch.load(output_model_file))
     # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
@@ -175,7 +178,7 @@ def main():
 
     if args.do_eval:
 
-        model.load_state_dict(torch.load(output_model_file))
+        # model.load_state_dict(torch.load(output_model_file))
         model.eval()
         rankings = []
 
@@ -184,13 +187,22 @@ def main():
             if args.test and i > 3: break
 
             score = ranking_score(model, all_dialogues, all_acts, len_dialog)
-            rankings.append(score)
+            if score:
+                rankings.append(score)
 
             # for ten in pds:
                 # ten.detach()
             # d.detach()
-            # torch.cuda.empty_cache()
-        print(np.array(rankings).mean())
+            torch.cuda.empty_cache()
+
+        if model.collect_da_predictions:
+            da_pred = model.da_predictions
+            target = [y for (x,y) in da_pred]
+            pred = [x for (x,y) in da_pred]
+            print("DA accuracy: ", accuracy_score(target, pred))
+            logging.info("Accuracy DA: {}".format(accuracy_score(target, pred)))
+
+        print("Coherence Accuracy: ", np.array(rankings).mean())
         logging.info("Accuracy Result: {}".format(np.array(rankings).mean()))
 
 def init_logging(args):
@@ -225,7 +237,7 @@ def parse_args():
                         dialog are located. the folder should have
                         train/test/validation as subfolders""")
     parser.add_argument("--logdir",
-                        default="/home/sebi/code/transfer_rewards/sub_rewards",
+                        default="./logs",
                         type=str,
                         help="the folder to save the logfile to.")
     parser.add_argument('--seed',

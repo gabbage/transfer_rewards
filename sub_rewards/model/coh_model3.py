@@ -8,7 +8,7 @@ from model.attention import Attention
 
 # dont use bias in attention
 class MTL_Model3(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, num_dialogacts, device):
+    def __init__(self, input_size, hidden_size, num_layers, num_dialogacts, device, collect_da_predictions=True):
         super(MTL_Model3, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -27,6 +27,9 @@ class MTL_Model3(nn.Module):
         nn.init.normal_(self.ff_d.weight, mean=0, std=1)
         nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
+        self.collect_da_predictions = collect_da_predictions
+        self.da_predictions = []
+
         self.nll = nn.NLLLoss(reduction='none')
 
     def forward(self, x_sents, x_acts, len_dialog):
@@ -43,6 +46,11 @@ class MTL_Model3(nn.Module):
         H1 = H.view(view_size1, len_dialog, H.size(1))
         m = self.ff_u(H1)
         pda = F.log_softmax(m, dim=2)
+
+        if self.collect_da_predictions:
+            _, pred = torch.max(pda.view(view_size1*len_dialog, pda.size(2)).data, 1)
+            self.da_predictions = self.da_predictions + list(zip(pred.detach().cpu().numpy().tolist(), ten_acts.detach().cpu().numpy().tolist()))
+
         loss_da = self.nll(pda.view(view_size1*len_dialog, pda.size(2)), ten_acts)
         loss2 = torch.sum(loss_da.view(view_size1, len_dialog), dim=1)
 
