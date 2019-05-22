@@ -3,6 +3,7 @@ import math
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 import torch.nn.functional as F
 from model.attention import Attention
 
@@ -17,7 +18,17 @@ class MTL_Model3(nn.Module):
         self.device = device
 
         self.bilstm_u = nn.LSTM(input_size, hidden_size, num_layers, bidirectional=True, batch_first=True)
+        for param in self.bilstm_u.parameters():
+            if len(param.shape) >= 2:
+                init.orthogonal_(param.data)
+            else:
+                init.normal_(param.data)
         self.bilstm_d = nn.LSTM(2*hidden_size, hidden_size, num_layers, bidirectional=True, batch_first=True)
+        for param in self.bilstm_d.parameters():
+            if len(param.shape) >= 2:
+                init.orthogonal_(param.data)
+            else:
+                init.normal_(param.data)
 
         self.attn_u = Attention(2*hidden_size)
         self.attn_d = Attention(2*hidden_size)
