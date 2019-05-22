@@ -66,4 +66,5 @@ class MTL_Model4(nn.Module):
         else:
             return 0.0
 
-
+    def __str__(self):
+        return "Model-4"

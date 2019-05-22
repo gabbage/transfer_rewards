@@ -129,11 +129,15 @@ def main():
     elif args.embedding == 'elmo':
         assert False, "elmo not yet supported!"
 
-    model = RandomCoherenceRanker(args.seed)
+    dataloader = DataLoader(embed_dset, batch_size=1, shuffle=False, num_workers=4)
+
+    # model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
-    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
     # model.load_state_dict(torch.load(output_model_file))
     # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+
+    logging.info("Used Model: {}".format(str(model)))
 
     if args.do_train:
 
@@ -147,8 +151,13 @@ def main():
         for epoch in trange(num_epochs, desc="Epoch"):
             scheduler.step()
             # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
-            for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
+            for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(dataloader), total=len(embed_dset), desc='Iteration'):
                 if args.test and i > 3: break
+
+                all_dialogues = all_dialogues.squeeze(0).to(device)
+                logging.info("all_dialogue size: {}".format(all_dialogues.size()))
+                all_acts = all_acts.squeeze(0).to(device)
+                len_dialog = len_dialog.squeeze(0).to(device)
 
                 if all_dialogues.size(0) < 2*len_dialog:
                     continue # sometimes for task HUP, the dialog is just to short to create permutations
@@ -195,12 +204,12 @@ def main():
             # d.detach()
             torch.cuda.empty_cache()
 
-        if model.collect_da_predictions:
-            da_pred = model.da_predictions
-            target = [y for (x,y) in da_pred]
-            pred = [x for (x,y) in da_pred]
-            print("DA accuracy: ", accuracy_score(target, pred))
-            logging.info("Accuracy DA: {}".format(accuracy_score(target, pred)))
+        # if model.collect_da_predictions:
+            # da_pred = model.da_predictions
+            # target = [y for (x,y) in da_pred]
+            # pred = [x for (x,y) in da_pred]
+            # print("DA accuracy: ", accuracy_score(target, pred))
+            # logging.info("Accuracy DA: {}".format(accuracy_score(target, pred)))
 
         print("Coherence Accuracy: ", np.array(rankings).mean())
         logging.info("Accuracy Result: {}".format(np.array(rankings).mean()))

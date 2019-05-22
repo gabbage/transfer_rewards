@@ -10,7 +10,7 @@ fig = plt.figure()
 ax1 = fig.add_subplot(1,1,1)
 ax2 = ax1.twinx()
 
-rsync_cmd = "rsync --inplace -a --progress buecker@130.83.167.142:transfer_rewards/sub_rewards/live_data_us.csv live_server.csv"
+rsync_cmd = "rsync --inplace -a --progress buecker@130.83.167.142:transfer_rewards/sub_rewards/live_data_up.csv live_server.csv"
 
 def animate(i):
     #retrieve data from server

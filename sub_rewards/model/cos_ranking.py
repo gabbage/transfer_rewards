@@ -25,6 +25,8 @@ class CosineCoherenceRanker(nn.Module):
 
         return torch.cat(scores, 0), None
 
+    def __str__(self):
+        return "CosineCoherenceRanker"
 
     def compare(self, x_sents, x_acts, y_sents, y_acts):
         coh1 = self.forward(x_sents, x_acts)

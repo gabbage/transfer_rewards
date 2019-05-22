@@ -85,7 +85,9 @@ def half_perturb(sents, sent_DAs, amount):
         new_sents = list(range(len(sents)))
         for (i_to, i_from) in zip(speaker_ix, permuted_speaker_ix):
             new_sents[i_to] = i_from
-        permutations.append(new_sents)
+
+        if not new_sents in permutations:
+            permutations.append(new_sents)
 
     return permutations
 

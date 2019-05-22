@@ -15,3 +15,6 @@ class RandomCoherenceRanker(nn.Module):
     def compare(self, x_sents, x_acts, y_sents, y_acts):
         return float(random.randint(0,1))
 
+    def __str__(self):
+        return "RandomCoherenceRanker"
+

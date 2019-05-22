@@ -71,3 +71,5 @@ class MTL_Model3(nn.Module):
             return 0.0
 
 
+    def __str__(self):
+        return "Model-3"
