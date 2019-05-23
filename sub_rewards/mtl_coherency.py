@@ -167,11 +167,10 @@ def main():
                     continue # sometimes for task HUP, the dialog is just to short to create permutations
 
                 coh_base, loss_base = model(all_dialogues, all_acts, len_dialog)
-                loss_base = normalize(loss_base)
                 hinge_pred = coh_base[1:]
                 hinge_target = torch.cat([coh_base[0].unsqueeze(0) for _ in range(hinge_pred.size(0))], 0)
                 h = hinge(hinge_target, hinge_pred)
-                m = torch.tensor([hinge_pred.size(0)]+([1.0] * hinge_pred.size(0))).to(device)
+                m = torch.tensor([1.0]+([1.0/hinge_pred.size(0)] * hinge_pred.size(0))).to(device)
                 loss = torch.dot(loss_base, m) + torch.sum(h)
 
                 optimizer.zero_grad()
