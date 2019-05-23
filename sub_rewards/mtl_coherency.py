@@ -34,10 +34,10 @@ from model.coh_model4 import MTL_Model4
 
 ### Hyper Parameters ###
 batch_size = 32
-learning_rate = 5e-2 # inc!
-num_epochs = 10
+learning_rate = 2e-3 # inc!
+num_epochs = 6
 lstm_hidden_size = 150
-lr_schedule = [2,4]
+lr_schedule = [1,4]
 lstm_layers = 1 #keep 1
 max_seq_len = 285 # for glove using the nltk tokenizer
 
@@ -133,7 +133,7 @@ def main():
     elif args.embedding == 'elmo':
         assert False, "elmo not yet supported!"
 
-    dataloader = DataLoader(embed_dset, batch_size=1, shuffle=False, num_workers=4)
+    dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
 
     # model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
@@ -149,17 +149,16 @@ def main():
         live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
 
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-        scheduler = MultiStepLR(optimizer, milestones=lr_schedule, gamma=0.1)
+        # scheduler = MultiStepLR(optimizer, milestones=lr_schedule, gamma=0.1)
         hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
 
         for epoch in trange(num_epochs, desc="Epoch"):
-            scheduler.step()
+            # scheduler.step()
             # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
-            for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(dataloader), total=len(embed_dset), desc='Iteration'):
+            for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(dataloader), total=len(embed_dset), desc='Iteration', postfix="LR: {}".format(learning_rate)):
                 if args.test and i > 3: break
 
                 all_dialogues = all_dialogues.squeeze(0).to(device)
-                logging.info("all_dialogue size: {}".format(all_dialogues.size()))
                 all_acts = all_acts.squeeze(0).to(device)
                 len_dialog = len_dialog.squeeze(0).to(device)
 
