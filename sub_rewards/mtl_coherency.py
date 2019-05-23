@@ -103,6 +103,10 @@ def insertion_score(model, orig_sents):
     return label_ranking_average_precision_score(true, score)
     # return values
 
+def normalize(x):
+    x_normed = x / x.max(0, keepdim=True)[0]
+    return x_normed
+
 def main():
     args = parse_args()
     init_logging(args)
@@ -163,14 +167,12 @@ def main():
                     continue # sometimes for task HUP, the dialog is just to short to create permutations
 
                 coh_base, loss_base = model(all_dialogues, all_acts, len_dialog)
+                loss_base = normalize(loss_base)
                 hinge_pred = coh_base[1:]
                 hinge_target = torch.cat([coh_base[0].unsqueeze(0) for _ in range(hinge_pred.size(0))], 0)
                 h = hinge(hinge_target, hinge_pred)
-                loss = loss_base[0] * hinge_pred.size(0) + torch.sum(loss_base[1:]) + torch.sum(h)
-                # loss = torch.tensor(0.0).to(device)
-                # for pd, pa in zip(pds, pas):
-                    # coh_p, loss_p = model(pd, pa)
-                    # loss += loss_base + loss_p + hinge(coh_base, coh_p)
+                m = torch.tensor([hinge_pred.size(0)]+([1.0] * hinge_pred.size(0))).to(device)
+                loss = torch.dot(loss_base, m) + torch.sum(h)
 
                 optimizer.zero_grad()
                 loss.backward()
