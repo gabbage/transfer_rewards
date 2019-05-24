@@ -8,6 +8,7 @@ from nltk import word_tokenize
 from tqdm import tqdm, trange
 import argparse
 import numpy as np
+import torchtext
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from allennlp.modules.elmo import batch_to_ids
 
@@ -38,17 +39,20 @@ def permute(sents, sent_DAs, amount):
         permutations.append(permutation.tolist())
     return permutations[1:] #the first one is the original, which was included s.t. won't be generated
 
-def draw_rand_sent_from_df(df, amount, dialogue_len):
+def draw_rand_sent(dialogues_amount, dialogue_len, amount):
     """ df is supposed to be a pandas dataframe with colums 'act' and 'utt' (utterance), 
         with act being a number from 1 to 4 and utt being a sentence """
 
     permutations = []
     for _ in range(amount):
         permutations.append(
-                [random.randint(0, len(df['utt'])-1),
+                [random.randint(0, dialogues_amount-1),
                  random.randint(0, dialogue_len)])
     return permutations
 
+def draw_rand_sent_from_df(df):
+    ix = random.randint(0, len(df['utt'])-1)
+    return df['utt'][ix], df['act'][ix]
 
 def random_insert(sents, sent_DAs, generator, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
@@ -158,8 +162,9 @@ class DailyDialogConverter:
             # if len(seqs) > 15:
                 # continue # Values above create memory allocation errors with BERT
 
-            tok_seqs = [self.word2id(self.tokenizer(seq)) for seq in seqs]
+            tok_seqs = [self.tokenizer(seq) for seq in seqs]
             tok_seqs = [[w.lower() for w in utt] for utt in tok_seqs]
+            tok_seqs = [self.word2id(seq) for seq in tok_seqs]
 
             acts = act.split(' ')
             acts = acts[:-1]
@@ -168,7 +173,8 @@ class DailyDialogConverter:
             if self.task == 'up':
                 permuted_ixs = permute(tok_seqs, acts, amounts)
             elif self.task == 'us':
-                permuted_ixs = draw_rand_sent_from_df(act_utt_df, amounts, len(tok_seqs)-1)
+                l = 11118 if self.data_dir.endswith("train") else 1000
+                permuted_ixs = draw_rand_sent(l, len(tok_seqs)-1, amounts)
             elif self.task == 'hup':
                 permuted_ixs = half_perturb(tok_seqs, acts, amounts)
             elif self.task == 'ui':
@@ -176,12 +182,34 @@ class DailyDialogConverter:
 
             self.perturbation_statistics += len(permuted_ixs)
 
+            if self.task == 'us':
+                for p in permuted_ixs:
+                    a = " ".join([str(a) for a in acts])
+                    u = str(tok_seqs)
+                    insert_sent, insert_da = draw_rand_sent_from_df(act_utt_df)
+                    insert_ix = p[1]
+                    p_a = deepcopy(acts)
+                    p_a[insert_ix] = insert_da
+                    p_u = deepcopy(tok_seqs)
+                    p_u[insert_ix] = self.word2id([w.lower() for w in self.tokenizer(insert_sent)])
+                    of.write("{}|{}|{}|{}\n".format(a,u,p_a,p_u))
+
+            else:
+                for p in permuted_ixs:
+                    a = " ".join([str(a) for a in acts])
+                    u = str(tok_seqs)
+                    pa = [acts[i] for i in p]
+                    p_a = " ".join([str(a) for a in pa])
+                    pu = [tok_seqs[i] for i in p]
+                    p_u = str(pu)
+                    of.write("{}|{}|{}|{}\n".format(a,u,p_a,p_u))
+
             """ write the original and created datapoints in random order to the file """
-            a = " ".join([str(a) for a in acts])
-            # u = " ".join([str(s) for s in sent_data[i]])
-            u = str(tok_seqs)
-            d = str(permuted_ixs)
-            of.write("{}|{}|{}\n".format(a, u, d))
+            # a = " ".join([str(a) for a in acts])
+            # # u = " ".join([str(s) for s in sent_data[i]])
+            # u = str(tok_seqs)
+            # d = str(permuted_ixs)
+            # of.write("{}|{}|{}\n".format(a, u, d))
 
     def call_shuf_on_output(self):
         """ randomly suffle/permute the output file, s.t. samples drawn from the same input are 
@@ -241,13 +269,20 @@ def main():
 
     elif args.embedding == 'glove':
         tokenizer = word_tokenize
-        word2id = lambda x: x # don't convert words to ids (yet). It gets done in the glove wrapper of mtl_coherence.py
+        f = open(os.path.join(args.datadir, "itos.txt"), "r")
+        word2id_dict = dict()
+        for i, word in enumerate(f):
+            word2id_dict[word[:-1].lower()] = i
+
+        # word2id_dict = torchtext.vocab.GloVe(name="42B", dim=300).stoi
+        word2id = lambda x: [word2id_dict[y] for y in x] # don't convert words to ids (yet). It gets done in the glove wrapper of mtl_coherence.py
 
     else:
         assert False, "the --embedding argument could not be detected. either bert, elmo or glove!"
 
     converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
     converter.convert_dset(amounts=args.amount)
+    converter.call_shuf_on_output()
     print("Amount of pertubations for task {} is: {}".format(args.task, converter.perturbation_statistics))
 
 if __name__ == "__main__":

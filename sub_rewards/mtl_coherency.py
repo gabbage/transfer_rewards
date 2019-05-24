@@ -26,20 +26,21 @@ from torch.nn.modules import HingeEmbeddingLoss
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 
-from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper
+from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper, CoherencyPairDataSet, GlovePairWrapper
 from model.coh_random import RandomCoherenceRanker
 from model.cos_ranking import CosineCoherenceRanker
 from model.coh_model3 import MTL_Model3
 from model.coh_model4 import MTL_Model4
 
 ### Hyper Parameters ###
-batch_size = 32
-learning_rate = 2e-3 # inc!
+batch_size = 16
+learning_rate = 2e-2 # inc!
 num_epochs = 6
-lstm_hidden_size = 150
+lstm_hidden_size = 50
+num_classes = 5 # 4 for the dialog acts + 0 for padded sentences
 lr_schedule = [1,4]
 lstm_layers = 1 #keep 1
-max_seq_len = 285 # for glove using the nltk tokenizer
+max_seq_len = 295 # for glove using the nltk tokenizer
 
 ########################
 
@@ -124,24 +125,34 @@ def main():
     stop = [x for x in stopwords.words('english')]
     stop = [i for sublist in stop for i in sublist]
     # dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
-    dset = CoherencyDataSet(args.datadir, args.task, word_filter=None)
+    # dset = CoherencyDataSet(args.datadir, args.task, word_filter=None)
+    pair_dset = CoherencyPairDataSet(args.datadir, args.task, word_filter=None)
+    glove_pair_dset = GlovePairWrapper(pair_dset, args.datadir, max_seq_len, pair_dset.max_dialogue_len, batch_size)
+    print("MAX Dialogue len: ", pair_dset.max_dialogue_len)
 
-    if args.embedding == 'bert':
-        embed_dset = BertWrapper(dset, device, True)
-    elif args.embedding == 'glove':
-        embed_dset = GloveWrapper(dset, device, max_seq_len)
-    elif args.embedding == 'elmo':
-        assert False, "elmo not yet supported!"
+    # if args.embedding == 'bert':
+        # embed_dset = BertWrapper(dset, device, True)
+    # elif args.embedding == 'glove':
+        # embed_dset = GloveWrapper(dset, device, max_seq_len)
+        # # f = open(os.path.join(args.datadir, "itos_all.txt"), "w")
+        # # for word in embed_dset.vocab.itos:
+            # # f.write("{}\n".format(word))
+    # elif args.embedding == 'elmo':
+        # assert False, "elmo not yet supported!"
 
-    dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
+    # dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
 
     # model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
-    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
     # model.load_state_dict(torch.load(output_model_file))
     # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
-    logging.info("Used Model: {}".format(str(model)))
+    # logging.info("Used Model: {}".format(str(model)))
+
+    for i, (utts1, utts2, acts1, acts2, coh_values) in enumerate(glove_pair_dset):
+        print('-------')
+        print(utts1.size(), utts2.size(), acts1.size(), acts2.size(), coh_values.size())
 
     if args.do_train:
 
