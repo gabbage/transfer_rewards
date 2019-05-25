@@ -190,6 +190,7 @@ class DailyDialogConverter:
                     insert_ix = p[1]
                     p_a = deepcopy(acts)
                     p_a[insert_ix] = insert_da
+                    pa = " ".join([[str(a) for a in p_a])
                     p_u = deepcopy(tok_seqs)
                     p_u[insert_ix] = self.word2id([w.lower() for w in self.tokenizer(insert_sent)])
                     of.write("{}|{}|{}|{}\n".format(a,u,p_a,p_u))

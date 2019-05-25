@@ -141,8 +141,8 @@ def main():
 
     dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
 
-    model = RandomCoherenceRanker(args.seed)
-    # model = CosineCoherenceRanker(args.seed)
+    # model = RandomCoherenceRanker(args.seed)
+    model = CosineCoherenceRanker(args.seed)
     # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
     # model.load_state_dict(torch.load(output_model_file))
     # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)

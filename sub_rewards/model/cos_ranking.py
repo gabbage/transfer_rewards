@@ -12,10 +12,10 @@ class CosineCoherenceRanker(nn.Module):
         random.seed(seed)
         self.cos = CosineSimilarity(dim=0)
 
-    def forward(self, x_sents, x_acts, len_dialog):
+    def forward(self, x_sents, x_acts):
         """ general Ranker implementation norm: if y_sents is empty, return the original
             score, else return which one is 'better' """
-        x = x_sents.mean(-2).view(int(x_sents.size(0)/len_dialog), len_dialog, x_sents.size(-1))
+        x = x_sents.mean(-2)
         scores = []
         for i in range(x.size(0)):
             cosines = []
