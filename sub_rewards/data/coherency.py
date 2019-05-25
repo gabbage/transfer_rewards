@@ -267,7 +267,21 @@ class GlovePairWrapper(Dataset):
             batch_perm_acts.append(torch.tensor(perm_acts))
             batch_perm_utts.append(_embed_dialog(perm_utts))
 
-        #shuffle the data in a structured way
+        # SHUFFLE THE DATA IN A STRUCTURED WAY
+        # let batch_utts (the original dialogues) be representd by the list [0..9]
+        # and batch_perm_utts (the permuted ones) be by [10..19], with batch_utts[i] being the
+        # original dialogue and batch_perm_utts[i] being its perturbation, then
+        #     if cnd is true, it will produce the lists
+        #         utts1 = [0, 2, 4, 6, 8, 11, 13, 15, 17, 19]
+        #         utts2 = [10, 12, 14, 16, 18, 1, 3, 5, 7, 9]
+        #     whereas if cnd is false,
+        #         utts1 = [10, 12, 14, 16, 18, 1, 3, 5, 7, 9]
+        #         utts2 = [0, 2, 4, 6, 8, 11, 13, 15, 17, 19]
+        # thus, utts1[i] and utts2[i] represent one pair of a dialogue, with coh_values showing which
+        # one is the original. this is necessary to avoid having the model learn to just predict 
+        # the position of the correct dialog. Now each position in the batch will contain a coherent dialog
+        # in 50% of the time, and a perturbed in the other 50%
+
         cnd = idx%2 == 1
         utts1 = (batch_utts if cnd else batch_perm_utts)[0::2] + (batch_utts if not cnd else batch_perm_utts)[1::2]
         utts2 = (batch_utts if not cnd else batch_perm_utts)[0::2] + (batch_utts if cnd else batch_perm_utts)[1::2]

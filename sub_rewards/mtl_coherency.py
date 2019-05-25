@@ -127,22 +127,21 @@ def main():
     # dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
     # dset = CoherencyDataSet(args.datadir, args.task, word_filter=None)
     pair_dset = CoherencyPairDataSet(args.datadir, args.task, word_filter=None)
-    glove_pair_dset = GlovePairWrapper(pair_dset, args.datadir, max_seq_len, pair_dset.max_dialogue_len, batch_size)
     print("MAX Dialogue len: ", pair_dset.max_dialogue_len)
 
-    # if args.embedding == 'bert':
-        # embed_dset = BertWrapper(dset, device, True)
-    # elif args.embedding == 'glove':
-        # embed_dset = GloveWrapper(dset, device, max_seq_len)
+    if args.embedding == 'bert':
+        embed_dset = BertWrapper(dset, device, True)
+    elif args.embedding == 'glove':
+        embed_dset = GlovePairWrapper(pair_dset, args.datadir, max_seq_len, pair_dset.max_dialogue_len, batch_size)
         # # f = open(os.path.join(args.datadir, "itos_all.txt"), "w")
         # # for word in embed_dset.vocab.itos:
             # # f.write("{}\n".format(word))
     # elif args.embedding == 'elmo':
         # assert False, "elmo not yet supported!"
 
-    # dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
+    dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
 
-    # model = RandomCoherenceRanker(args.seed)
+    model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
     # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
     # model.load_state_dict(torch.load(output_model_file))
@@ -150,9 +149,9 @@ def main():
 
     # logging.info("Used Model: {}".format(str(model)))
 
-    for i, (utts1, utts2, acts1, acts2, coh_values) in enumerate(glove_pair_dset):
-        print('-------')
-        print(utts1.size(), utts2.size(), acts1.size(), acts2.size(), coh_values.size())
+    # for i, (utts1, utts2, acts1, acts2, coh_values) in enumerate(embed_dset):
+        # print('-------')
+        # print(utts1.size(), utts2.size(), acts1.size(), acts2.size(), coh_values.size())
 
     if args.do_train:
 
@@ -166,17 +165,18 @@ def main():
         for epoch in trange(num_epochs, desc="Epoch"):
             # scheduler.step()
             # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
-            for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(dataloader), total=len(embed_dset), desc='Iteration', postfix="LR: {}".format(learning_rate)):
+            for i,(utts1, utts2, acts1, acts2, coh_values) in tqdm(enumerate(dataloader), total=len(embed_dset), desc='Iteration', postfix="LR: {}".format(learning_rate)):
                 if args.test and i > 3: break
 
-                all_dialogues = all_dialogues.squeeze(0).to(device)
-                all_acts = all_acts.squeeze(0).to(device)
-                len_dialog = len_dialog.squeeze(0).to(device)
+                utts1 = utts1.squeeze(0).to(device)
+                utts2 = utts2.squeeze(0).to(device)
+                acts1 = acts1.squeeze(0).to(device)
+                acts2 = acts2.squeeze(0).to(device)
+                coh_values = coh_values.squeeze(0).to(device)
 
-                if all_dialogues.size(0) < 2*len_dialog:
-                    continue # sometimes for task HUP, the dialog is just to short to create permutations
-
-                coh_base, loss_base = model(all_dialogues, all_acts, len_dialog)
+                coh1, loss1 = model(utts1, acts1)
+                coh2, loss2 = model(utts2, acts2)
+                #TODO: change to new data layout
                 hinge_pred = coh_base[1:]
                 hinge_target = torch.cat([coh_base[0].unsqueeze(0) for _ in range(hinge_pred.size(0))], 0)
                 h = hinge(hinge_target, hinge_pred)
@@ -203,16 +203,24 @@ def main():
         rankings = []
 
         # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
-        for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
+        for i,(utts1, utts2, acts1, acts2, coh_values) in tqdm(enumerate(dataloader), total=len(embed_dset), desc='Iteration', postfix="LR: {}".format(learning_rate)):
             if args.test and i > 3: break
 
-            score = ranking_score(model, all_dialogues, all_acts, len_dialog)
-            if score:
-                rankings.append(score)
+            utts1 = utts1.squeeze(0).to(device)
+            utts2 = utts2.squeeze(0).to(device)
+            acts1 = acts1.squeeze(0).to(device)
+            acts2 = acts2.squeeze(0).to(device)
+            coh_values = coh_values.squeeze(0).to(device)
 
-            # for ten in pds:
-                # ten.detach()
-            # d.detach()
+            score1, _ = model(utts1, acts1)
+            score2, _ = model(utts2, acts2)
+            # print(score1.unsqueeze(1).size(), " -- ", score2.size())
+            
+            _, pred = torch.max(torch.cat([score1.unsqueeze(1), score2.unsqueeze(1)], dim=1), dim=1)
+            pred = pred.detach().cpu().numpy()
+            target = coh_values.detach().cpu().numpy()
+            rankings.append(accuracy_score(target, pred))
+
             torch.cuda.empty_cache()
 
         # if model.collect_da_predictions:

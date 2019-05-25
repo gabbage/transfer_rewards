@@ -8,8 +8,8 @@ class RandomCoherenceRanker(nn.Module):
         self.seed = seed
         random.seed(seed)
 
-    def forward(self, x_sents, x_acts, len_dialog):
-        result = [random.uniform(0,1) for _ in range(int(x_acts.size(0)/len_dialog))]
+    def forward(self, x_sents, x_acts):
+        result = [random.uniform(0,1) for _ in range(x_acts.size(0))]
         return torch.tensor(result, dtype=torch.float), None
 
     def compare(self, x_sents, x_acts, y_sents, y_acts):

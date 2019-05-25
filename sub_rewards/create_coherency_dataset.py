@@ -73,7 +73,7 @@ def random_insert(sents, sent_DAs, generator, amount):
 def half_perturb(sents, sent_DAs, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
     
-    if amount == 0:
+    if amount == 0 or len(sents) < 4:
         return []
 
     permutations = []
