@@ -153,6 +153,9 @@ class CoherencyPairDataSet(Dataset):
     def __getitem__(self, idx):
         return (self.acts[idx], self.utts[idx], self.perm_acts[idx], self.perm_utts[idx])
 
+    def get_dialog_len(self, idx):
+        return len(self.acts[idx])
+
 class UtterancesWrapper(Dataset):
     """ This Wrapper can be used to walk through the DailyDialog corpus by sentence, not by dialog"""
     def __init__(self, coherency_dset):
@@ -247,6 +250,10 @@ class GlovePairWrapper(Dataset):
             dial_ten = torch.cat([y.unsqueeze(0) for y in x], 0)
             return dial_ten
 
+        max_dialogue_len = 0
+        for i in indices:
+            max_dialogue_len = max(max_dialogue_len, self.base.get_dialog_len(i))
+
         batch_acts, batch_utts, batch_perm_acts, batch_perm_utts = [], [], [], []
         for i in indices:
             acts, utts, perm_acts, perm_utts = self.base[i]
@@ -255,7 +262,7 @@ class GlovePairWrapper(Dataset):
             utts = [utt + [pad_word]*(self.max_seq_len-len(utt)) for utt in utts]
             perm_utts = [perm_utt + [pad_word]*(self.max_seq_len-len(perm_utt)) for perm_utt in perm_utts]
             #pad dialogues
-            for i in range(self.max_dialogue_len - len(acts)):
+            for i in range(max_dialogue_len - len(acts)):
                 acts.append(0)
                 perm_acts.append(0)
                 utts.append([pad_word]*self.max_seq_len)
