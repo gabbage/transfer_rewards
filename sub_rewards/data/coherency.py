@@ -30,7 +30,7 @@ class CoherencyDataSet(Dataset):
     def __init__(self, data_dir, task, word_filter=None):
         super(CoherencyDataSet, self).__init__()
         assert task == 'up' or task =='us' or task == 'hup' or task == 'ui'
-        data_file_shuf = os.path.join(data_dir, "coherency_dset_{}.txt".format(task))
+        data_file_shuf = os.path.join(data_dir, "coherency_dset_{}_shuf.txt".format(task))
         assert os.path.isfile(data_file_shuf), "could not find dataset file: {}".format(data_file_shuf)
 
         self.word_filter = word_filter

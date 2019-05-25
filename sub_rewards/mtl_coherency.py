@@ -141,13 +141,13 @@ def main():
 
     dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
 
-    # model = RandomCoherenceRanker(args.seed)
-    model = CosineCoherenceRanker(args.seed)
+    # model = RandomCoherenceRanker(args.seed).to(device)
+    model = CosineCoherenceRanker(args.seed).to(device)
     # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
     # model.load_state_dict(torch.load(output_model_file))
     # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
-    # logging.info("Used Model: {}".format(str(model)))
+    logging.info("Used Model: {}".format(str(model)))
 
     # for i, (utts1, utts2, acts1, acts2, coh_values) in enumerate(embed_dset):
         # print('-------')
