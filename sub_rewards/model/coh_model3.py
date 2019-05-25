@@ -43,9 +43,10 @@ class MTL_Model3(nn.Module):
 
         self.nll = nn.NLLLoss(reduction='none')
 
-    def forward(self, x_sents, x_acts, len_dialog):
-        ten_sents = x_sents # torch.cat([x.unsqueeze(0) for x in x_sents], 0)
-        ten_acts = x_acts #.view(int(x_acts.size(0)/len_dialog), len_dialog) #torch.cat(x_acts, 0)
+    def forward(self, x_sents, x_acts):
+        old_size = (x_sents.size(0), x_sents.size(1), x_sents.size(2), x_sents.size(3))
+        ten_sents = x_sents.view(old_size[0]*old_size[1], old_size[2], old_size[3]) # torch.cat([x.unsqueeze(0) for x in x_sents], 0)
+        ten_acts = x_acts.view(old_size[0]*old_size[1]) #.view(int(x_acts.size(0)/len_dialog), len_dialog) #torch.cat(x_acts, 0)
 
         loss_da = torch.zeros(ten_acts.size(0)).to(self.device)
         h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
@@ -53,17 +54,17 @@ class MTL_Model3(nn.Module):
         out, _ = self.bilstm_u(ten_sents, (h0, c0))
         H = self.attn_u(out)
 
-        view_size1 = int(H.size(0)/len_dialog)
-        H1 = H.view(view_size1, len_dialog, H.size(1))
+        # view_size1 = int(H.size(0)/old_size[1])
+        H1 = H.view(old_size[0], old_size[1], H.size(1))
         m = self.ff_u(H1)
         pda = F.log_softmax(m, dim=2)
 
-        if self.collect_da_predictions:
-            _, pred = torch.max(pda.view(view_size1*len_dialog, pda.size(2)).data, 1)
-            self.da_predictions = self.da_predictions + list(zip(pred.detach().cpu().numpy().tolist(), ten_acts.detach().cpu().numpy().tolist()))
+        # if self.collect_da_predictions:
+            # _, pred = torch.max(pda.view(view_size1*len_dialog, pda.size(2)).data, 1)
+            # self.da_predictions = self.da_predictions + list(zip(pred.detach().cpu().numpy().tolist(), ten_acts.detach().cpu().numpy().tolist()))
 
-        loss_da = self.nll(pda.view(view_size1*len_dialog, pda.size(2)), ten_acts)
-        loss2 = torch.sum(loss_da.view(view_size1, len_dialog), dim=1)
+        loss_da = self.nll(pda.view(old_size[0] * old_size[1], pda.size(2)), ten_acts)
+        loss2 = torch.sum(loss_da.view(old_size[0], old_size[1]), dim=1)
 
         # H = H.unsqueeze(0)
         h0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)# 2 for bidirection 

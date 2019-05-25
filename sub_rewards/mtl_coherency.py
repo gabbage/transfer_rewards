@@ -34,8 +34,8 @@ from model.coh_model4 import MTL_Model4
 
 ### Hyper Parameters ###
 batch_size = 16
-learning_rate = 2e-2 # inc!
-num_epochs = 6
+learning_rate = 1e-2 # inc!
+num_epochs = 10
 lstm_hidden_size = 50
 num_classes = 5 # 4 for the dialog acts + 0 for padded sentences
 lr_schedule = [1,4]
@@ -141,9 +141,9 @@ def main():
 
     dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
 
-    # model = RandomCoherenceRanker(args.seed).to(device)
-    model = CosineCoherenceRanker(args.seed).to(device)
-    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    # model = RandomCoherenceRanker(args.seed)
+    # model = CosineCoherenceRanker(args.seed)
+    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, num_classes, device).to(device)
     # model.load_state_dict(torch.load(output_model_file))
     # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
@@ -172,29 +172,27 @@ def main():
                 utts2 = utts2.squeeze(0).to(device)
                 acts1 = acts1.squeeze(0).to(device)
                 acts2 = acts2.squeeze(0).to(device)
-                coh_values = coh_values.squeeze(0).to(device)
+                coh_values = coh_values.squeeze(0)
 
                 coh1, loss1 = model(utts1, acts1)
                 coh2, loss2 = model(utts2, acts2)
-                #TODO: change to new data layout
-                hinge_pred = coh_base[1:]
-                hinge_target = torch.cat([coh_base[0].unsqueeze(0) for _ in range(hinge_pred.size(0))], 0)
-                h = hinge(hinge_target, hinge_pred)
-                m = torch.tensor([1.0]+([1.0/hinge_pred.size(0)] * hinge_pred.size(0))).to(device)
-                loss = torch.dot(loss_base, m) + torch.sum(h)
+                loss = loss1 + loss2 + hinge(coh1, coh2)
 
                 optimizer.zero_grad()
-                loss.backward()
+                loss.mean().backward()
                 optimizer.step()
 
                 if i % 10 == 0: # write to live_data file
-                    score = ranking_score_live(coh_base, loss_base, len_dialog)
-                    live_data.write("{},{},{}\n".format(((epoch*len(embed_dset))+i)/10, loss.item(), score))
+                    _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh1.unsqueeze(1)], dim=1), dim=1)
+                    pred = pred.detach().cpu().numpy()
+                    target = coh_values.numpy()
+                    score = accuracy_score(target, pred)
+                    live_data.write("{},{},{}\n".format(((epoch*len(embed_dset))+i)/10, loss.mean().item(), score))
                     live_data.flush()
 
             torch.cuda.empty_cache()
 
-        torch.save(model.state_dict(), output_model_file)
+            torch.save(model.state_dict(), output_model_file)
 
     if args.do_eval:
 
@@ -210,7 +208,7 @@ def main():
             utts2 = utts2.squeeze(0).to(device)
             acts1 = acts1.squeeze(0).to(device)
             acts2 = acts2.squeeze(0).to(device)
-            coh_values = coh_values.squeeze(0).to(device)
+            coh_values = coh_values.squeeze(0)
 
             score1, _ = model(utts1, acts1)
             score2, _ = model(utts2, acts2)
@@ -218,7 +216,7 @@ def main():
             
             _, pred = torch.max(torch.cat([score1.unsqueeze(1), score2.unsqueeze(1)], dim=1), dim=1)
             pred = pred.detach().cpu().numpy()
-            target = coh_values.detach().cpu().numpy()
+            target = coh_values.numpy()
             rankings.append(accuracy_score(target, pred))
 
             torch.cuda.empty_cache()
@@ -247,6 +245,7 @@ def init_logging(args):
     logging.info("lr_schedule = {}".format(lr_schedule))
     logging.info("lstm_layers = {}".format(lstm_layers))
     logging.info("max_seq_len = {}".format(max_seq_len))
+    logging.info("batch_size = {}".format(batch_size))
     logging.info("========================")
     logging.info("task = {}".format(args.task))
     logging.info("seed = {}".format(args.seed))
