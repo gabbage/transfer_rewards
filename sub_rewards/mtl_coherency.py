@@ -34,10 +34,10 @@ from model.coh_model4 import MTL_Model4
 
 ### Hyper Parameters ###
 batch_size = 32
-learning_rate = 2e-3 # inc!
-num_epochs = 6
-lstm_hidden_size = 150
-lr_schedule = [1,4]
+learning_rate = 1e-4 # inc!
+num_epochs = 10
+lstm_hidden_size = 50
+lr_schedule = [1,3]
 lstm_layers = 1 #keep 1
 max_seq_len = 285 # for glove using the nltk tokenizer
 
@@ -137,7 +137,7 @@ def main():
 
     # model = RandomCoherenceRanker(args.seed)
     # model = CosineCoherenceRanker(args.seed)
-    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device, collect_da_predictions=args.do_eval).to(device)
     # model.load_state_dict(torch.load(output_model_file))
     # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
@@ -148,7 +148,7 @@ def main():
         live_data = open("live_data_{}.csv".format(args.task), 'w', buffering=1)
         live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.01)
         # scheduler = MultiStepLR(optimizer, milestones=lr_schedule, gamma=0.1)
         hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
 
@@ -183,17 +183,22 @@ def main():
 
             torch.cuda.empty_cache()
 
-        torch.save(model.state_dict(), output_model_file)
+            #save after every epoch
+            torch.save(model.state_dict(), output_model_file)
 
     if args.do_eval:
 
-        # model.load_state_dict(torch.load(output_model_file))
+        model.load_state_dict(torch.load(output_model_file))
+        model.to(device)
         model.eval()
         rankings = []
 
         # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
         for i,(all_dialogues, all_acts, len_dialog) in tqdm(enumerate(embed_dset), total=len(embed_dset), desc='Iteration'):
             if args.test and i > 3: break
+            all_dialogues = all_dialogues.squeeze(0).to(device)
+            all_acts = all_acts.squeeze(0).to(device)
+            len_dialog = len_dialog.squeeze(0).to(device)
 
             score = ranking_score(model, all_dialogues, all_acts, len_dialog)
             if score:
@@ -202,7 +207,7 @@ def main():
             # for ten in pds:
                 # ten.detach()
             # d.detach()
-            torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
 
         # if model.collect_da_predictions:
             # da_pred = model.da_predictions
