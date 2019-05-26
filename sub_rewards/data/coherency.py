@@ -128,95 +128,56 @@ class CoherencyPairDataSet(Dataset):
         self.task = task 
         self.max_dialogue_len = 0
 
-        self.acts = []
-        self.perm_acts = []
-        self.utts = []
-        self.perm_utts = []
+        self.coh_ixs = []
+        self.acts1 = []
+        self.acts2 = []
+        self.utts1 = []
+        self.utts2 = []
 
         with open(data_file_shuf, 'r') as f:
-            coh_df = pd.read_csv(f, sep='|', names=['acts', 'utts', 'perm_acts', 'perm_utts'])
+            coh_df = pd.read_csv(f, sep='|', names=['coh_idx', 'acts1', 'utts1', 'acts2', 'utts2'])
 
         for (idx, row) in coh_df.iterrows():
-            r_acts = [int(x) for x in row['acts'].split(' ')]
-            self.acts.append(r_acts)
-            
-            r_perm_acts = [int(x) for x in row['perm_acts'].split(' ')]
-            self.perm_acts.append(r_perm_acts)
+            acts1 = [int(x) for x in row['acts1'].split(' ')]
+            self.acts1.append(acts1)
+            acts2 = [int(x) for x in row['acts2'].split(' ')]
+            self.acts2.append(acts2)
 
-            self.utts.append(literal_eval(row['utts']))
-            self.perm_utts.append(literal_eval(row['perm_utts']))
-            self.max_dialogue_len = max(self.max_dialogue_len, len(self.utts[-1]))
+            self.utts1.append(literal_eval(row['utts1']))
+            self.utts2.append(literal_eval(row['utts2']))
+
+            self.coh_ixs.append(int(row['coh_idx']))
+
+            self.max_dialogue_len = max(self.max_dialogue_len, len(self.utts1[-1]))
 
     def __len__(self):
-        return len(self.acts)
+        return len(self.acts1)
 
     def __getitem__(self, idx):
-        return (self.acts[idx], self.utts[idx], self.perm_acts[idx], self.perm_utts[idx])
+        utt1 = self.utts1[idx]
+        utt2 = self.utts2[idx]
+        if self.word_filter is not None:
+             utt1 = [list(filter(self.word_filter, x)) for x in utt1]
+             utt2 = [list(filter(self.word_filter, x)) for x in utt2]
+        return (self.coh_ixs[idx], self.acts1[idx], utt1, self.acts2[idx], utt2)
 
     def get_dialog_len(self, idx):
         return len(self.acts[idx])
 
-class UtterancesWrapper(Dataset):
-    """ This Wrapper can be used to walk through the DailyDialog corpus by sentence, not by dialog"""
-    def __init__(self, coherency_dset):
-        super(UtterancesWrapper, self).__init__()
-        self.base = coherency_dset
-        assert False, "This class is currently not supported"
-
-    def __len__(self):
-        return len(self.base.indices_convert)
-
-    def __getitem__(self, idx):
-        base_idx = self.base.indices_convert[idx]
-        min_base_idx = min(self.base.get_utt_ix(base_idx))
-        j = idx - min_base_idx
-        utt = self.base.dialogues[base_idx][j]
-        act = self.base.acts[base_idx][j]
-        return (act, [utt])
-
-class BertWrapper(Dataset):
-    def __init__(self, base_dset, device, return_embeddding=True):
-        super(BertWrapper, self).__init__()
-        assert isinstance(base_dset, CoherencyDataSet)
-        assert False, "This class is currently not supported"
-
+class CoherencyPairBatchWrapper(Dataset):
+    def __init__(self, base_dset, batch_size):
+        super(CoherencyPairBatchWrapper, self).__init__()
+        assert isinstance(base_dset, CoherencyPairDataSet)
         self.base = base_dset
-        self.device = device
-        cache_dir = os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(-1))
-        self.bert = BertModel.from_pretrained(BERT_MODEL_NAME,
-                  cache_dir=cache_dir).to(device)
-        self.bert.eval()
-        
-        self.bert_tok = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
-        self.word2id = lambda x: self.bert_tok.convert_tokens_to_ids(x)
-        self.embed_dim = self.bert.config.hidden_size
-        
-        cls_id, sep_id = self.word2id(["[CLS]"])[0], self.word2id(["[SEP]"])[0]
+        self.batch_size = batch_size
 
-        self.cls = [cls_id] 
-        self.sep = [sep_id]
-        self.embed = return_embeddding #whether to return the embedding or the classification vector
+        self.sampler = list(BatchSampler(SequentialSampler(self.base), batch_size=self.batch_size, drop_last=False))
 
     def __len__(self):
-        return len(self.base)
+        return len(self.sampler)
 
     def __getitem__(self, idx):
-        labels, utts = self.base[idx]
-        outputs = []
-
-        max_len = max( map(len, utts))
-        for utt in utts:
-            bert_input = self.cls + self.word2id(utt) + (max_len-len(utt))*[0]
-            bert_input = torch.LongTensor(bert_input).unsqueeze(0).to(self.device)
-            encoding, cls_vec = self.bert(bert_input, output_all_encoded_layers=False)
-
-            if self.embed:
-                outputs.append(encoding.squeeze(0)) # remove the 'batch_size' dimension of the tensor
-            else:
-                outputs.append(cls_vec.squeeze(0))
-
-        #TODO later: add type and attention vectors
-        return (labels, outputs)
+        return [self.base[i] for i in self.sampler[idx]]
 
 class GlovePairWrapper(Dataset):
     def __init__(self, base_dset, datadir, max_seq_len, max_dialogue_len, batch_size):
@@ -267,7 +228,6 @@ class GlovePairWrapper(Dataset):
                 perm_acts.append(0)
                 utts.append([pad_word]*self.max_seq_len)
                 perm_utts.append([pad_word]*self.max_seq_len)
-            # assert len(acts) == self.max_dialogue_len, "hwuiae"
 
             batch_acts.append(torch.tensor(acts))
             batch_utts.append(_embed_dialog(utts))
@@ -367,3 +327,65 @@ class GloveWrapper(Dataset):
                     cnt[word.lower()] += 1
         return tt.vocab.Vocab(cnt)
 
+
+class UtterancesWrapper(Dataset):
+    """ This Wrapper can be used to walk through the DailyDialog corpus by sentence, not by dialog"""
+    def __init__(self, coherency_dset):
+        super(UtterancesWrapper, self).__init__()
+        self.base = coherency_dset
+        assert False, "This class is currently not supported"
+
+    def __len__(self):
+        return len(self.base.indices_convert)
+
+    def __getitem__(self, idx):
+        base_idx = self.base.indices_convert[idx]
+        min_base_idx = min(self.base.get_utt_ix(base_idx))
+        j = idx - min_base_idx
+        utt = self.base.dialogues[base_idx][j]
+        act = self.base.acts[base_idx][j]
+        return (act, [utt])
+
+class BertWrapper(Dataset):
+    def __init__(self, base_dset, device, return_embeddding=True):
+        super(BertWrapper, self).__init__()
+        assert isinstance(base_dset, CoherencyDataSet)
+        assert False, "This class is currently not supported"
+
+        self.base = base_dset
+        self.device = device
+        cache_dir = os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE), 'distributed_{}'.format(-1))
+        self.bert = BertModel.from_pretrained(BERT_MODEL_NAME,
+                  cache_dir=cache_dir).to(device)
+        self.bert.eval()
+        
+        self.bert_tok = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
+        self.word2id = lambda x: self.bert_tok.convert_tokens_to_ids(x)
+        self.embed_dim = self.bert.config.hidden_size
+        
+        cls_id, sep_id = self.word2id(["[CLS]"])[0], self.word2id(["[SEP]"])[0]
+
+        self.cls = [cls_id] 
+        self.sep = [sep_id]
+        self.embed = return_embeddding #whether to return the embedding or the classification vector
+
+    def __len__(self):
+        return len(self.base)
+
+    def __getitem__(self, idx):
+        labels, utts = self.base[idx]
+        outputs = []
+
+        max_len = max( map(len, utts))
+        for utt in utts:
+            bert_input = self.cls + self.word2id(utt) + (max_len-len(utt))*[0]
+            bert_input = torch.LongTensor(bert_input).unsqueeze(0).to(self.device)
+            encoding, cls_vec = self.bert(bert_input, output_all_encoded_layers=False)
+
+            if self.embed:
+                outputs.append(encoding.squeeze(0)) # remove the 'batch_size' dimension of the tensor
+            else:
+                outputs.append(cls_vec.squeeze(0))
+
+        #TODO later: add type and attention vectors
+        return (labels, outputs)

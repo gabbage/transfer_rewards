@@ -148,19 +148,17 @@ class DailyDialogConverter:
 
         with open(self.act_utt_file, 'r') as f:
             act_utt_df = pd.read_csv(f, sep='|', names=['act','utt'])
-        
+
         rand_generator = lambda: draw_rand_sent_from_df(act_utt_df)
 
         df = open(dial_file, 'r')
         af = open(act_file, 'r')
         of = open(self.output_file, 'w')
 
-        
+
         for line_count, (dial, act) in tqdm(enumerate(zip(df, af)), total=11118):
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
-            # if len(seqs) > 15:
-                # continue # Values above create memory allocation errors with BERT
 
             tok_seqs = [self.tokenizer(seq) for seq in seqs]
             tok_seqs = [[w.lower() for w in utt] for utt in tok_seqs]
@@ -193,8 +191,8 @@ class DailyDialogConverter:
                     pa = " ".join([str(a) for a in p_a])
                     p_u = deepcopy(tok_seqs)
                     p_u[insert_ix] = self.word2id([w.lower() for w in self.tokenizer(insert_sent)])
-                    of.write("{}|{}|{}|{}|{}\n".format("1",a,u,pa,p_u))
-                    of.write("{}|{}|{}|{}|{}\n".format("0",pa,p_u,a,u))
+                    of.write("{}|{}|{}|{}|{}\n".format("0",a,u,pa,p_u))
+                    of.write("{}|{}|{}|{}|{}\n".format("1",pa,p_u,a,u))
 
             else:
                 for p in permuted_ixs:
@@ -204,8 +202,8 @@ class DailyDialogConverter:
                     p_a = " ".join([str(a) for a in pa])
                     pu = [tok_seqs[i] for i in p]
                     p_u = str(pu)
-                    of.write("{}|{}|{}|{}|{}\n".format("1",a,u,p_a,p_u))
-                    of.write("{}|{}|{}|{}|{}\n".format("0",p_a,p_u,a,u))
+                    of.write("{}|{}|{}|{}|{}\n".format("0",a,u,p_a,p_u))
+                    of.write("{}|{}|{}|{}|{}\n".format("1",p_a,p_u,a,u))
 
             """ write the original and created datapoints in random order to the file """
             # a = " ".join([str(a) for a in acts])
@@ -237,12 +235,9 @@ def main():
                         type=int,
                         default=20,
                         help="random seed for initialization")
-    parser.add_argument('--embedding',
-                        required=True,
-                        type=str,
-                        default="bert",
-                        help="""from which embedding should the word ids be used.
-                                alternatives: bert|elmo|glove """)
+    parser.add_argument('--word2id',
+                        action='store_true',
+                        help= "convert the words to ids")
     parser.add_argument('--task',
                         required=True,
                         type=str,
@@ -259,33 +254,21 @@ def main():
     np.random.seed(args.seed)
     # torch.manual_seed(args.seed)
 
-    if args.embedding == 'bert':
-        # Bert Settings
-        bert_tok = BertTokenizer.from_pretrained(BERT_MODEL_NAME, do_lower_case=True)
-        word2id = lambda x: x # don't convert words to ids (yet). It gets done in the glove wrapper of mtl_coherence.py
-        tokenizer = lambda x:bert_tok.tokenize(x)
 
-    elif args.embedding == 'elmo':
-        assert False, "elmo not yet supported"
-        #Elmo Settings
-        # word2id = lambda x: batch_to_ids([sent])
-
-    elif args.embedding == 'glove':
-        tokenizer = word_tokenize
+    if args.word2id:
         f = open(os.path.join(args.datadir, "itos.txt"), "r")
         word2id_dict = dict()
         for i, word in enumerate(f):
             word2id_dict[word[:-1].lower()] = i
 
-        # word2id_dict = torchtext.vocab.GloVe(name="42B", dim=300).stoi
         word2id = lambda x: [word2id_dict[y] for y in x] # don't convert words to ids (yet). It gets done in the glove wrapper of mtl_coherence.py
-
     else:
-        assert False, "the --embedding argument could not be detected. either bert, elmo or glove!"
+        word2id = lambda x: x
 
+    tokenizer = word_tokenize
     converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
     converter.convert_dset(amounts=args.amount)
-    converter.call_shuf_on_output()
+    # converter.call_shuf_on_output()
     print("Amount of pertubations for task {} is: {}".format(args.task, converter.perturbation_statistics))
 
 if __name__ == "__main__":
