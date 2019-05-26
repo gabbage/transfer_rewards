@@ -193,7 +193,8 @@ class DailyDialogConverter:
                     pa = " ".join([str(a) for a in p_a])
                     p_u = deepcopy(tok_seqs)
                     p_u[insert_ix] = self.word2id([w.lower() for w in self.tokenizer(insert_sent)])
-                    of.write("{}|{}|{}|{}\n".format(a,u,pa,p_u))
+                    of.write("{}|{}|{}|{}|{}\n".format("1",a,u,pa,p_u))
+                    of.write("{}|{}|{}|{}|{}\n".format("0",pa,p_u,a,u))
 
             else:
                 for p in permuted_ixs:
@@ -203,7 +204,8 @@ class DailyDialogConverter:
                     p_a = " ".join([str(a) for a in pa])
                     pu = [tok_seqs[i] for i in p]
                     p_u = str(pu)
-                    of.write("{}|{}|{}|{}\n".format(a,u,p_a,p_u))
+                    of.write("{}|{}|{}|{}|{}\n".format("1",a,u,p_a,p_u))
+                    of.write("{}|{}|{}|{}|{}\n".format("0",p_a,p_u,a,u))
 
             """ write the original and created datapoints in random order to the file """
             # a = " ".join([str(a) for a in acts])
