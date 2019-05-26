@@ -142,12 +142,12 @@ def main():
     dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
 
     # model = RandomCoherenceRanker(args.seed)
-    # model = CosineCoherenceRanker(args.seed)
-    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, num_classes, device).to(device)
+    model = CosineCoherenceRanker(args.seed)
+    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, num_classes, device).to(device)
     # model.load_state_dict(torch.load(output_model_file))
     # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
-    # logging.info("Used Model: {}".format(str(model)))
+    logging.info("Used Model: {}".format(str(model)))
 
     # for i, (utts1, utts2, acts1, acts2, coh_values) in enumerate(embed_dset):
         # print('-------')
@@ -213,7 +213,7 @@ def main():
             score1, _ = model(utts1, acts1)
             score2, _ = model(utts2, acts2)
             # print(score1.unsqueeze(1).size(), " -- ", score2.size())
-            
+
             _, pred = torch.max(torch.cat([score1.unsqueeze(1), score2.unsqueeze(1)], dim=1), dim=1)
             pred = pred.detach().cpu().numpy()
             target = coh_values.numpy()

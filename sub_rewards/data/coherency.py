@@ -289,7 +289,7 @@ class GlovePairWrapper(Dataset):
         # the position of the correct dialog. Now each position in the batch will contain a coherent dialog
         # in 50% of the time, and a perturbed in the other 50%
 
-        cnd = idx%2 == 1
+        cnd = idx%2 == 0
         utts1 = (batch_utts if cnd else batch_perm_utts)[0::2] + (batch_utts if not cnd else batch_perm_utts)[1::2]
         utts2 = (batch_utts if not cnd else batch_perm_utts)[0::2] + (batch_utts if cnd else batch_perm_utts)[1::2]
         acts1 = (batch_acts if cnd else batch_perm_acts)[0::2] + (batch_acts if not cnd else batch_perm_acts)[1::2]
