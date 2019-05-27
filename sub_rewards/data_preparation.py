@@ -63,7 +63,7 @@ if __name__ == "__main__":
                         default=16)
     args = parser.parse_args()
 
-    data_file = os.path.join(args.datadir, "coherency_dset_{}_shuf.txt".format(args.task))
+    data_file = os.path.join(args.datadir, "coherency_dset_{}.txt".format(args.task))
     assert os.path.isfile(data_file), "could not find dataset file: {}".format(data_file_shuf)
 
     batches = get_batches(data_file, args.batch_size)
