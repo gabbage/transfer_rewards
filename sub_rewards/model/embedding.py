@@ -25,23 +25,13 @@ class GloveEmbedding(nn.Module):
 
         return tt.vocab.Vocab(cnt)
 
-    def forward(self, batch):
-        X = [s[0] for s in batch]
-        X_left = [l for (l,r) in X]
-        X_right = [r for (l,r) in X]
-        print(X_right)
-
+    def forward(self, x):
         # to ids
-        X_left = [[[self.vocab.stoi[w] for w in sent] for sent in dialog] for dialog in X_left]
-        X_right = [[[self.vocab.stoi[w] for w in sent] for sent in dialog] for dialog in X_right]
+        x = [[[self.vocab.stoi[w] for w in sent] for sent in dialog] for dialog in x]
 
         # to tensors
-        X_left = torch.tensor(X_left, dtype=torch.long)
-        X_right = torch.tensor(X_right, dtype=torch.long)
+        x = torch.tensor(x, dtype=torch.long)
 
         # to embedding
-        X_left = self.embed(X_left)
-        X_right = self.embed(X_right)
-
-        return (X_left, X_right)
+        return self.embed(x)
 
