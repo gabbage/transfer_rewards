@@ -26,12 +26,5 @@ class GloveEmbedding(nn.Module):
         return tt.vocab.Vocab(cnt)
 
     def forward(self, x):
-        # to ids
-        x = [[[self.vocab.stoi[w] for w in sent] for sent in dialog] for dialog in x]
-
-        # to tensors
-        x = torch.tensor(x, dtype=torch.long)
-
-        # to embedding
         return self.embed(x)
 

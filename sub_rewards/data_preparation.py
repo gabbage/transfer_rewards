@@ -4,6 +4,7 @@ import pandas as pd
 import argparse
 from copy import deepcopy
 from collections import Counter
+import torchtext as tt
 from ast import literal_eval
 from tqdm import tqdm
 import torch
@@ -43,7 +44,7 @@ def get_batches(filename, batch_size):
     return batches
 
 class CoherencyPairDataSet(Dataset):
-    def __init__(self, filename):
+    def __init__(self, filename, args):
         super(CoherencyPairDataSet, self).__init__()
         assert os.path.isfile(filename), "could not find dataset file: {}".format(filename)
 
@@ -54,6 +55,17 @@ class CoherencyPairDataSet(Dataset):
         self.acts2 = []
         self.utts1 = []
         self.utts2 = []
+        self.word2id = None
+
+        if args.embedding == 'glove':
+            f = open(os.path.join(args.datadir, "itos.txt"), "r")
+            cnt = Counter()
+            for i, word in enumerate(f):
+                cnt[word[:-1].lower()] = i
+
+            self.word2id = tt.vocab.Vocab(cnt).stoi
+        else:
+            assert False, "wrong or not supported embedding"
 
         with open(filename, 'r') as f:
             coh_df = pd.read_csv(f, sep='|', names=['coh_idx', 'acts1', 'utts1', 'acts2', 'utts2'])
@@ -65,7 +77,9 @@ class CoherencyPairDataSet(Dataset):
             self.acts2.append(acts2)
 
             utt1 = literal_eval(row['utts1'])
+            utt1 = [[self.word2id[w] for w in sent] for sent in utt1]
             utt2 = literal_eval(row['utts2'])
+            utt2 = [[self.word2id[w] for w in sent] for sent in utt2]
 
             self.utts1.append(utt1)
             self.utts2.append(utt2)
@@ -83,8 +97,9 @@ class CoherencyPairDataSet(Dataset):
     def get_dialog_len(self, idx):
         return len(self.acts[idx])
 
-def get_dataloader(filename, batch_size):
-    dset = CoherencyPairDataSet(filename)
+def get_dataloader(filename, args):
+    dset = CoherencyPairDataSet(filename, args)
+    batch_size = args.batch_size
 
     def _collate(samples):
         # get max_seq_len and max_utt_len
@@ -96,18 +111,25 @@ def get_dataloader(filename, batch_size):
                 max_seq_len = max(max_seq_len, len(u1), len(u2))
 
         # create padded batch
-        batch = []
+        utts_left, utts_right, coh_ixs, acts_left, acts_right = [], [], [], [], []
+        pad_id = dset.word2id["<pad>"]
+
         for sample in samples:
             (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
 
-            utt1 = [ u + ["<pad>"]*(max_seq_len-len(u)) for u in utt1]
-            utt1 = utt1 + [["<pad>"]*max_seq_len]*(max_utt_len-len(utt1))
-            utt2 = [ u + ["<pad>"]*(max_seq_len-len(u)) for u in utt2]
-            utt2 = utt2 + [["<pad>"]*max_seq_len]*(max_utt_len-len(utt2))
+            utt1 = [ u + [pad_id]*(max_seq_len-len(u)) for u in utt1]
+            utt1 = utt1 + [[pad_id]*max_seq_len]*(max_utt_len-len(utt1))
+            utts_left.append(utt1)
+            utt2 = [ u + [pad_id]*(max_seq_len-len(u)) for u in utt2]
+            utt2 = utt2 + [[pad_id]*max_seq_len]*(max_utt_len-len(utt2))
+            utts_right.append(utt2)
             acts1 = acts1 + [0]*(max_utt_len-len(acts1))
+            acts_left.append(acts1)
             acts2 = acts2 + [0]*(max_utt_len-len(acts2))
-            batch.append(((utt1, utt2), (coh_ix, (acts1, acts2))))
-        return batch
+            acts_right.append(acts2)
+            coh_ixs.append(coh_ix)
+        return ((torch.tensor(utts_left, dtype=torch.long), torch.tensor(utts_right, dtype=torch.long)),
+                (coh_ixs, (acts_left, acts_right)))
 
     dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate)
     return dload
@@ -139,20 +161,11 @@ if __name__ == "__main__":
 
     # batches = get_batches(data_file, args.batch_size)
     dload = get_dataloader(data_file, args.batch_size)
+    emb = GloveEmbedding(args)
 
 
-    for i, batch in enumerate(dload):
-        print(batch[0])
-        # do some invariant testing on the batch
-        ((utt1, utt2), (coh_ix, (acts1, acts2))) = batch[0]
-        sent = utt1[0]
-
-        for sample in batch:
-            ((u1, u2), (_, (a1, a2))) = sample
-            assert len(utt1) == len(utt2) and len(utt1) == len(u1) and len(utt2)==len(u2), "utterances not same size!"
-            for (l,r) in zip(u1, u2):
-                assert len(sent) == len(l) and len(sent) == len(r), "sentences not same size!"
-            assert len(acts1) == len(a1) and len(acts1) == len(a2), "acts not same size!"
-
+    for i, ((ul,ur),(c,(al,ar))) in enumerate(dload):
+        print(al[0])
+        print(ar[0])
 
         if i > 1: break

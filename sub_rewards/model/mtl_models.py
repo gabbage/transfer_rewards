@@ -5,20 +5,21 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
-from model.attention import Attention
 from torch.nn.modules.distance import CosineSimilarity
 
-class CosineCoherenceRanker(nn.Module):
-    def __init__(self, seed):
-        super(CosineCoherenceRanker, self).__init__()
-        self.seed = seed
-        random.seed(seed)
-        self.cos = CosineSimilarity(dim=0)
+from model.attention import Attention
+from model.embedding import GloveEmbedding
 
-    def forward(self, x_sents, x_acts):
-        """ general Ranker implementation norm: if y_sents is empty, return the original
-            score, else return which one is 'better' """
-        x = x_sents.mean(-2)
+class CosineCoherence(nn.Module):
+    def __init__(self, args):
+        super(CosineCoherence, self).__init__()
+        self.seed = args.seed
+        self.cos = CosineSimilarity(dim=0)
+        self.emb = GloveEmbedding(args)
+
+    def forward(self, x_dialogues, x_acts):
+        x = self.emb(x_dialogues)
+        x = x.mean(-2)
         scores = []
         for i in range(x.size(0)):
             cosines = []
@@ -67,7 +68,7 @@ class MTL_Model3(nn.Module):
 
         self.nll = nn.NLLLoss(reduction='none')
 
-    def forward(self, x_sents, x_acts):
+    def forward(self, x_dialogues, x_acts): #TODO: s/x_sents/x_dialogues below
         old_size = (x_sents.size(0), x_sents.size(1), x_sents.size(2), x_sents.size(3))
         ten_sents = x_sents.view(old_size[0]*old_size[1], old_size[2], old_size[3]) # torch.cat([x.unsqueeze(0) for x in x_sents], 0)
         ten_acts = x_acts.view(old_size[0]*old_size[1]) #.view(int(x_acts.size(0)/len_dialog), len_dialog) #torch.cat(x_acts, 0)
