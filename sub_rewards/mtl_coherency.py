@@ -159,6 +159,9 @@ def main():
     # # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, num_classes, device).to(device)
     # # model.load_state_dict(torch.load(output_model_file))
     # # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device, collect_da_predictions=args.do_eval).to(device)
+    # model.load_state_dict(torch.load(output_model_file))
+    # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
     # logging.info("Used Model: {}".format(str(model)))
 
@@ -171,7 +174,7 @@ def main():
         live_data = open("live_data_{}.csv".format(args.task), 'w', buffering=1)
         live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.01)
         # scheduler = MultiStepLR(optimizer, milestones=lr_schedule, gamma=0.1)
         hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
 
@@ -205,17 +208,22 @@ def main():
 
             torch.cuda.empty_cache()
 
+            #save after every epoch
             torch.save(model.state_dict(), output_model_file)
 
     if args.do_eval:
 
-        # model.load_state_dict(torch.load(output_model_file))
+        model.load_state_dict(torch.load(output_model_file))
+        model.to(device)
         model.eval()
         rankings = []
 
         # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
         for i,(utts1, utts2, acts1, acts2, coh_values) in tqdm(enumerate(dataloader), total=len(embed_dset), desc='Iteration', postfix="LR: {}".format(learning_rate)):
             if args.test and i > 3: break
+            all_dialogues = all_dialogues.squeeze(0).to(device)
+            all_acts = all_acts.squeeze(0).to(device)
+            len_dialog = len_dialog.squeeze(0).to(device)
 
             utts1 = utts1.squeeze(0).to(device)
             utts2 = utts2.squeeze(0).to(device)
@@ -232,6 +240,9 @@ def main():
             rankings.append(accuracy_score(target, pred))
 
             torch.cuda.empty_cache()
+            # for ten in pds:
+                # ten.detach()
+            # d.detach()
 
         # if model.collect_da_predictions:
             # da_pred = model.da_predictions
