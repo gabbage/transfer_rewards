@@ -1,2 +1,8 @@
 data/*
 logs/*
+__pycache__/*
+.vector_cache/*
+
+live*.csv
+dd_parser.py
+

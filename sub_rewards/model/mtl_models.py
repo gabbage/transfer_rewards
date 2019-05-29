@@ -6,8 +6,32 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 from model.attention import Attention
+from torch.nn.modules.distance import CosineSimilarity
 
-# dont use bias in attention
+class CosineCoherenceRanker(nn.Module):
+    def __init__(self, seed):
+        super(CosineCoherenceRanker, self).__init__()
+        self.seed = seed
+        random.seed(seed)
+        self.cos = CosineSimilarity(dim=0)
+
+    def forward(self, x_sents, x_acts):
+        """ general Ranker implementation norm: if y_sents is empty, return the original
+            score, else return which one is 'better' """
+        x = x_sents.mean(-2)
+        scores = []
+        for i in range(x.size(0)):
+            cosines = []
+            for j in range(x.size(1)-1):
+                cosines.append(self.cos(x[i][j], x[i][j+1]).unsqueeze(0))
+            scores.append(torch.cat(cosines, 0).mean(0).unsqueeze(0))
+
+        return torch.cat(scores, 0), None
+
+    def __str__(self):
+        return "CosineCoherenceRanker"
+
+
 class MTL_Model3(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_dialogacts, device, collect_da_predictions=True):
         super(MTL_Model3, self).__init__()
@@ -74,14 +98,61 @@ class MTL_Model3(nn.Module):
         s_coh = self.ff_d(hd).squeeze(1)
         return (s_coh, loss2)
 
-    def compare(self, x_sents, x_acts, y_sents, y_acts):
-        coh1, _ = self.forward(x_sents, x_acts)
-        coh2, _ = self.forward(y_sents, y_acts)
-        if coh1.cpu().item() < coh2.cpu().item():
-            return 1.0
-        else:
-            return 0.0
-
-
     def __str__(self):
         return "Model-3"
+
+
+class MTL_Model4(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_dialogacts, device):
+        super(MTL_Model4, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.num_dialogacts = num_dialogacts
+        self.device = device
+
+        self.bilstm_u = nn.LSTM(input_size, hidden_size, num_layers, bidirectional=True, batch_first=True)
+        self.bilstm_d = nn.LSTM(2*hidden_size, hidden_size, num_layers, bidirectional=True, batch_first=True)
+
+        self.attn_u = Attention(2*hidden_size)
+        self.attn_d = Attention(2*hidden_size)
+
+        self.ff_u = nn.Linear(2*hidden_size, num_dialogacts)
+        self.ff_d = nn.Linear(2*hidden_size, 1)
+        nn.init.normal_(self.ff_d.weight, mean=0, std=1)
+        nn.init.normal_(self.ff_u.weight, mean=0, std=1)
+
+        self.nll = nn.NLLLoss(reduction='none')
+
+    def forward(self, x_sents, x_acts, len_dialog):
+        ten_sents = x_sents # torch.cat([x.unsqueeze(0) for x in x_sents], 0)
+        ten_acts = x_acts #.view(int(x_acts.size(0)/len_dialog), len_dialog) #torch.cat(x_acts, 0)
+
+        loss_da = torch.zeros(ten_acts.size(0)).to(self.device)
+        h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
+        c0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)
+        out, _ = self.bilstm_u(ten_sents, (h0, c0))
+        H = self.attn_u(out)
+
+        view_size1 = int(H.size(0)/len_dialog)
+        H1 = H.view(view_size1, len_dialog, H.size(1))
+
+        # H = H.unsqueeze(0)
+        h0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
+        c0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)
+        out, _ = self.bilstm_d(H1, (h0, c0))
+        hd = self.attn_d(out)
+        s_coh = self.ff_d(hd).squeeze(1)
+
+        H2 = out.contiguous().view(out.size(0)* out.size(1), out.size(2))
+
+        m = self.ff_u(H2)
+        pda = F.log_softmax(m, dim=1)
+        loss_da = self.nll(pda, ten_acts)
+        loss2 = torch.sum(loss_da.view(view_size1, len_dialog), dim=1)
+
+        return (s_coh, loss2)
+
+    def __str__(self):
+        return "Model-4"
+

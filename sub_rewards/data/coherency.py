@@ -204,7 +204,7 @@ class GlovePairWrapper(Dataset):
         indices = self.sampler[idx]
         pad_word = self.vocab.stoi["<pad>"]
 
-        def _embed_dialog(d):
+        def _embed_dialog(d): #TODO: mod for 1 dialog at a time, not sent
             x = [self.embed(
                 torch.tensor([w for w in utt], dtype=torch.long))
                     for utt in d]

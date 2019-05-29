@@ -26,13 +26,13 @@ from torch.nn.modules import HingeEmbeddingLoss
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 
-from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper, CoherencyPairDataSet, GlovePairWrapper
+from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper, CoherencyPairDataSet, GlovePairWrapper, CoherencyPairBatchWrapper
 from model.coh_random import RandomCoherenceRanker
 from model.cos_ranking import CosineCoherenceRanker
 from model.coh_model3 import MTL_Model3
 from model.coh_model4 import MTL_Model4
 
-### Hyper Parameters ###
+### Hyper Parameters ### #TODO into argparse
 batch_size = 16
 learning_rate = 1e-2 # inc!
 num_epochs = 10
@@ -122,34 +122,47 @@ def main():
     output_model_file =os.path.join(args.datadir, "model_{}.ckpt".format(args.task))
     logging.info("Model output file: {}".format(output_model_file))
 
+
+    cnt = Counter()
+    with open(os.path.join(args.datadir, "itos.txt"), "r") as f:
+        for i, word in enumerate(f):
+            cnt[word[:-1]] += 1
+    vocab = tt.vocab.Vocab(cnt)
     stop = [x for x in stopwords.words('english')]
-    stop = [i for sublist in stop for i in sublist]
+    stop = [vocab.stoi[i] for sublist in stop for i in sublist]
     # dset = CoherencyDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
     # dset = CoherencyDataSet(args.datadir, args.task, word_filter=None)
-    pair_dset = CoherencyPairDataSet(args.datadir, args.task, word_filter=None)
+    pair_dset = CoherencyPairDataSet(args.datadir, args.task, word_filter=lambda c: c not in stop)
     print("MAX Dialogue len: ", pair_dset.max_dialogue_len)
+    batch_set = CoherencyPairBatchWrapper(pair_dset, batch_size)
 
-    if args.embedding == 'bert':
-        embed_dset = BertWrapper(dset, device, True)
-    elif args.embedding == 'glove':
-        embed_dset = GlovePairWrapper(pair_dset, args.datadir, max_seq_len, pair_dset.max_dialogue_len, batch_size)
-        # # f = open(os.path.join(args.datadir, "itos_all.txt"), "w")
-        # # for word in embed_dset.vocab.itos:
-            # # f.write("{}\n".format(word))
-    # elif args.embedding == 'elmo':
-        # assert False, "elmo not yet supported!"
+    for i, batch in enumerate(batch_set):
+        if i < 2:
+            print(batch)
+        else:
+            break
 
-    dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
+    # if args.embedding == 'bert':
+        # embed_dset = BertWrapper(dset, device, True)
+    # elif args.embedding == 'glove':
+        # embed_dset = GlovePairWrapper(pair_dset, args.datadir, max_seq_len, pair_dset.max_dialogue_len, batch_size)
+        # # # f = open(os.path.join(args.datadir, "itos_all.txt"), "w")
+        # # # for word in embed_dset.vocab.itos:
+            # # # f.write("{}\n".format(word))
+    # # elif args.embedding == 'elmo':
+        # # assert False, "elmo not yet supported!"
 
-    # model = RandomCoherenceRanker(args.seed)
-    model = CosineCoherenceRanker(args.seed)
-    # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, num_classes, device).to(device)
-    # model.load_state_dict(torch.load(output_model_file))
-    # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
+    # dataloader = DataLoader(embed_dset, batch_size=1, shuffle=True, num_workers=4)
 
-    logging.info("Used Model: {}".format(str(model)))
+    # # model = RandomCoherenceRanker(args.seed)
+    # model = CosineCoherenceRanker(args.seed)
+    # # model = MTL_Model3(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, num_classes, device).to(device)
+    # # model.load_state_dict(torch.load(output_model_file))
+    # # model = MTL_Model4(embed_dset.embed_dim, lstm_hidden_size, lstm_layers, 4, device).to(device)
 
-    # for i, (utts1, utts2, acts1, acts2, coh_values) in enumerate(embed_dset):
+    # logging.info("Used Model: {}".format(str(model)))
+
+    # # for i, (utts1, utts2, acts1, acts2, coh_values) in enumerate(embed_dset):
         # print('-------')
         # print(utts1.size(), utts2.size(), acts1.size(), acts2.size(), coh_values.size())
 
@@ -212,7 +225,6 @@ def main():
 
             score1, _ = model(utts1, acts1)
             score2, _ = model(utts2, acts2)
-            # print(score1.unsqueeze(1).size(), " -- ", score2.size())
 
             _, pred = torch.max(torch.cat([score1.unsqueeze(1), score2.unsqueeze(1)], dim=1), dim=1)
             pred = pred.detach().cpu().numpy()
