@@ -129,11 +129,12 @@ def get_dataloader(filename, args):
             acts_right.append(acts2)
             coh_ixs.append(coh_ix)
         return ((torch.tensor(utts_left, dtype=torch.long), torch.tensor(utts_right, dtype=torch.long)),
-                (coh_ixs, (acts_left, acts_right)))
+                (coh_ixs, (acts_left, acts_right))) #TODO: acts to tensor?
 
     dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate)
     return dload
 
+# for testing purpose
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--datadir",

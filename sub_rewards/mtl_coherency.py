@@ -1,4 +1,5 @@
 import os
+import random
 import datetime
 import logging
 import sys
@@ -39,7 +40,7 @@ def main():
     args = parse_args()
     init_logging(args)
     # Init randomization
-    # random.seed(args.seed)
+    random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
@@ -50,7 +51,13 @@ def main():
     dataloader = get_dataloader(datasetfile, args)
 
     if args.model == "cosine":
+        if args.do_train:
+            assert False, "cannot train the cosine model!"
         model = CosineCoherence(args)
+    elif args.model == "random":
+        if args.do_train:
+            assert False, "cannot train the random model!"
+        model = None
     elif args.model == "model-3":
         assert False, "model-3 not yet supported"
     elif args.model == "model-4":
@@ -96,22 +103,26 @@ def main():
             torch.save(model.state_dict(), output_model_file)
 
     if args.do_eval:
-
-        # model.load_state_dict(torch.load(output_model_file))
-        model.to(device)
-        model.eval()
+        if model != None: # do non random evaluation
+            if args.model != "cosine":
+                model.load_state_dict(torch.load(output_model_file))
+            model.to(device)
+            model.eval()
         rankings = []
 
-        # for i,((d,a), (pds, pas)) in tqdm(enumerate(embed_dset), total=len(embed_dset)):
         for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right))) in tqdm(enumerate(dataloader),
                 total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
             if args.test and i > 3: break
 
-            coh1, _ = model(utts_left, acts_left)
-            coh2, _ = model(utts_right, acts_right)
+            if model == None: #generate random values
+                pred = [random.randint(0,1) for _ in range(len(coh_ixs))]
+            else:
+                coh1, _ = model(utts_left, acts_left)
+                coh2, _ = model(utts_right, acts_right)
 
-            _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
-            pred = pred.detach().cpu().numpy()
+                _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
+                pred = pred.detach().cpu().numpy()
+
             rankings.append(accuracy_score(coh_ixs, pred))
 
             torch.cuda.empty_cache()
@@ -182,7 +193,7 @@ def parse_args():
                         type=str,
                         default="cosine",
                         help="""with which model the dataset should be trained/evaluated.
-                                alternatives: cosine | model-3 | model-4""")
+                                alternatives: random | cosine | model-3 | model-4""")
     parser.add_argument('--task',
                         required=True,
                         type=str,
