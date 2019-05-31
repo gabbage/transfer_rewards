@@ -58,12 +58,7 @@ class CoherencyPairDataSet(Dataset):
         self.word2id = None
 
         if args.embedding == 'glove':
-            f = open(os.path.join(args.datadir, "itos.txt"), "r")
-            cnt = Counter()
-            for i, word in enumerate(f):
-                cnt[word[:-1].lower()] = i
-
-            self.word2id = tt.vocab.Vocab(cnt).stoi
+            self.word2id = load_vocab(args).stoi
         else:
             assert False, "wrong or not supported embedding"
 
@@ -133,6 +128,14 @@ def get_dataloader(filename, args):
 
     dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate)
     return dload
+
+def load_vocab(args):
+    f = open(os.path.join(args.datadir, "itos.txt"), "r")
+    cnt = Counter()
+    for i, word in enumerate(f):
+        cnt[word[:-1].lower()] = i
+
+    return tt.vocab.Vocab(cnt)
 
 # for testing purpose
 if __name__ == "__main__":
