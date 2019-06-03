@@ -10,14 +10,14 @@ fig = plt.figure()
 ax1 = fig.add_subplot(1,1,1)
 ax2 = ax1.twinx()
 
-rsync_cmd = "rsync --inplace -a --progress buecker@130.83.167.142:transfer_rewards/sub_rewards/live_data_ui.csv logs/live_server.csv"
+# rsync_cmd = "rsync --inplace -a --progress buecker@130.83.167.142:transfer_rewards/sub_rewards/live_data_ui.csv logs/live_server.csv"
 
 def animate(i):
     #retrieve data from server
-    os.system(rsync_cmd)
+    # os.system(rsync_cmd)
     only_last_batch=False
 
-    df = pd.read_csv('logs/live_server.csv')
+    df = pd.read_csv('live_data_up.csv')
     ax1.clear()
     ax2.clear()
     ax2.set_ylim(-0.1, 1.1)
@@ -25,7 +25,7 @@ def animate(i):
     ax1.set_xlabel('#batches/10')
     ax1.set_ylabel('Loss')
     ax2.set_ylabel('%')
-    print(df['score'][-1000:].mean())
+    print(df['score'][-250:].mean())
     if only_last_batch:
         ax1.plot(df['step'][-2725:-1], df['loss'][-2725:-1], 'o', color='black', label='loss')
         # ax2.plot(df['step'][-2725:-1], df['score'][-2725:-1], 'o', color='blue', label='accuracy [wrt current epoch]')
@@ -44,7 +44,7 @@ def animate(i):
 
         # ax1.plot(df['step'], df['loss'], 'o', color='black', label='loss')
         # ax1.plot(df['step'], df['avg_loss'], 'o', color='red', label='avg loss')
-        # ax1.set_yscale('log')
+        ax1.set_yscale('log')
         # ax2.plot(df['step'], df['acc'], 'o', color='blue', label='accuracy [wrt current epoch]')
         # ax2.plot(df['step'], df['f1'], 'o', color='green', label='F1 score [wrt current epoch]')
     ax1.legend(loc=2)

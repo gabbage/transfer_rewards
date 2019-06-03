@@ -13,7 +13,7 @@ class GloveEmbedding(nn.Module):
         super(GloveEmbedding, self).__init__()
         self.args = args
         self.embed_dim = 300
-        self.vocab = self.load_vocab(args)
+        self.vocab = load_vocab(args)
         self.vocab.load_vectors("glove.42B.300d")
         self.embed = nn.Embedding(len(self.vocab), self.embed_dim)
         self.embed.weight.data.copy_(self.vocab.vectors)

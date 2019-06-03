@@ -124,7 +124,7 @@ def get_dataloader(filename, args):
             acts_right.append(acts2)
             coh_ixs.append(coh_ix)
         return ((torch.tensor(utts_left, dtype=torch.long), torch.tensor(utts_right, dtype=torch.long)),
-                (coh_ixs, (acts_left, acts_right))) #TODO: acts to tensor?
+                (coh_ixs, (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))))
 
     dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate)
     return dload

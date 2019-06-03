@@ -30,36 +30,37 @@ class CosineCoherence(nn.Module):
         return torch.cat(scores, 0), None
 
     def __str__(self):
-        return "CosineCoherenceRanker"
+        return "cosine"
 
 
 class MTL_Model3(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, num_dialogacts, device, collect_da_predictions=True):
+    def __init__(self, args, device, collect_da_predictions=True):
         super(MTL_Model3, self).__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.num_dialogacts = num_dialogacts
+        self.input_size = args.embedding_dim
+        self.hidden_size = args.lstm_hidden_size
+        self.num_layers = args.lstm_layers
+        self.num_dialogacts = args.num_classes
         self.device = device
+        self.emb = GloveEmbedding(args)
 
-        self.bilstm_u = nn.LSTM(input_size, hidden_size, num_layers, bidirectional=True, batch_first=True)
+        self.bilstm_u = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True, bias=False)
         for param in self.bilstm_u.parameters():
             if len(param.shape) >= 2:
                 init.orthogonal_(param.data)
             else:
                 init.normal_(param.data)
-        self.bilstm_d = nn.LSTM(2*hidden_size, hidden_size, num_layers, bidirectional=True, batch_first=True)
+        self.bilstm_d = nn.LSTM(2*self.hidden_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True, bias=False)
         for param in self.bilstm_d.parameters():
             if len(param.shape) >= 2:
                 init.orthogonal_(param.data)
             else:
                 init.normal_(param.data)
 
-        self.attn_u = Attention(2*hidden_size)
-        self.attn_d = Attention(2*hidden_size)
+        self.attn_u = Attention(2*self.hidden_size)
+        self.attn_d = Attention(2*self.hidden_size)
 
-        self.ff_u = nn.Linear(2*hidden_size, num_dialogacts)
-        self.ff_d = nn.Linear(2*hidden_size, 1)
+        self.ff_u = nn.Linear(2*self.hidden_size, self.num_dialogacts)
+        self.ff_d = nn.Linear(2*self.hidden_size, 1)
         nn.init.normal_(self.ff_d.weight, mean=0, std=1)
         nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
@@ -68,10 +69,11 @@ class MTL_Model3(nn.Module):
 
         self.nll = nn.NLLLoss(reduction='none')
 
-    def forward(self, x_dialogues, x_acts): #TODO: s/x_sents/x_dialogues below
-        old_size = (x_sents.size(0), x_sents.size(1), x_sents.size(2), x_sents.size(3))
-        ten_sents = x_sents.view(old_size[0]*old_size[1], old_size[2], old_size[3]) # torch.cat([x.unsqueeze(0) for x in x_sents], 0)
-        ten_acts = x_acts.view(old_size[0]*old_size[1]) #.view(int(x_acts.size(0)/len_dialog), len_dialog) #torch.cat(x_acts, 0)
+    def forward(self, x_dialogues, x_acts):
+        x = self.emb(x_dialogues)
+        old_size = (x.size(0), x.size(1), x.size(2), x.size(3))
+        ten_sents = x.view(old_size[0]*old_size[1], old_size[2], old_size[3]) 
+        ten_acts = x_acts.view(old_size[0]*old_size[1]) 
 
         loss_da = torch.zeros(ten_acts.size(0)).to(self.device)
         h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
@@ -84,9 +86,7 @@ class MTL_Model3(nn.Module):
         m = self.ff_u(H1)
         pda = F.log_softmax(m, dim=2)
 
-        # if self.collect_da_predictions:
-            # _, pred = torch.max(pda.view(view_size1*len_dialog, pda.size(2)).data, 1)
-            # self.da_predictions = self.da_predictions + list(zip(pred.detach().cpu().numpy().tolist(), ten_acts.detach().cpu().numpy().tolist()))
+        _, da_pred = torch.max(pda.view(old_size[0]*old_size[1], pda.size(2)).data, 1)
 
         loss_da = self.nll(pda.view(old_size[0] * old_size[1], pda.size(2)), ten_acts)
         loss2 = torch.sum(loss_da.view(old_size[0], old_size[1]), dim=1)
@@ -97,10 +97,10 @@ class MTL_Model3(nn.Module):
         out, _ = self.bilstm_d(H1, (h0, c0))
         hd = self.attn_d(out)
         s_coh = self.ff_d(hd).squeeze(1)
-        return (s_coh, loss2)
+        return (s_coh, (da_pred, loss2))
 
     def __str__(self):
-        return "Model-3"
+        return "model-3"
 
 
 class MTL_Model4(nn.Module):
@@ -155,5 +155,5 @@ class MTL_Model4(nn.Module):
         return (s_coh, loss2)
 
     def __str__(self):
-        return "Model-4"
+        return "model-4"
 

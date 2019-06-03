@@ -31,11 +31,6 @@ from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, Glo
 from model.mtl_models import CosineCoherence, MTL_Model3, MTL_Model4
 from data_preparation import get_dataloader
 
-### unchangeable Hyper Parameters ### 
-num_classes = 5 # 1-4 for the dialog acts + 0 for padded sentences
-lstm_layers = 1 #keep 1
-########################
-
 def main():
     args = parse_args()
     init_logging(args)
@@ -59,14 +54,14 @@ def main():
             assert False, "cannot train the random model!"
         model = None
     elif args.model == "model-3":
-        assert False, "model-3 not yet supported"
+        model = MTL_Model3(args, device).to(device)
     elif args.model == "model-4":
         assert False, "model-4 not yet supported"
     else:
         assert False, "specified model not supported"
 
     logging.info("Used Model: {}".format(str(model)))
-    output_model_file =os.path.join(args.datadir, "model_{}_task-{}.ckpt".format(str(model), str(args.task)))
+    output_model_file =os.path.join(args.datadir, "{}_task-{}.ckpt".format(str(model), str(args.task)))
     logging.info("Model output file: {}".format(output_model_file))
 
     if args.do_train:
@@ -77,7 +72,7 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=0.01)
         hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
 
-        for epoch in trange(args.num_epochs, desc="Epoch"):
+        for epoch in trange(args.epochs, desc="Epoch"):
             for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right))) in tqdm(enumerate(dataloader),
                     total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
                 if args.test and i > 3: break
@@ -94,7 +89,7 @@ def main():
                     _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh1.unsqueeze(1)], dim=1), dim=1)
                     pred = pred.detach().cpu().numpy()
                     score = accuracy_score(coh_ixs, pred)
-                    live_data.write("{},{},{}\n".format(((epoch*len(embed_dset))+i)/10, loss.mean().item(), score))
+                    live_data.write("{},{},{}\n".format(((epoch*len(dataloader))+i)/10, loss.mean().item(), score))
                     live_data.flush()
 
             torch.cuda.empty_cache()
@@ -104,11 +99,12 @@ def main():
 
     if args.do_eval:
         if model != None: # do non random evaluation
-            if args.model != "cosine":
+            if args.model != "cosine" and not args.test:
                 model.load_state_dict(torch.load(output_model_file))
             model.to(device)
             model.eval()
         rankings = []
+        da_rankings = []
 
         for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right))) in tqdm(enumerate(dataloader),
                 total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
@@ -117,11 +113,19 @@ def main():
             if model == None: #generate random values
                 pred = [random.randint(0,1) for _ in range(len(coh_ixs))]
             else:
-                coh1, _ = model(utts_left, acts_left)
-                coh2, _ = model(utts_right, acts_right)
+                coh1, lda1 = model(utts_left, acts_left)
+                coh2, lda2 = model(utts_right, acts_right)
 
                 _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
                 pred = pred.detach().cpu().numpy()
+
+                if lda1 != None and lda2 != None:
+                    da1 = lda1[0].detach().cpu().numpy()
+                    da2 = lda2[0].detach().cpu().numpy()
+                    acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                    acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
+                    da_rankings.append(accuracy_score(da1, acts_left))
+                    da_rankings.append(accuracy_score(da2, acts_right))
 
             rankings.append(accuracy_score(coh_ixs, pred))
 
@@ -129,6 +133,9 @@ def main():
 
         print("Coherence Accuracy: ", np.array(rankings).mean())
         logging.info("Coherence Accuracy Result: {}".format(np.array(rankings).mean()))
+        if len(da_rankings) > 0:
+            print("DA Accuracy: ", np.array(da_rankings).mean())
+            logging.info("DA Accuracy Result: {}".format(np.array(da_rankings).mean()))
 
 def init_logging(args):
     now = datetime.datetime.now()
@@ -141,7 +148,7 @@ def init_logging(args):
     logging.info("learning_rate = {}".format(args.learning_rate))
     logging.info("num_epochs = {}".format(args.epochs))
     logging.info("lstm_hidden_size = {}".format(args.lstm_hidden_size))
-    logging.info("lstm_layers = {}".format(lstm_layers))
+    logging.info("lstm_layers = {}".format(args.lstm_layers))
     logging.info("batch_size = {}".format(args.batch_size))
     logging.info("========================")
     logging.info("task = {}".format(args.task))
@@ -150,6 +157,7 @@ def init_logging(args):
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    # This also serves as a kind of configuration object, so some parameters are not ought to be changed (listed below)
     parser.add_argument("--outputdir",
                         required=False,
                         type=str,
@@ -166,7 +174,7 @@ def parse_args():
                         help="the folder to save the logfile to.")
     parser.add_argument('--seed',
                         type=int,
-                        default=42,
+                        default=80591,
                         help="random seed for initialization")
     parser.add_argument('--batch_size',
                         type=int,
@@ -178,12 +186,12 @@ def parse_args():
                         help="amount of epochs")
     parser.add_argument('--learning_rate',
                         type=float,
-                        default=1e-3,
+                        default=1e-4,
                         help="")
     parser.add_argument('--lstm_hidden_size',
                         type=int,
-                        default=50,
-                        help="amount of epochs")
+                        default=150,
+                        help="hidden size for the lstm models")
     parser.add_argument('--embedding',
                         type=str,
                         default="glove",
@@ -215,6 +223,20 @@ def parse_args():
     parser.add_argument('--do_eval',
                         action='store_true',
                         help= "just do a test run on small amount of data")
+    ### usually unmodified parameters, keept here to have a config like object
+    parser.add_argument('--num_classes',
+                        type=int,
+                        default=5,
+                        help="DONT CHANGE. amount of classes 1-4 for DA acts, 0 for none")
+    parser.add_argument('--lstm_layers',
+                        type=int,
+                        default=1,
+                        help="DONT CHANGE. amount of layers for LSTM models")
+    parser.add_argument('--embedding_dim',
+                        type=int,
+                        default=300,
+                        help="DONT CHANGE. embedding dimension")
+
     return parser.parse_args()
 
 
