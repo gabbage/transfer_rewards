@@ -48,7 +48,7 @@ def main():
     if args.model == "cosine":
         if args.do_train:
             assert False, "cannot train the cosine model!"
-        model = CosineCoherence(args)
+        model = CosineCoherence(args, device)
     elif args.model == "random":
         if args.do_train:
             assert False, "cannot train the random model!"

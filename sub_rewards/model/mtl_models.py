@@ -11,17 +11,18 @@ from model.attention import Attention
 from model.embedding import GloveEmbedding
 
 class CosineCoherence(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, device):
         super(CosineCoherence, self).__init__()
         self.seed = args.seed
         self.cos = CosineSimilarity(dim=-1)
         self.emb = GloveEmbedding(args)
+        self.device = device
 
     def forward(self, x_dialogues, x_acts):
         x = self.emb(x_dialogues)
         x = x.mean(-2)
         y = torch.narrow(x, dim=1, start=1, length=x.size(1)-1)
-        y = torch.cat([y, torch.ones(y.size(0), 1, y.size(2))], dim=1)
+        y = torch.cat([y, torch.ones(y.size(0), 1, y.size(2)).to(self.device)], dim=1)
         scores = self.cos(x,y).mean(dim=-1)
         return scores, None
 
