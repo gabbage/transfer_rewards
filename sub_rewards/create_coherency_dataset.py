@@ -9,8 +9,8 @@ from tqdm import tqdm, trange
 import argparse
 import numpy as np
 import torchtext
-from pytorch_pretrained_bert.tokenization import BertTokenizer
-from allennlp.modules.elmo import batch_to_ids
+#from pytorch_pretrained_bert.tokenization import BertTokenizer
+#from allennlp.modules.elmo import batch_to_ids
 
 act2word = {1:"inform",2:"question", 3:"directive", 4:"commissive"}
 BERT_MODEL_NAME = "bert-base-uncased"

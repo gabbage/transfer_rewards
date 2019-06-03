@@ -77,8 +77,8 @@ def main():
                     total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
                 if args.test and i > 3: break
 
-                coh1, loss1 = model(utts_left, acts_left)
-                coh2, loss2 = model(utts_right, acts_right)
+                coh1, loss1 = model(utts_left.to(device), acts_left.to(device))
+                coh2, loss2 = model(utts_right.to(device), acts_right.to(device))
                 loss = loss1 + loss2 + hinge(coh1, coh2)
 
                 optimizer.zero_grad()
@@ -113,8 +113,8 @@ def main():
             if model == None: #generate random values
                 pred = [random.randint(0,1) for _ in range(len(coh_ixs))]
             else:
-                coh1, lda1 = model(utts_left, acts_left)
-                coh2, lda2 = model(utts_right, acts_right)
+                coh1, lda1 = model(utts_left.to(device), acts_left.to(device))
+                coh2, lda2 = model(utts_right.to(device), acts_right.to(device))
 
                 _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
                 pred = pred.detach().cpu().numpy()
@@ -139,7 +139,7 @@ def main():
 
 def init_logging(args):
     now = datetime.datetime.now()
-    logfile = os.path.join(args.logdir, 'coherency_task_{}_{}.log'.format(args.task, now.strftime("%Y-%m-%d_%H:%M:%S")))
+    logfile = os.path.join(args.logdir, 'coherency_{}_task_{}_{}.log'.format(args.model, args.task, now.strftime("%Y-%m-%d_%H:%M:%S")))
     logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format='%(levelname)s:%(message)s')
     print("Logging to ", logfile)
 
