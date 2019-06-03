@@ -14,20 +14,24 @@ class CosineCoherence(nn.Module):
     def __init__(self, args):
         super(CosineCoherence, self).__init__()
         self.seed = args.seed
-        self.cos = CosineSimilarity(dim=0)
+        self.cos = CosineSimilarity(dim=-1)
         self.emb = GloveEmbedding(args)
 
     def forward(self, x_dialogues, x_acts):
         x = self.emb(x_dialogues)
         x = x.mean(-2)
-        scores = []
-        for i in range(x.size(0)):
-            cosines = []
-            for j in range(x.size(1)-1):
-                cosines.append(self.cos(x[i][j], x[i][j+1]).unsqueeze(0))
-            scores.append(torch.cat(cosines, 0).mean(0).unsqueeze(0))
+        y = torch.narrow(x, dim=1, start=1, length=x.size(1)-1)
+        y = torch.cat([y, torch.ones(y.size(0), 1, y.size(2))], dim=1)
+        scores = self.cos(x,y).mean(dim=-1)
+        return scores, None
 
-        return torch.cat(scores, 0), None
+        # for i in range(x.size(0)):
+            # cosines = []
+            # for j in range(x.size(1)-1):
+                # cosines.append(self.cos(x[i][j], x[i][j+1]).unsqueeze(0))
+            # scores.append(torch.cat(cosines, 0).mean(0).unsqueeze(0))
+
+        # return torch.cat(scores, 0), None
 
     def __str__(self):
         return "cosine"
