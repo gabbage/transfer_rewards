@@ -6,13 +6,22 @@ from nltk.corpus import stopwords
 from nltk import word_tokenize
 from torch.nn.modules.distance import CosineSimilarity
 
-# from allennlp.modules.elmo import Elmo, batch_to_ids
+from allennlp.modules.elmo import Elmo, batch_to_ids
 
 options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
 weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 
 def sim(v1, v2):
     return v1.dot(v2).abs()
+
+
+def cosine(x_dialogues):
+    cos=CosineSimilarity(dim=-1)
+    x = x_dialogues
+    y = torch.narrow(x, dim=0, start=1, length=x.size(0)-1)
+    y = torch.cat([y, torch.ones(1, y.size(1))], dim=0)
+    scores = cos(x,y)[:-1].mean(dim=-1) # drop the last value as it is just a comparison to the 1-vector
+    return scores
 
 def sent_sim(sent1, sent2):
     max_indices = (0, 0)
@@ -66,46 +75,48 @@ def main():
 
     # Always only have one of the following (Glove or Elmo) uncommented
     # Use GloVe
-    cnt = Counter()
-    for w in sent1+sent2+sent3+ref1+ref2+ref3:
-        cnt[w.lower()] += 1
+    # cnt = Counter()
+    # for w in sent1+sent2+sent3+ref1+ref2+ref3:
+        # cnt[w.lower()] += 1
 
-    vocab = tt.vocab.Vocab(cnt)
-    vocab.load_vectors("glove.42B.300d")
-    embed = nn.Embedding(len(vocab), 300)
-    embed.weight.data.copy_(vocab.vectors)
+    # vocab = tt.vocab.Vocab(cnt)
+    # vocab.load_vectors("glove.42B.300d")
+    # embed = nn.Embedding(len(vocab), 300)
+    # embed.weight.data.copy_(vocab.vectors)
     
-    embed_fn = lambda x: embed(torch.tensor([vocab.stoi[w] for w in x], dtype=torch.long))
+    # embed_fn = lambda x: embed(torch.tensor([vocab.stoi[w] for w in x], dtype=torch.long))
 
     # Use Elmo
-    # elmo = Elmo(options_file, weight_file, 1, dropout=0)
-    # embed_fn = lambda x: elmo_rep(elmo, x)
+    elmo = Elmo(options_file, weight_file, 1, dropout=0)
+    embed_fn = lambda x: elmo_rep(elmo, x)
 
     print("------------ Test Sentences -------------------")
     es1 = embed_fn(sent1)
-    print(es1)
     es2 = embed_fn(sent2)
     es3 = embed_fn(sent3)
     f1_ix, f1 = sent_sim(es1, es2)
     f2_ix, f2 = sent_sim(es2, es3)
-    print("similarity of sentences: ", sim(f1, f2).item() / 300)
-    print("words: (", sent1[f1_ix[0]], ",", sent2[f1_ix[1]],") , (", sent2[f2_ix[0]],",",sent3[f2_ix[1]],")")
+    print("cos coherence of sent1-3: ", cosine(torch.stack([es1.mean(-2), es2.mean(-2), es3.mean(-2)], 0)).item())
+    # print("similarity of sentences: ", sim(f1, f2).item() / 300)
+    # print("words: (", sent1[f1_ix[0]], ",", sent2[f1_ix[1]],") , (", sent2[f2_ix[0]],",",sent3[f2_ix[1]],")")
     print("------------ DailyDialog Sentences -------------")
     rs1 = embed_fn(ref1)
     rs2 = embed_fn(ref2)
     rs3 = embed_fn(ref3)
+    print("cos coherence of DailyDialog sent1-3: ", cosine(torch.stack([rs1.mean(-2), rs2.mean(-2), rs3.mean(-2)], 0)).item())
     f1_ix, f1 = sent_sim(rs1, rs2)
     f2_ix, f2 = sent_sim(rs2, rs3)
-    print("similarity of sentences: ", sim(f1, f2).item()/ 300)
-    print("words: (", ref1[f1_ix[0]], ",", ref2[f1_ix[1]],") , (", ref2[f2_ix[0]],",",ref3[f2_ix[1]],")")
+    # print("similarity of sentences: ", sim(f1, f2).item()/ 300)
+    # print("words: (", ref1[f1_ix[0]], ",", ref2[f1_ix[1]],") , (", ref2[f2_ix[0]],",",ref3[f2_ix[1]],")")
     print("------------ ASAP Sentences --------------------")
     as1 = embed_fn(asap1)
     as2 = embed_fn(asap2)
     as3 = embed_fn(asap3)
+    print("cos coherence of ASAP sent1-3: ", cosine(torch.stack([as1.mean(-2), as2.mean(-2), as3.mean(-2)], 0)).item())
     f1_ix, f1 = sent_sim(as1, as2)
     f2_ix, f2 = sent_sim(as2, as3)
-    print("similarity of sentences: ", sim(f1, f2).item()/ 300)
-    print("words: (", asap1[f1_ix[0]], ",", asap2[f1_ix[1]],") , (", asap2[f2_ix[0]],",",asap3[f2_ix[1]],")")
+    # print("similarity of sentences: ", sim(f1, f2).item()/ 300)
+    # print("words: (", asap1[f1_ix[0]], ",", asap2[f1_ix[1]],") , (", asap2[f2_ix[0]],",",asap3[f2_ix[1]],")")
 
     # if you want to test the cosine coherence metric, add the padding in the preprocess function
     # print('--------------Coherence ------------------------')
