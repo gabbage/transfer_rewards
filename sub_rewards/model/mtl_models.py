@@ -26,14 +26,6 @@ class CosineCoherence(nn.Module):
         scores = self.cos(x,y).mean(dim=-1)
         return scores, None
 
-        # for i in range(x.size(0)):
-            # cosines = []
-            # for j in range(x.size(1)-1):
-                # cosines.append(self.cos(x[i][j], x[i][j+1]).unsqueeze(0))
-            # scores.append(torch.cat(cosines, 0).mean(0).unsqueeze(0))
-
-        # return torch.cat(scores, 0), None
-
     def __str__(self):
         return "cosine"
 

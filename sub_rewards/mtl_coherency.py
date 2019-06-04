@@ -70,16 +70,16 @@ def main():
         live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
 
         optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=0.01)
-        hinge = HingeEmbeddingLoss(reduction='none', margin=0.0).to(device)
+        hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.0).to(device)
 
         for epoch in trange(args.epochs, desc="Epoch"):
             for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right))) in tqdm(enumerate(dataloader),
                     total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
                 if args.test and i > 3: break
 
-                coh1, loss1 = model(utts_left.to(device), acts_left.to(device))
-                coh2, loss2 = model(utts_right.to(device), acts_right.to(device))
-                loss = loss1 + loss2 + hinge(coh1, coh2)
+                coh1, (_,loss1) = model(utts_left.to(device), acts_left.to(device))
+                coh2, (_,loss2) = model(utts_right.to(device), acts_right.to(device))
+                loss = loss1 + loss2 + hinge(coh1, coh2, coh_ixs)
 
                 optimizer.zero_grad()
                 loss.mean().backward()
@@ -88,6 +88,7 @@ def main():
                 if i % 10 == 0: # write to live_data file
                     _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh1.unsqueeze(1)], dim=1), dim=1)
                     pred = pred.detach().cpu().numpy()
+                    coh_ixs = coh_ixs.detach().cpu().numpy()
                     score = accuracy_score(coh_ixs, pred)
                     live_data.write("{},{},{}\n".format(((epoch*len(dataloader))+i)/10, loss.mean().item(), score))
                     live_data.flush()
@@ -111,7 +112,7 @@ def main():
             if args.test and i > 3: break
 
             if model == None: #generate random values
-                pred = [random.randint(0,1) for _ in range(len(coh_ixs))]
+                pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
             else:
                 coh1, lda1 = model(utts_left.to(device), acts_left.to(device))
                 coh2, lda2 = model(utts_right.to(device), acts_right.to(device))
@@ -127,6 +128,7 @@ def main():
                     da_rankings.append(accuracy_score(da1, acts_left))
                     da_rankings.append(accuracy_score(da2, acts_right))
 
+            coh_ixs = coh_ixs.detach().cpu().numpy()
             rankings.append(accuracy_score(coh_ixs, pred))
 
             torch.cuda.empty_cache()
