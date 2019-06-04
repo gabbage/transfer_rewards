@@ -5,6 +5,7 @@ import argparse
 from copy import deepcopy
 from collections import Counter
 import torchtext as tt
+from nltk.corpus import stopwords
 from ast import literal_eval
 from tqdm import tqdm
 import torch
@@ -62,6 +63,11 @@ class CoherencyPairDataSet(Dataset):
         else:
             assert False, "wrong or not supported embedding"
 
+        if args.model == 'cosine':
+            self.stop = get_stopword_ids(args)
+        else:
+            self.stop = None
+
         with open(filename, 'r') as f:
             coh_df = pd.read_csv(f, sep='|', names=['coh_idx', 'acts1', 'utts1', 'acts2', 'utts2'])
 
@@ -73,8 +79,12 @@ class CoherencyPairDataSet(Dataset):
 
             utt1 = literal_eval(row['utts1'])
             utt1 = [[self.word2id[w] for w in sent] for sent in utt1]
+            if self.stop:
+                utt1 = [[i for i in sent if i not in self.stop] for sent in utt1]
             utt2 = literal_eval(row['utts2'])
             utt2 = [[self.word2id[w] for w in sent] for sent in utt2]
+            if self.stop:
+                utt2 = [[i for i in sent if i not in self.stop] for sent in utt2]
 
             self.utts1.append(utt1)
             self.utts2.append(utt2)
@@ -112,6 +122,8 @@ def get_dataloader(filename, args):
         for sample in samples:
             (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
 
+            utt1_lengths = [len(u) for u in utt1]
+            utt2_lengths = [len(u) for u in utt2]
             utt1 = [ u + [pad_id]*(max_seq_len-len(u)) for u in utt1]
             utt1 = utt1 + [[pad_id]*max_seq_len]*(max_utt_len-len(utt1))
             utts_left.append(utt1)
@@ -124,9 +136,10 @@ def get_dataloader(filename, args):
             acts_right.append(acts2)
             coh_ixs.append(coh_ix)
         return ((torch.tensor(utts_left, dtype=torch.long), torch.tensor(utts_right, dtype=torch.long)),
-                (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))))
+                (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long)))
+                ) #TODO: add lenghts for pach_padded ..
 
-    dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate)
+    dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=False, collate_fn=_collate)
     return dload
 
 def load_vocab(args):
@@ -136,6 +149,11 @@ def load_vocab(args):
         cnt[word[:-1].lower()] = i
 
     return tt.vocab.Vocab(cnt)
+
+def get_stopword_ids(args):
+    words = set(stopwords.words('english'))
+    vocab = load_vocab(args)
+    return [vocab.stoi[w] for w in words]
 
 # for testing purpose
 if __name__ == "__main__":

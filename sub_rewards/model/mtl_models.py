@@ -6,9 +6,11 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 from torch.nn.modules.distance import CosineSimilarity
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from model.attention import Attention
 from model.embedding import GloveEmbedding
+from data_preparation import get_stopword_ids
 
 class CosineCoherence(nn.Module):
     def __init__(self, args, device):
@@ -75,6 +77,7 @@ class MTL_Model3(nn.Module):
         loss_da = torch.zeros(ten_acts.size(0)).to(self.device)
         h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
         c0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)
+        #ten_sents = #TODO: do pack_padded_sequence here
         out, _ = self.bilstm_u(ten_sents, (h0, c0))
         H = self.attn_u(out)
 
