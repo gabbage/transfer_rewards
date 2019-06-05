@@ -66,26 +66,27 @@ def main():
 
     if args.do_train:
 
-        live_data = open("live_data_{}.csv".format(str(args.task)), 'w', buffering=1)
-        live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
+        if args.live:
+            live_data = open("live_data_{}.csv".format(str(args.task)), 'w', buffering=1)
+            live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
 
         optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=0.01)
         hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.0).to(device)
 
         for epoch in trange(args.epochs, desc="Epoch"):
-            for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right))) in tqdm(enumerate(dataloader),
+            for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2)) in tqdm(enumerate(dataloader),
                     total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
                 if args.test and i > 3: break
 
-                coh1, (_,loss1) = model(utts_left.to(device), acts_left.to(device))
-                coh2, (_,loss2) = model(utts_right.to(device), acts_right.to(device))
+                coh1, (_,loss1) = model(utts_left.to(device), acts_left.to(device), len_u1.to(device))
+                coh2, (_,loss2) = model(utts_right.to(device), acts_right.to(device), len_u2.to(device))
                 loss = loss1 + loss2 + hinge(coh1, coh2, coh_ixs)
 
                 optimizer.zero_grad()
                 loss.mean().backward()
                 optimizer.step()
 
-                if i % 10 == 0: # write to live_data file
+                if i % 10 == 0 and args.live: # write to live_data file
                     _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh1.unsqueeze(1)], dim=1), dim=1)
                     pred = pred.detach().cpu().numpy()
                     coh_ixs = coh_ixs.detach().cpu().numpy()
@@ -107,15 +108,15 @@ def main():
         rankings = []
         da_rankings = []
 
-        for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right))) in tqdm(enumerate(dataloader),
+        for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2)) in tqdm(enumerate(dataloader),
                 total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
-            if args.test and i > 3: break
+            if args.test and i > 100: break
 
             if model == None: #generate random values
                 pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
             else:
-                coh1, lda1 = model(utts_left.to(device), acts_left.to(device))
-                coh2, lda2 = model(utts_right.to(device), acts_right.to(device))
+                coh1, lda1 = model(utts_left.to(device), acts_left.to(device), len_u1.to(device))
+                coh2, lda2 = model(utts_right.to(device), acts_right.to(device), len_u2.to(device))
 
                 _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
                 pred = pred.detach().cpu().numpy()
@@ -225,6 +226,9 @@ def parse_args():
     parser.add_argument('--do_eval',
                         action='store_true',
                         help= "just do a test run on small amount of data")
+    parser.add_argument('--live',
+                        action='store_true',
+                        help= "whether to do live output of accuracy and loss values")
     ### usually unmodified parameters, keept here to have a config like object
     parser.add_argument('--num_classes',
                         type=int,

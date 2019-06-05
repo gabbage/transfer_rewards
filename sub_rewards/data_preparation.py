@@ -117,13 +117,15 @@ def get_dataloader(filename, args):
 
         # create padded batch
         utts_left, utts_right, coh_ixs, acts_left, acts_right = [], [], [], [], []
+        lengths_left, lengths_right = [], []
         pad_id = dset.word2id["<pad>"]
 
         for sample in samples:
             (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
 
-            utt1_lengths = [len(u) for u in utt1]
-            utt2_lengths = [len(u) for u in utt2]
+            lengths_left.append([len(u) for u in utt1] + [1]*(max_utt_len-len(utt1)))
+            lengths_right.append([len(u) for u in utt2] + [1]*(max_utt_len-len(utt2)))
+
             utt1 = [ u + [pad_id]*(max_seq_len-len(u)) for u in utt1]
             utt1 = utt1 + [[pad_id]*max_seq_len]*(max_utt_len-len(utt1))
             utts_left.append(utt1)
@@ -136,10 +138,10 @@ def get_dataloader(filename, args):
             acts_right.append(acts2)
             coh_ixs.append(coh_ix)
         return ((torch.tensor(utts_left, dtype=torch.long), torch.tensor(utts_right, dtype=torch.long)),
-                (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long)))
-                ) #TODO: add lenghts for pach_padded ..
+                (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))),
+                (torch.tensor(lengths_left, dtype=torch.long), torch.tensor(lengths_right, dtype=torch.long)))
 
-    dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=False, collate_fn=_collate)
+    dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate)
     return dload
 
 def load_vocab(args):
