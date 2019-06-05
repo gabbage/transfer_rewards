@@ -78,6 +78,7 @@ def main():
                     total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
                 if args.test and i > 3: break
 
+                coh_ixs = coh_ixs.to(device)
                 coh1, (_,loss1) = model(utts_left.to(device), acts_left.to(device), len_u1.to(device))
                 coh2, (_,loss2) = model(utts_right.to(device), acts_right.to(device), len_u2.to(device))
                 loss = loss1 + loss2 + hinge(coh1, coh2, coh_ixs)
