@@ -24,8 +24,8 @@ class CosineCoherence(nn.Module):
         x = self.emb(x_dialogues)
         # x = x.mean(-2) #TODO: use lengths to get the mean, due to padding we'd otherwise get wrong values
         x = torch.sum(x, dim=-2)
-        ones = torch.ones(x_lengths.size(0), x_lengths.size(1), 1)
-        coef = ones / x_lengths.view(x_lengths.size(0), x_lengths.size(1), 1).float()
+        ones = torch.ones(x_lengths.size(0), x_lengths.size(1), 1).to(self.device)
+        coef = torch.div(ones, x_lengths.view(x_lengths.size(0), x_lengths.size(1), 1).type(torch.cuda.FloatTensor))
         x = x * coef
 
         y = torch.narrow(x, dim=1, start=1, length=x.size(1)-1)
