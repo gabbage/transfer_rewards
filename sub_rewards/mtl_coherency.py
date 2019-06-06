@@ -16,6 +16,7 @@ from sklearn.metrics import mean_squared_error, f1_score, accuracy_score, label_
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 import torchtext as tt
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data.distributed import DistributedSampler
@@ -80,12 +81,17 @@ def main():
                 if args.test and i > 3: break
 
                 coh_ixs = coh_ixs.to(device)
-                coh1, (_,loss1) = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
-                coh2, (_,loss2) = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
-                loss = loss1 + loss2 + hinge(coh1, coh2, coh_ixs)
+                coh1, (_,loss1) = model(Variable(utts_left).to(device),
+                        Variable(acts_left).to(device), 
+                        (Variable(len_u1).to(device), Variable(len_d1).to(device)))
+                coh2, (_,loss2) = model(Variable(utts_right).to(device), 
+                        Variable(acts_right).to(device), 
+                        (Variable(len_u2).to(device), Variable(len_d2).to(device)))
+                loss = hinge(coh1, coh2, coh_ixs) # loss1 + loss2 +
+                print(coh1.size())
 
                 optimizer.zero_grad()
-                loss.mean().backward()
+                loss.sum().backward()
                 optimizer.step()
 
                 if i % 10 == 0 and args.live: # write to live_data file

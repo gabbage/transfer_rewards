@@ -186,6 +186,9 @@ if __name__ == "__main__":
                         default=16)
     args = parser.parse_args()
 
+    vocab = load_vocab(args)
+    print(vocab.stoi["<unk>"])
+
     data_file = os.path.join(args.datadir, "coherency_dset_{}.txt".format(args.task))
     assert os.path.isfile(data_file), "could not find dataset file: {}".format(data_file)
 

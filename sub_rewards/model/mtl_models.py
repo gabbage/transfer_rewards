@@ -75,6 +75,7 @@ class MTL_Model3(nn.Module):
     def forward(self, x_dialogues, x_acts, lengths):
         s_lengths = lengths[0]
         d_lengths = lengths[1]
+        # print("emb: ", self.emb(torch.tensor([2])).mean())
 
         x = self.emb(x_dialogues)
         old_size = (x.size(0), x.size(1), x.size(2), x.size(3))
