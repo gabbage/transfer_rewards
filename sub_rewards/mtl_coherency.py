@@ -74,13 +74,14 @@ def main():
         hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.0).to(device)
 
         for epoch in trange(args.epochs, desc="Epoch"):
-            for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2)) in tqdm(enumerate(dataloader),
+            for i,((utts_left, utts_right), 
+                    (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dataloader),
                     total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
                 if args.test and i > 3: break
 
                 coh_ixs = coh_ixs.to(device)
-                coh1, (_,loss1) = model(utts_left.to(device), acts_left.to(device), len_u1.to(device))
-                coh2, (_,loss2) = model(utts_right.to(device), acts_right.to(device), len_u2.to(device))
+                coh1, (_,loss1) = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                coh2, (_,loss2) = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
                 loss = loss1 + loss2 + hinge(coh1, coh2, coh_ixs)
 
                 optimizer.zero_grad()
@@ -109,15 +110,16 @@ def main():
         rankings = []
         da_rankings = []
 
-        for i,((utts_left, utts_right), (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2)) in tqdm(enumerate(dataloader),
+        for i,((utts_left, utts_right), 
+                (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dataloader),
                 total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
             if args.test and i > 100: break
 
             if model == None: #generate random values
                 pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
             else:
-                coh1, lda1 = model(utts_left.to(device), acts_left.to(device), len_u1.to(device))
-                coh2, lda2 = model(utts_right.to(device), acts_right.to(device), len_u2.to(device))
+                coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
 
                 _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
                 pred = pred.detach().cpu().numpy()
