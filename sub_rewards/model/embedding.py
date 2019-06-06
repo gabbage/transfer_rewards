@@ -19,5 +19,7 @@ class GloveEmbedding(nn.Module):
         self.embed.weight.data.copy_(self.vocab.vectors)
 
     def forward(self, x):
-        return self.embed(x)
+        with torch.no_grad():
+            x = self.embed(x)
+        return x
 

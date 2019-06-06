@@ -20,11 +20,12 @@ class CosineCoherence(nn.Module):
         self.emb = GloveEmbedding(args)
         self.device = device
 
-    def forward(self, x_dialogues, x_acts, x_lengths):
+    def forward(self, x_dialogues, x_acts, lengths):
+        x_lengths = lengths[0]
         x = self.emb(x_dialogues)
         # x = x.mean(-2) #TODO: use lengths to get the mean, due to padding we'd otherwise get wrong values
         x = torch.sum(x, dim=-2)
-        x = torch.div(x, x_lengths.view(x_lengths.size(0), x_lengths.size(1), 1).type(torch.cuda.FloatTensor))
+        x = torch.div(x, x_lengths.view(x_lengths.size(0), x_lengths.size(1), 1).type(torch.FloatTensor))
 
         y = torch.narrow(x, dim=1, start=1, length=x.size(1)-1)
         x = torch.narrow(x, dim=1, start=0, length=x.size(1)-1)
@@ -71,7 +72,10 @@ class MTL_Model3(nn.Module):
 
         self.nll = nn.NLLLoss(reduction='none')
 
-    def forward(self, x_dialogues, x_acts, x_lengths):
+    def forward(self, x_dialogues, x_acts, lengths):
+        s_lengths = lengths[0]
+        d_lengths = lengths[1]
+
         x = self.emb(x_dialogues)
         old_size = (x.size(0), x.size(1), x.size(2), x.size(3))
         ten_sents = x.view(old_size[0]*old_size[1], old_size[2], old_size[3]) 
@@ -80,12 +84,9 @@ class MTL_Model3(nn.Module):
         loss_da = torch.zeros(ten_acts.size(0)).to(self.device)
         h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
         c0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)
-        print("orig: ", ten_sents.size())
-        before_size = ten_sents.size()
-        ten_sents = pack_padded_sequence(ten_sents, x_lengths, batch_first=True, enforce_sorted=False)
+        ten_sents = pack_padded_sequence(ten_sents, s_lengths.view(s_lengths.size(0)*s_lengths.size(1)), batch_first=True, enforce_sorted=False)
         out, _ = self.bilstm_u(ten_sents, (h0, c0))
-        out, _ = pad_packed_sequence(out, batch_first=True, total_length=before_size[1])
-        print("repadded: ", out.size())
+        out, _ = pad_packed_sequence(out, batch_first=True)
         H = self.attn_u(out)
 
         # view_size1 = int(H.size(0)/old_size[1])
@@ -101,7 +102,9 @@ class MTL_Model3(nn.Module):
         # H = H.unsqueeze(0)
         h0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
         c0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)
+        H1 = pack_padded_sequence(H1, d_lengths, batch_first=True, enforce_sorted=False)
         out, _ = self.bilstm_d(H1, (h0, c0))
+        out, _ = pad_packed_sequence(out, batch_first=True)
         hd = self.attn_d(out)
         s_coh = self.ff_d(hd).squeeze(1)
         return (s_coh, (da_pred, loss2))

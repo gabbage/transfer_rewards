@@ -78,10 +78,12 @@ class CoherencyPairDataSet(Dataset):
             self.acts2.append(acts2)
 
             utt1 = literal_eval(row['utts1'])
+            utt1 = [sent+["<eos>"] for sent in utt1]
             utt1 = [[self.word2id[w] for w in sent] for sent in utt1]
             if self.stop:
                 utt1 = [[i for i in sent if i not in self.stop] for sent in utt1]
             utt2 = literal_eval(row['utts2'])
+            utt2 = [sent+["<eos>"] for sent in utt2]
             utt2 = [[self.word2id[w] for w in sent] for sent in utt2]
             if self.stop:
                 utt2 = [[i for i in sent if i not in self.stop] for sent in utt2]
@@ -117,20 +119,23 @@ def get_dataloader(filename, args):
 
         # create padded batch
         utts_left, utts_right, coh_ixs, acts_left, acts_right = [], [], [], [], []
-        lengths_left, lengths_right = [], []
+        sent_len_left, sent_len_right, dial_len_left, dial_len_right = [], [], [], []
         pad_id = dset.word2id["<pad>"]
+        eos_id = dset.word2id["<eos>"]
 
         for sample in samples:
             (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
 
-            lengths_left.append([len(u) for u in utt1] + [1]*(max_utt_len-len(utt1)))
-            lengths_right.append([len(u) for u in utt2] + [1]*(max_utt_len-len(utt2)))
+            sent_len_left.append([len(u) for u in utt1] + [1]*(max_utt_len-len(utt1)))
+            sent_len_right.append([len(u) for u in utt2] + [1]*(max_utt_len-len(utt2)))
+            dial_len_left.append(len(utt1))
+            dial_len_right.append(len(utt2))
 
             utt1 = [ u + [pad_id]*(max_seq_len-len(u)) for u in utt1]
-            utt1 = utt1 + [[pad_id]*max_seq_len]*(max_utt_len-len(utt1))
+            utt1 = utt1 + [[eos_id]+[pad_id]*(max_seq_len-1)]*(max_utt_len-len(utt1))
             utts_left.append(utt1)
             utt2 = [ u + [pad_id]*(max_seq_len-len(u)) for u in utt2]
-            utt2 = utt2 + [[pad_id]*max_seq_len]*(max_utt_len-len(utt2))
+            utt2 = utt2 + [[eos_id]+[pad_id]*(max_seq_len-1)]*(max_utt_len-len(utt2))
             utts_right.append(utt2)
             acts1 = acts1 + [0]*(max_utt_len-len(acts1))
             acts_left.append(acts1)
@@ -139,7 +144,8 @@ def get_dataloader(filename, args):
             coh_ixs.append(coh_ix)
         return ((torch.tensor(utts_left, dtype=torch.long), torch.tensor(utts_right, dtype=torch.long)),
                 (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))),
-                (torch.tensor(lengths_left, dtype=torch.long), torch.tensor(lengths_right, dtype=torch.long)))
+                (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),
+                 torch.tensor(dial_len_left, dtype=torch.long), torch.tensor(dial_len_right, dtype=torch.long)))
 
     dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate)
     return dload
@@ -150,7 +156,7 @@ def load_vocab(args):
     for i, word in enumerate(f):
         cnt[word[:-1].lower()] = i
 
-    return tt.vocab.Vocab(cnt)
+    return tt.vocab.Vocab(cnt, specials=['<pad>','<eos>','<unk>'])
 
 def get_stopword_ids(args):
     words = set(stopwords.words('english'))
