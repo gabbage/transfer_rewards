@@ -8,7 +8,7 @@ from torch.autograd import Variable
 
 def new_parameter(*size):
     out = nn.Parameter(torch.FloatTensor(*size))
-    torch.nn.init.xavier_normal_(out)
+    torch.nn.init.normal_(out)
     return out
 
 class Attention(nn.Module):

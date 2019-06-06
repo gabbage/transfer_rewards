@@ -46,13 +46,13 @@ class MTL_Model3(nn.Module):
         self.device = device
         self.emb = GloveEmbedding(args)
 
-        self.bilstm_u = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True, bias=False)
+        self.bilstm_u = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True)
         for param in self.bilstm_u.parameters():
             if len(param.shape) >= 2:
                 init.orthogonal_(param.data)
             else:
                 init.normal_(param.data)
-        self.bilstm_d = nn.LSTM(2*self.hidden_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True, bias=False)
+        self.bilstm_d = nn.LSTM(2*self.hidden_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True)
         for param in self.bilstm_d.parameters():
             if len(param.shape) >= 2:
                 init.orthogonal_(param.data)
@@ -64,8 +64,8 @@ class MTL_Model3(nn.Module):
 
         self.ff_u = nn.Linear(2*self.hidden_size, self.num_dialogacts)
         self.ff_d = nn.Linear(2*self.hidden_size, 1)
-        nn.init.normal_(self.ff_d.weight, mean=0, std=1)
-        nn.init.normal_(self.ff_u.weight, mean=0, std=1)
+        nn.init.normal_(self.ff_d.weight, mean=0, std=2)
+        nn.init.normal_(self.ff_u.weight, mean=0, std=2)
 
         self.collect_da_predictions = collect_da_predictions
         self.da_predictions = []
