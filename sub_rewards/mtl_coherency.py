@@ -88,14 +88,13 @@ def main():
                         Variable(acts_right).to(device), 
                         (Variable(len_u2).to(device), Variable(len_d2).to(device)))
                 loss = hinge(coh1, coh2, coh_ixs) # loss1 + loss2 +
-                print(coh1.size())
 
                 optimizer.zero_grad()
                 loss.sum().backward()
                 optimizer.step()
 
                 if i % 10 == 0 and args.live: # write to live_data file
-                    _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh1.unsqueeze(1)], dim=1), dim=1)
+                    _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
                     pred = pred.detach().cpu().numpy()
                     coh_ixs = coh_ixs.detach().cpu().numpy()
                     score = accuracy_score(coh_ixs, pred)
