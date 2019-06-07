@@ -141,7 +141,7 @@ def get_dataloader(filename, args):
             acts_left.append(acts1)
             acts2 = acts2 + [0]*(max_utt_len-len(acts2))
             acts_right.append(acts2)
-            coh_ixs.append(1 if coh_ix == 1 else -1)
+            coh_ixs.append(coh_ix)
         return ((torch.tensor(utts_left, dtype=torch.long), torch.tensor(utts_right, dtype=torch.long)),
                 (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))),
                 (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),

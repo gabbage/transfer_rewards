@@ -71,14 +71,14 @@ def main():
             live_data = open("live_data_{}.csv".format(str(args.task)), 'w', buffering=1)
             live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=0.01)
-        hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.0).to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+        hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.1).to(device)
 
         for epoch in trange(args.epochs, desc="Epoch"):
             for i,((utts_left, utts_right), 
                     (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dataloader),
                     total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
-                if args.test and i > 3: break
+                if args.test and i >= 1: break
 
                 coh_ixs = coh_ixs.to(device)
                 coh1, (_,loss1) = model(utts_left.to(device),
@@ -88,7 +88,10 @@ def main():
                         acts_right.to(device), 
                         (len_u2.to(device), len_d2.to(device)))
 
-                loss = hinge(coh1, coh2, coh_ixs) # loss1 + loss2 +
+                loss_coh_ixs = torch.add(torch.add(coh_ixs*(-1), torch.ones(coh_ixs.size()))*2, torch.ones(coh_ixs.size())*(-1))
+                loss = hinge(coh1, coh2, loss_coh_ixs) # loss1 + loss2 +
+                _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
+                score = accuracy_score(coh_ixs, pred)
 
                 optimizer.zero_grad()
                 loss.sum().backward()
