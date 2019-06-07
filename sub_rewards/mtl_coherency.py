@@ -88,7 +88,7 @@ def main():
                         acts_right.to(device), 
                         (len_u2.to(device), len_d2.to(device)))
 
-                loss_coh_ixs = torch.add(torch.add(coh_ixs*(-1), torch.ones(coh_ixs.size()))*2, torch.ones(coh_ixs.size())*(-1))
+                loss_coh_ixs = torch.add(torch.add(coh_ixs*(-1), torch.ones(coh_ixs.size()).to(device))*2, torch.ones(coh_ixs.size()).to(device)*(-1))
                 loss = hinge(coh1, coh2, loss_coh_ixs) # loss1 + loss2 +
                 _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
                 score = accuracy_score(coh_ixs, pred)
