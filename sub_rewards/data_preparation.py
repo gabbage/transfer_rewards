@@ -141,7 +141,7 @@ def get_dataloader(filename, args):
             acts_left.append(acts1)
             acts2 = acts2 + [0]*(max_utt_len-len(acts2))
             acts_right.append(acts2)
-            coh_ixs.append(coh_ix)
+            coh_ixs.append(1 if coh_ix == 1 else -1)
         return ((torch.tensor(utts_left, dtype=torch.long), torch.tensor(utts_right, dtype=torch.long)),
                 (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))),
                 (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),
@@ -154,7 +154,7 @@ def load_vocab(args):
     f = open(os.path.join(args.datadir, "itos.txt"), "r")
     cnt = Counter()
     for i, word in enumerate(f):
-        cnt[word[:-1].lower()] = i
+        cnt[word[:-1].lower()] = 1
 
     return tt.vocab.Vocab(cnt, specials=['<pad>','<eos>','<unk>'])
 
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     vocab = load_vocab(args)
-    print(vocab.stoi["<unk>"])
+    print(vocab.stoi["you"])
 
     data_file = os.path.join(args.datadir, "coherency_dset_{}.txt".format(args.task))
     assert os.path.isfile(data_file), "could not find dataset file: {}".format(data_file)

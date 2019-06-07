@@ -81,12 +81,13 @@ def main():
                 if args.test and i > 3: break
 
                 coh_ixs = coh_ixs.to(device)
-                coh1, (_,loss1) = model(Variable(utts_left).to(device),
-                        Variable(acts_left).to(device), 
-                        (Variable(len_u1).to(device), Variable(len_d1).to(device)))
-                coh2, (_,loss2) = model(Variable(utts_right).to(device), 
-                        Variable(acts_right).to(device), 
-                        (Variable(len_u2).to(device), Variable(len_d2).to(device)))
+                coh1, (_,loss1) = model(utts_left.to(device),
+                        acts_left.to(device),
+                        (len_u1.to(device), len_d1.to(device)))
+                coh2, (_,loss2) = model(utts_right.to(device),
+                        acts_right.to(device), 
+                        (len_u2.to(device), len_d2.to(device)))
+
                 loss = hinge(coh1, coh2, coh_ixs) # loss1 + loss2 +
 
                 optimizer.zero_grad()

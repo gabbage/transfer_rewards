@@ -64,8 +64,8 @@ class MTL_Model3(nn.Module):
 
         self.ff_u = nn.Linear(2*self.hidden_size, self.num_dialogacts)
         self.ff_d = nn.Linear(2*self.hidden_size, 1)
-        nn.init.normal_(self.ff_d.weight, mean=0, std=2)
-        nn.init.normal_(self.ff_u.weight, mean=0, std=2)
+        nn.init.normal_(self.ff_d.weight, mean=0, std=1)
+        nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
         self.collect_da_predictions = collect_da_predictions
         self.da_predictions = []
@@ -75,7 +75,6 @@ class MTL_Model3(nn.Module):
     def forward(self, x_dialogues, x_acts, lengths):
         s_lengths = lengths[0]
         d_lengths = lengths[1]
-        # print("emb: ", self.emb(torch.tensor([2])).mean())
 
         x = self.emb(x_dialogues)
         old_size = (x.size(0), x.size(1), x.size(2), x.size(3))
