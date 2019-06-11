@@ -133,37 +133,38 @@ def main():
             # evaluate
             rankings = []
             da_rankings = []
-            for i,((utts_left, utts_right), 
-                    (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(val_dl),
-                    total=len(val_dl), desc='Evaluation', postfix="LR: {}".format(args.learning_rate)):
-                if args.test and i >= 10: break
+            with torch.no_grad():
+                for i,((utts_left, utts_right), 
+                        (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(val_dl),
+                        total=len(val_dl), desc='Evaluation', postfix="LR: {}".format(args.learning_rate)):
+                    if args.test and i >= 10: break
 
-                coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
-                coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
+                    coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                    coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
 
-                _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
-                pred = pred.detach().cpu().numpy()
+                    _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
+                    pred = pred.detach().cpu().numpy()
 
-                if lda1 != None and lda2 != None:
-                    da1 = lda1[0].detach().cpu().numpy()
-                    da2 = lda2[0].detach().cpu().numpy()
-                    acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
-                    acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                    da_rankings.append(accuracy_score(da1, acts_left))
-                    da_rankings.append(accuracy_score(da2, acts_right))
+                    if lda1 != None and lda2 != None:
+                        da1 = lda1[0].detach().cpu().numpy()
+                        da2 = lda2[0].detach().cpu().numpy()
+                        acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                        acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
+                        da_rankings.append(accuracy_score(da1, acts_left))
+                        da_rankings.append(accuracy_score(da2, acts_right))
 
-                coh_ixs = coh_ixs.detach().cpu().numpy()
-                rankings.append(accuracy_score(coh_ixs, pred))
+                    coh_ixs = coh_ixs.detach().cpu().numpy()
+                    rankings.append(accuracy_score(coh_ixs, pred))
 
-            if args.loss == "mtl":
-                epoch_scores[epoch] = (np.array(rankings).mean() + np.array(da_rankings).mean())
-                logging.info("epoch {} has Coh. Acc: {} ; DA Acc: {}".format(epoch, np.array(rankings).mean(), np.array(da_rankings).mean()))
-            elif args.loss == "da":
-                epoch_scores[epoch] = (np.array(da_rankings).mean())
-                logging.info("epoch {} has DA Acc: {}".format(epoch, np.array(da_rankings).mean()))
-            elif args.loss == "coh":
-                epoch_scores[epoch] = (np.array(rankings).mean())
-                logging.info("epoch {} has Coh. Acc: {}".format(epoch, np.array(rankings).mean()))
+                if args.loss == "mtl":
+                    epoch_scores[epoch] = (np.array(rankings).mean() + np.array(da_rankings).mean())
+                    logging.info("epoch {} has Coh. Acc: {} ; DA Acc: {}".format(epoch, np.array(rankings).mean(), np.array(da_rankings).mean()))
+                elif args.loss == "da":
+                    epoch_scores[epoch] = (np.array(da_rankings).mean())
+                    logging.info("epoch {} has DA Acc: {}".format(epoch, np.array(da_rankings).mean()))
+                elif args.loss == "coh":
+                    epoch_scores[epoch] = (np.array(rankings).mean())
+                    logging.info("epoch {} has Coh. Acc: {}".format(epoch, np.array(rankings).mean()))
 
         # get maximum epoch
         best_epoch = max(epoch_scores.items(), key=operator.itemgetter(1))[0]
