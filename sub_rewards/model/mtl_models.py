@@ -90,7 +90,7 @@ class MTL_Model3(nn.Module):
         H = self.attn_u(out)
 
         # view_size1 = int(H.size(0)/old_size[1])
-        H1 = H.view(old_size[0], old_size[1], old_size[3])
+        H1 = H.view(old_size[0], old_size[1], H.size(1))
         m = self.ff_u(H1)
         pda = F.log_softmax(m, dim=2)
 
@@ -112,57 +112,78 @@ class MTL_Model3(nn.Module):
     def __str__(self):
         return "model-3"
 
-
 class MTL_Model4(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, num_dialogacts, device):
+    def __init__(self, args, device, collect_da_predictions=True):
         super(MTL_Model4, self).__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.num_dialogacts = num_dialogacts
+        self.input_size = args.embedding_dim
+        self.hidden_size = args.lstm_hidden_size
+        self.num_layers = args.lstm_layers
+        self.num_dialogacts = args.num_classes
         self.device = device
+        self.emb = GloveEmbedding(args)
 
-        self.bilstm_u = nn.LSTM(input_size, hidden_size, num_layers, bidirectional=True, batch_first=True)
-        self.bilstm_d = nn.LSTM(2*hidden_size, hidden_size, num_layers, bidirectional=True, batch_first=True)
+        self.bilstm_u = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True)
+        for param in self.bilstm_u.parameters():
+            if len(param.shape) >= 2:
+                init.orthogonal_(param.data)
+            else:
+                init.normal_(param.data)
+        self.bilstm_d = nn.LSTM(2*self.hidden_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True)
+        for param in self.bilstm_d.parameters():
+            if len(param.shape) >= 2:
+                init.orthogonal_(param.data)
+            else:
+                init.normal_(param.data)
 
-        self.attn_u = Attention(2*hidden_size)
-        self.attn_d = Attention(2*hidden_size)
+        self.attn_u = Attention(2*self.hidden_size)
+        self.attn_d = Attention(2*self.hidden_size)
 
-        self.ff_u = nn.Linear(2*hidden_size, num_dialogacts)
-        self.ff_d = nn.Linear(2*hidden_size, 1)
+        self.ff_u = nn.Linear(2*self.hidden_size, self.num_dialogacts)
+        self.ff_d = nn.Linear(2*self.hidden_size, 1)
         nn.init.normal_(self.ff_d.weight, mean=0, std=1)
         nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
+        self.collect_da_predictions = collect_da_predictions
+        self.da_predictions = []
+
         self.nll = nn.NLLLoss(reduction='none')
 
-    def forward(self, x_sents, x_acts, len_dialog):
-        ten_sents = x_sents # torch.cat([x.unsqueeze(0) for x in x_sents], 0)
-        ten_acts = x_acts #.view(int(x_acts.size(0)/len_dialog), len_dialog) #torch.cat(x_acts, 0)
+    def forward(self, x_dialogues, x_acts, lengths):
+        s_lengths = lengths[0]
+        d_lengths = lengths[1]
+
+        x = self.emb(x_dialogues)
+        old_size = (x.size(0), x.size(1), x.size(2), x.size(3))
+        ten_sents = x.view(old_size[0]*old_size[1], old_size[2], old_size[3]) 
+        ten_acts = x_acts.view(old_size[0]*old_size[1]) 
 
         loss_da = torch.zeros(ten_acts.size(0)).to(self.device)
         h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
         c0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)
+        ten_sents = pack_padded_sequence(ten_sents, s_lengths.view(s_lengths.size(0)*s_lengths.size(1)), batch_first=True, enforce_sorted=False)
         out, _ = self.bilstm_u(ten_sents, (h0, c0))
+        out, _ = pad_packed_sequence(out, batch_first=True)
         H = self.attn_u(out)
 
-        view_size1 = int(H.size(0)/len_dialog)
-        H1 = H.view(view_size1, len_dialog, H.size(1))
+        H1 = H.view(old_size[0], old_size[1], H.size(1))
 
-        # H = H.unsqueeze(0)
         h0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
         c0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)
+        H1 = pack_padded_sequence(H1, d_lengths, batch_first=True, enforce_sorted=False)
         out, _ = self.bilstm_d(H1, (h0, c0))
+        out, _ = pad_packed_sequence(out, batch_first=True)
+
+        m = self.ff_u(out)
+        pda = F.log_softmax(m, dim=2)
+
+        _, da_pred = torch.max(pda.view(old_size[0]*old_size[1], pda.size(2)).data, 1)
+
+        loss_da = self.nll(pda.view(old_size[0] * old_size[1], pda.size(2)), ten_acts)
+        loss2 = torch.sum(loss_da.view(old_size[0], old_size[1]), dim=1)
+
         hd = self.attn_d(out)
         s_coh = self.ff_d(hd).squeeze(1)
-
-        H2 = out.contiguous().view(out.size(0)* out.size(1), out.size(2))
-
-        m = self.ff_u(H2)
-        pda = F.log_softmax(m, dim=1)
-        loss_da = self.nll(pda, ten_acts)
-        loss2 = torch.sum(loss_da.view(view_size1, len_dialog), dim=1)
-
-        return (s_coh, loss2)
+        return (s_coh, (da_pred, loss2))
 
     def __str__(self):
         return "model-4"

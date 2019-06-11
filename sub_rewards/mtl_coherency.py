@@ -1,4 +1,5 @@
 import os
+import operator
 import random
 import datetime
 import logging
@@ -43,8 +44,9 @@ def main():
     cuda_device_name = "cuda:{}".format(args.cuda)
     device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
 
-    datasetfile = os.path.join(args.datadir, "coherency_dset_{}.txt".format(str(args.task)))
-    dataloader = get_dataloader(datasetfile, args)
+    train_datasetfile = os.path.join(args.datadir,"train", "coherency_dset_{}.txt".format(str(args.task)))
+    val_datasetfile = os.path.join(args.datadir, "validation", "coherency_dset_{}.txt".format(str(args.task)))
+    test_datasetfile = os.path.join(args.datadir, "test", "coherency_dset_{}.txt".format(str(args.task)))
 
     if args.model == "cosine":
         if args.do_train:
@@ -57,7 +59,7 @@ def main():
     elif args.model == "model-3":
         model = MTL_Model3(args, device).to(device)
     elif args.model == "model-4":
-        assert False, "model-4 not yet supported"
+        model = MTL_Model4(args, device).to(device)
     else:
         assert False, "specified model not supported"
 
@@ -71,14 +73,26 @@ def main():
             live_data = open("live_data_{}.csv".format(str(args.task)), 'w', buffering=1)
             live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+        train_dl = get_dataloader(train_datasetfile, args)
+        val_dl = get_dataloader(val_datasetfile, args)
+
+        if args.loss == "mtl":
+            sigma_1 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
+            sigma_2 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
+            optimizer = torch.optim.Adam(list(model.parameters())+[sigma_1,sigma_2], lr=args.learning_rate)
+        else:
+            optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+
         hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.1).to(device)
+        epoch_scores = dict()
 
         for epoch in trange(args.epochs, desc="Epoch"):
+            output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(epoch)))
+
             for i,((utts_left, utts_right), 
-                    (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dataloader),
-                    total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
-                if args.test and i >= 1: break
+                    (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(train_dl),
+                    total=len(train_dl), desc='Training', postfix="LR: {}".format(args.learning_rate)):
+                if args.test and i >= 10: break
 
                 coh_ixs = coh_ixs.to(device)
                 coh1, (_,loss1) = model(utts_left.to(device),
@@ -88,10 +102,16 @@ def main():
                         acts_right.to(device), 
                         (len_u2.to(device), len_d2.to(device)))
 
+                # coh_ixs is of the form [0,1,1,0,1], where 0 indicates the first one is the more coherent one
+                # for this loss, the input is expected as [1,-1,-1,1,-1], where 1 indicates the first to be coherent, while -1 the second
+                # therefore, we need to transform the coh_ixs accordingly
                 loss_coh_ixs = torch.add(torch.add(coh_ixs*(-1), torch.ones(coh_ixs.size()).to(device))*2, torch.ones(coh_ixs.size()).to(device)*(-1))
-                loss = hinge(coh1, coh2, loss_coh_ixs) # loss1 + loss2 +
-                _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
-                score = accuracy_score(coh_ixs, pred)
+                if args.loss == "da":
+                    loss = torch.div(loss1 + loss2, 2)
+                elif args.loss == "coh":
+                    loss = hinge(coh1, coh2, loss_coh_ixs)
+                elif args.loss == "mtl":
+                    loss = torch.div(torch.div(loss1 + loss2, 2), sigma_1**2) + torch.div(hinge(coh1, coh2, loss_coh_ixs), sigma_2**2) + torch.log(sigma_1) + torch.log(sigma_2)
 
                 optimizer.zero_grad()
                 loss.sum().backward()
@@ -105,14 +125,54 @@ def main():
                     live_data.write("{},{},{}\n".format(((epoch*len(dataloader))+i)/10, loss.mean().item(), score))
                     live_data.flush()
 
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
 
             #save after every epoch
-            torch.save(model.state_dict(), output_model_file)
+            torch.save(model.state_dict(), output_model_file_epoch)
+
+            # evaluate
+            rankings = []
+            da_rankings = []
+            for i,((utts_left, utts_right), 
+                    (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(val_dl),
+                    total=len(val_dl), desc='Evaluation', postfix="LR: {}".format(args.learning_rate)):
+                if args.test and i >= 10: break
+
+                coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
+
+                _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
+                pred = pred.detach().cpu().numpy()
+
+                if lda1 != None and lda2 != None:
+                    da1 = lda1[0].detach().cpu().numpy()
+                    da2 = lda2[0].detach().cpu().numpy()
+                    acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                    acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
+                    da_rankings.append(accuracy_score(da1, acts_left))
+                    da_rankings.append(accuracy_score(da2, acts_right))
+
+                coh_ixs = coh_ixs.detach().cpu().numpy()
+                rankings.append(accuracy_score(coh_ixs, pred))
+
+            if args.loss == "mtl":
+                epoch_scores[epoch] = (np.array(rankings).mean() + np.array(da_rankings).mean())
+                logging.info("epoch {} has Coh. Acc: {} ; DA Acc: {}".format(epoch, np.array(rankings).mean(), np.array(da_rankings).mean()))
+            elif args.loss == "da":
+                epoch_scores[epoch] = (np.array(da_rankings).mean())
+                logging.info("epoch {} has DA Acc: {}".format(epoch, np.array(da_rankings).mean()))
+            elif args.loss == "coh":
+                epoch_scores[epoch] = (np.array(rankings).mean())
+                logging.info("epoch {} has Coh. Acc: {}".format(epoch, np.array(rankings).mean()))
+
+        # get maximum epoch
+        best_epoch = max(epoch_scores.items(), key=operator.itemgetter(1))[0]
+        print("Best Epoch, ie final Model Number: {}".format(best_epoch))
+        logging.info("Best Epoch, ie final Model Number: {}".format(best_epoch))
 
     if args.do_eval:
         if model != None: # do non random evaluation
-            if args.model != "cosine" and not args.test:
+            if args.model != "cosine" and  args.model != "random" and not args.test:
                 model.load_state_dict(torch.load(output_model_file))
             model.to(device)
             model.eval()
@@ -167,6 +227,7 @@ def init_logging(args):
     logging.info("batch_size = {}".format(args.batch_size))
     logging.info("========================")
     logging.info("task = {}".format(args.task))
+    logging.info("loss = {}".format(args.loss))
     logging.info("seed = {}".format(args.seed))
     logging.info("embedding = {}".format(args.embedding))
 
@@ -217,6 +278,11 @@ def parse_args():
                         default="cosine",
                         help="""with which model the dataset should be trained/evaluated.
                                 alternatives: random | cosine | model-3 | model-4""")
+    parser.add_argument('--loss',
+                        type=str,
+                        default="mtl",
+                        help="""with which loss the dataset should be trained/evaluated.
+                                alternatives: mtl | da | coh """)
     parser.add_argument('--task',
                         required=True,
                         type=str,
