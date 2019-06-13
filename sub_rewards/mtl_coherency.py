@@ -154,8 +154,8 @@ def main():
                         da2 = lda2[0].detach().cpu().numpy()
                         acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
                         acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                        da1, acts_left = da_filter_zero(acts_left.tolist(), da1.tolist())
-                        da2, acts_right = da_filter_zero(acts_right.tolist(), da2.tolist())
+                        acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
+                        acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
                         da_rankings.append(accuracy_score(da1, acts_left))
                         da_rankings.append(accuracy_score(da2, acts_right))
 
@@ -249,7 +249,7 @@ def main():
 
 def da_filter_zero(y_true, y_pred):
     x = zip(y_true, y_pred)
-    x = list(filter(lambda y: y[0] == 0, x))
+    x = list(filter(lambda y: y[0] != 0, x))
     return [yt for (yt,_) in x], [yp for (_,yp) in x]
 
 def init_logging(args):
