@@ -70,7 +70,9 @@ class MTL_Model3(nn.Module):
         self.collect_da_predictions = collect_da_predictions
         self.da_predictions = []
 
-        self.nll = nn.NLLLoss(reduction='none')
+        #add weights to the loss function to account for the distribution of dialog acts in daily dialog
+        nll_class_weights = torch.tensor([0.0, 2.1861911569232313, 3.4904300472491396, 6.120629125122877, 10.787031308006435]).to(device)
+        self.nll = nn.NLLLoss(weight=nll_class_weights, reduction='none')
 
     def forward(self, x_dialogues, x_acts, lengths):
         s_lengths = lengths[0]

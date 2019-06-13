@@ -110,6 +110,12 @@ def main():
                     loss = hinge(coh1, coh2, loss_coh_ixs)
                 elif args.loss == "mtl":
                     loss = torch.div(torch.div(loss1 + loss2, 2), sigma_1**2) + torch.div(hinge(coh1, coh2, loss_coh_ixs), sigma_2**2) + torch.log(sigma_1) + torch.log(sigma_2)
+                elif args.loss == 'coin':
+                    d = random.uniform(0,1)
+                    if d < 0.5:
+                        loss = torch.div(loss1 + loss2, 2)
+                    else:
+                        loss = hinge(coh1, coh2, loss_coh_ixs)
 
                 optimizer.zero_grad()
                 loss.sum().backward()
@@ -154,7 +160,7 @@ def main():
                     coh_ixs = coh_ixs.detach().cpu().numpy()
                     rankings.append(accuracy_score(coh_ixs, pred))
 
-                if args.loss == "mtl":
+                if args.loss == "mtl" or args.loss == 'coin':
                     epoch_scores[epoch] = (np.array(rankings).mean() + np.array(da_rankings).mean())
                     logging.info("epoch {} has Coh. Acc: {} ; DA Acc: {}".format(epoch, np.array(rankings).mean(), np.array(da_rankings).mean()))
                 elif args.loss == "da":
@@ -170,6 +176,9 @@ def main():
         logging.info("Best Epoch, ie final Model Number: {}".format(best_epoch))
 
     if args.do_eval:
+        if args.best_epoch == None:
+            assert False, "The best model to choose has not been given!"
+
         if model != None: # do non random evaluation
             if args.model != "cosine" and  args.model != "random" and not args.test:
                 output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(args.best_epoch)))
@@ -304,7 +313,7 @@ def parse_args():
                         type=str,
                         default="mtl",
                         help="""with which loss the dataset should be trained/evaluated.
-                                alternatives: mtl | da | coh """)
+                                alternatives: mtl | coin | da | coh """)
     parser.add_argument('--task',
                         required=True,
                         type=str,
@@ -315,7 +324,7 @@ def parse_args():
                                               hup (half utterance petrurbation) """)
     parser.add_argument('--best_epoch',
                         type=int,
-                        default = 0,
+                        default = None,
                         help= "when evaluating, tell the best epoch to choose the file")
     parser.add_argument('--test',
                         action='store_true',
