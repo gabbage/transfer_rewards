@@ -154,6 +154,8 @@ def main():
                         da2 = lda2[0].detach().cpu().numpy()
                         acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
                         acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
+                        da1, acts_left = da_filter_zero(da1.tolist(), acts_left.tolist())
+                        da2, acts_right = da_filter_zero(da2.tolist(), acts_right.tolist())
                         da_rankings.append(accuracy_score(da1, acts_left))
                         da_rankings.append(accuracy_score(da2, acts_right))
 
@@ -225,7 +227,9 @@ def main():
             return rankings, (da_y_true, da_y_pred)
 
         rankings_train, da_vals_train = _eval_datasource(train_dl)
+        da_vals_train = da_filter_zero(da_vals_train[0], da_vals_train[1])
         rankings_test, da_vals_test = _eval_datasource(test_dl)
+        da_vals_test = da_filter_zero(da_vals_test[0], da_vals_test[1])
 
         print("Coherence Accuracy Train: ", np.array(rankings_train).mean())
         logging.info("Coherence Accuracy Train: {}".format(np.array(rankings_train).mean()))
@@ -242,6 +246,11 @@ def main():
             logging.info("DA Accuracy test: {}".format(accuracy_score(da_vals_test[0], da_vals_test[1])))
             print("DA MicroF1 test: ", f1_score(da_vals_test[0], da_vals_test[1], average='micro'))
             logging.info("DA MicroF1 test: {}".format(f1_score(da_vals_test[0], da_vals_test[1], average='micro')))
+
+def da_filter_zero(y_true, y_pred):
+    x = zip(y_true, y_pred)
+    x = list(filter(lambda y: y[0] == 0, x))
+    return [yt for (yt,_) in x], [yp for (_,yp) in x]
 
 def init_logging(args):
     now = datetime.datetime.now()
