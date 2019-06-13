@@ -154,8 +154,8 @@ def main():
                         da2 = lda2[0].detach().cpu().numpy()
                         acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
                         acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                        da1, acts_left = da_filter_zero(da1.tolist(), acts_left.tolist())
-                        da2, acts_right = da_filter_zero(da2.tolist(), acts_right.tolist())
+                        da1, acts_left = da_filter_zero(acts_left.tolist(), da1.tolist())
+                        da2, acts_right = da_filter_zero(acts_right.tolist(), da2.tolist())
                         da_rankings.append(accuracy_score(da1, acts_left))
                         da_rankings.append(accuracy_score(da2, acts_right))
 
