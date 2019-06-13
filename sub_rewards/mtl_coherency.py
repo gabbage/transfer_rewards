@@ -64,8 +64,6 @@ def main():
         assert False, "specified model not supported"
 
     logging.info("Used Model: {}".format(str(model)))
-    output_model_file =os.path.join(args.datadir, "{}_task-{}.ckpt".format(str(model), str(args.task)))
-    logging.info("Model output file: {}".format(output_model_file))
 
     if args.do_train:
 
@@ -122,7 +120,7 @@ def main():
                     pred = pred.detach().cpu().numpy()
                     coh_ixs = coh_ixs.detach().cpu().numpy()
                     score = accuracy_score(coh_ixs, pred)
-                    live_data.write("{},{},{}\n".format(((epoch*len(dataloader))+i)/10, loss.mean().item(), score))
+                    live_data.write("{},{},{}\n".format(((epoch*len(train_dl))+i)/10, loss.mean().item(), score))
                     live_data.flush()
 
             # torch.cuda.empty_cache()
@@ -174,44 +172,60 @@ def main():
     if args.do_eval:
         if model != None: # do non random evaluation
             if args.model != "cosine" and  args.model != "random" and not args.test:
-                model.load_state_dict(torch.load(output_model_file))
+                output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(args.best_epoch)))
+                model.load_state_dict(torch.load(output_model_file_epoch))
             model.to(device)
             model.eval()
-        rankings = []
-        da_rankings = []
 
-        for i,((utts_left, utts_right), 
-                (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dataloader),
-                total=len(dataloader), desc='Iteration', postfix="LR: {}".format(args.learning_rate)):
-            if args.test and i > 100: break
+        train_dl = get_dataloader(train_datasetfile, args)
+        test_dl = get_dataloader(test_datasetfile, args)
 
-            if model == None: #generate random values
-                pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
-            else:
-                coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
-                coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
+        def _eval_datasource(dl):
+            rankings = []
+            da_rankings = []
 
-                _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
-                pred = pred.detach().cpu().numpy()
+            for i,((utts_left, utts_right), 
+                    (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dl),
+                    total=len(dl), desc='Iteration Train', postfix="LR: {}".format(args.learning_rate)):
+                if args.test and i > 5: break
 
-                if lda1 != None and lda2 != None:
-                    da1 = lda1[0].detach().cpu().numpy()
-                    da2 = lda2[0].detach().cpu().numpy()
-                    acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
-                    acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                    da_rankings.append(accuracy_score(da1, acts_left))
-                    da_rankings.append(accuracy_score(da2, acts_right))
+                if model == None: #generate random values
+                    pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
+                else:
+                    coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                    coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
 
-            coh_ixs = coh_ixs.detach().cpu().numpy()
-            rankings.append(accuracy_score(coh_ixs, pred))
+                    _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
+                    pred = pred.detach().cpu().numpy()
 
-            torch.cuda.empty_cache()
+                    if lda1 != None and lda2 != None:
+                        da1 = lda1[0].detach().cpu().numpy()
+                        da2 = lda2[0].detach().cpu().numpy()
+                        acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                        acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
+                        da_rankings.append(accuracy_score(da1, acts_left))
+                        da_rankings.append(accuracy_score(da2, acts_right))
 
-        print("Coherence Accuracy: ", np.array(rankings).mean())
-        logging.info("Coherence Accuracy Result: {}".format(np.array(rankings).mean()))
-        if len(da_rankings) > 0:
-            print("DA Accuracy: ", np.array(da_rankings).mean())
-            logging.info("DA Accuracy Result: {}".format(np.array(da_rankings).mean()))
+                coh_ixs = coh_ixs.detach().cpu().numpy()
+                rankings.append(accuracy_score(coh_ixs, pred))
+
+                torch.cuda.empty_cache()
+
+            return rankings, da_rankings
+
+        rankings_train, da_rankings_train = _eval_datasource(train_dl)
+        rankings_test, da_rankings_test = _eval_datasource(test_dl)
+
+        print("Coherence Accuracy Train: ", np.array(rankings_train).mean())
+        logging.info("Coherence Accuracy Train: {}".format(np.array(rankings_train).mean()))
+        print("Coherence Accuracy test: ", np.array(rankings_test).mean())
+        logging.info("Coherence Accuracy test: {}".format(np.array(rankings_test).mean()))
+        if len(da_rankings_train) > 0:
+            print("DA Accuracy Train: ", np.array(da_rankings_train).mean())
+            logging.info("DA Accuracy Train: {}".format(np.array(da_rankings_train).mean()))
+        if len(da_rankings_test) > 0:
+            print("DA Accuracy test: ", np.array(da_rankings_test).mean())
+            logging.info("DA Accuracy test: {}".format(np.array(da_rankings_test).mean()))
 
 def init_logging(args):
     now = datetime.datetime.now()
@@ -292,6 +306,10 @@ def parse_args():
                                 alternatives: up (utterance permutation)
                                               us (utterance sampling)
                                               hup (half utterance petrurbation) """)
+    parser.add_argument('--best_epoch',
+                        type=int,
+                        default = 0,
+                        help= "when evaluating, tell the best epoch to choose the file")
     parser.add_argument('--test',
                         action='store_true',
                         help= "just do a test run on small amount of data")
