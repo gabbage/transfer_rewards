@@ -183,6 +183,8 @@ def main():
         def _eval_datasource(dl):
             rankings = []
             da_rankings = []
+            da_y_pred = []
+            da_y_true = []
 
             for i,((utts_left, utts_right), 
                     (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dl),
@@ -203,29 +205,34 @@ def main():
                         da2 = lda2[0].detach().cpu().numpy()
                         acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
                         acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                        da_rankings.append(accuracy_score(da1, acts_left))
-                        da_rankings.append(accuracy_score(da2, acts_right))
+                        da_y_pred = da_y_pred + acts_left.tolist() + acts_right.tolist()
+                        da_y_true = da_y_true + da1.tolist() + da2.tolist()
 
                 coh_ixs = coh_ixs.detach().cpu().numpy()
                 rankings.append(accuracy_score(coh_ixs, pred))
 
                 torch.cuda.empty_cache()
 
-            return rankings, da_rankings
+            return rankings, (da_y_true, da_y_pred)
 
-        rankings_train, da_rankings_train = _eval_datasource(train_dl)
-        rankings_test, da_rankings_test = _eval_datasource(test_dl)
+        rankings_train, da_vals_train = _eval_datasource(train_dl)
+        rankings_test, da_vals_test = _eval_datasource(test_dl)
 
         print("Coherence Accuracy Train: ", np.array(rankings_train).mean())
         logging.info("Coherence Accuracy Train: {}".format(np.array(rankings_train).mean()))
         print("Coherence Accuracy test: ", np.array(rankings_test).mean())
         logging.info("Coherence Accuracy test: {}".format(np.array(rankings_test).mean()))
-        if len(da_rankings_train) > 0:
-            print("DA Accuracy Train: ", np.array(da_rankings_train).mean())
-            logging.info("DA Accuracy Train: {}".format(np.array(da_rankings_train).mean()))
-        if len(da_rankings_test) > 0:
-            print("DA Accuracy test: ", np.array(da_rankings_test).mean())
-            logging.info("DA Accuracy test: {}".format(np.array(da_rankings_test).mean()))
+        if len(da_vals_train[0]) > 0:
+            print("DA Accuracy Train: ", accuracy_score(da_vals_train[0], da_vals_train[1]))
+            logging.info("DA Accuracy Train: {}".format(accuracy_score(da_vals_train[0], da_vals_train[1])))
+            print("DA MicroF1 Train: ", f1_score(da_vals_train[0], da_vals_train[1], average='micro'))
+            logging.info("DA MicroF1 Train: {}".format(f1_score(da_vals_train[0], da_vals_train[1], average='micro')))
+
+        if len(da_vals_test[0]) > 0:
+            print("DA Accuracy test: ", accuracy_score(da_vals_test[0], da_vals_test[1]))
+            logging.info("DA Accuracy test: {}".format(accuracy_score(da_vals_test[0], da_vals_test[1])))
+            print("DA MicroF1 test: ", f1_score(da_vals_test[0], da_vals_test[1], average='micro'))
+            logging.info("DA MicroF1 test: {}".format(f1_score(da_vals_test[0], da_vals_test[1], average='micro')))
 
 def init_logging(args):
     now = datetime.datetime.now()
