@@ -10,14 +10,14 @@ fig = plt.figure()
 ax1 = fig.add_subplot(1,1,1)
 ax2 = ax1.twinx()
 
-# rsync_cmd = "rsync --inplace -a --progress buecker@130.83.167.142:transfer_rewards/sub_rewards/live_data_ui.csv logs/live_server.csv"
+rsync_cmd = "rsync --inplace -a --progress buecker@10.167.11.61:transfer_rewards/sub_rewards/live_data_us.csv logs/live_server.csv"
 
 def animate(i):
     #retrieve data from server
-    # os.system(rsync_cmd)
+    os.system(rsync_cmd)
     only_last_batch=False
 
-    df = pd.read_csv('live_data_up.csv')
+    df = pd.read_csv('logs/live_server.csv')
     ax1.clear()
     ax2.clear()
     ax2.set_ylim(-0.1, 1.1)

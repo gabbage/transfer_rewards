@@ -42,11 +42,12 @@ def elmo_rep(elmo, sent):
     return elmo(char_ids)['elmo_representations'][0][0]
 
 def preprocess(sent):
-    padlen = 50
-    stop = set(stopwords.words('english'))
-    sent_wo_stop = [w.lower() for w in sent if w.lower() not in stop]
+    padlen = 25
+    # stop = set(stopwords.words('english'))
+    # sent_wo_stop = [w.lower() for w in sent if w.lower() not in stop]
+    sent_wo_stop = [w.lower() for w in sent ]
     # for the cosine coherence add padding
-    return sent_wo_stop #+ ["<pad>"]*(padlen-len(sent_wo_stop))
+    return sent_wo_stop # + ["<pad>"]*(padlen-len(sent_wo_stop))
 
 def main():
     """------------ Test Sentences -------------------"""
@@ -73,48 +74,70 @@ def main():
     asap3 = word_tokenize("The are websites for kids like games there are teen games there are adult games")
     asap3 = preprocess(asap3)
 
+    utt1 = ['good morning , sir . is there a bank near here ?', 'there is one . 5 blocks away from here ?', "well , that 's too far.can you change some money for me ?", 'surely , of course . what kind of currency have you got ?', 'rib .', 'how much would you like to change ?', '1000 yuan.here you are .']
+    utt1 = [preprocess(word_tokenize(w)) for w in utt1]
+    utt2 = ['good morning , sir . is there a bank near here ?', 'there is one . 5 blocks away from here ?', "well , that 's too far.can you change some money for me ?", 'surely , of course . what kind of currency have you got ?', 'rib .', 'how much would you like to change ?', 'you can get one from student services .']
+    utt2 = [preprocess(word_tokenize(w)) for w in utt2]
+
     # Always only have one of the following (Glove or Elmo) uncommented
     # Use GloVe
-    # cnt = Counter()
-    # for w in sent1+sent2+sent3+ref1+ref2+ref3:
-        # cnt[w.lower()] += 1
+    cnt = Counter()
+    voc = sent1+sent2+sent3+ref1+ref2+ref3+["<pad>"]
+    for l in utt1+utt2:
+        voc = voc + l
+    for w in voc:
+        cnt[w.lower()] += 1
 
-    # vocab = tt.vocab.Vocab(cnt)
-    # vocab.load_vectors("glove.42B.300d")
-    # embed = nn.Embedding(len(vocab), 300)
-    # embed.weight.data.copy_(vocab.vectors)
+    vocab = tt.vocab.Vocab(cnt)
+    vocab.load_vectors("glove.42B.300d")
+    embed = nn.Embedding(len(vocab), 300)
+    embed.weight.data.copy_(vocab.vectors)
     
-    # embed_fn = lambda x: embed(torch.tensor([vocab.stoi[w] for w in x], dtype=torch.long))
+    embed_fn = lambda x: embed(torch.tensor([vocab.stoi[w] for w in x], dtype=torch.long))
 
     # Use Elmo
-    elmo = Elmo(options_file, weight_file, 1, dropout=0)
-    embed_fn = lambda x: elmo_rep(elmo, x)
+    # elmo = Elmo(options_file, weight_file, 1, dropout=0)
+    # embed_fn = lambda x: elmo_rep(elmo, x)
 
-    print("------------ Test Sentences -------------------")
-    es1 = embed_fn(sent1)
-    es2 = embed_fn(sent2)
-    es3 = embed_fn(sent3)
-    f1_ix, f1 = sent_sim(es1, es2)
-    f2_ix, f2 = sent_sim(es2, es3)
-    print("cos coherence of sent1-3: ", cosine(torch.stack([es1.mean(-2), es2.mean(-2), es3.mean(-2)], 0)).item())
-    # print("similarity of sentences: ", sim(f1, f2).item() / 300)
-    # print("words: (", sent1[f1_ix[0]], ",", sent2[f1_ix[1]],") , (", sent2[f2_ix[0]],",",sent3[f2_ix[1]],")")
-    print("------------ DailyDialog Sentences -------------")
-    rs1 = embed_fn(ref1)
-    rs2 = embed_fn(ref2)
-    rs3 = embed_fn(ref3)
-    print("cos coherence of DailyDialog sent1-3: ", cosine(torch.stack([rs1.mean(-2), rs2.mean(-2), rs3.mean(-2)], 0)).item())
-    f1_ix, f1 = sent_sim(rs1, rs2)
-    f2_ix, f2 = sent_sim(rs2, rs3)
-    # print("similarity of sentences: ", sim(f1, f2).item()/ 300)
-    # print("words: (", ref1[f1_ix[0]], ",", ref2[f1_ix[1]],") , (", ref2[f2_ix[0]],",",ref3[f2_ix[1]],")")
-    print("------------ ASAP Sentences --------------------")
-    as1 = embed_fn(asap1)
-    as2 = embed_fn(asap2)
-    as3 = embed_fn(asap3)
-    print("cos coherence of ASAP sent1-3: ", cosine(torch.stack([as1.mean(-2), as2.mean(-2), as3.mean(-2)], 0)).item())
-    f1_ix, f1 = sent_sim(as1, as2)
-    f2_ix, f2 = sent_sim(as2, as3)
+
+    print("------------ Dialogues -------------------")
+    utt1 = [embed_fn(s).mean(-2) for s in utt1]
+    utt1 = torch.stack(utt1, 0)
+    print(utt1.size())
+    utt2 = [embed_fn(s).mean(-2) for s in utt2]
+    utt2 = torch.stack(utt2, 0)
+    print(utt2.size())
+    print("cosine value of utt1: ", cosine(utt1).item())
+    print("cosine value of utt2: ", cosine(utt2).item())
+
+
+
+    # print("------------ Test Sentences -------------------")
+    # es1 = embed_fn(sent1)
+    # print(es1)
+    # es2 = embed_fn(sent2)
+    # es3 = embed_fn(sent3)
+    # f1_ix, f1 = sent_sim(es1, es2)
+    # f2_ix, f2 = sent_sim(es2, es3)
+    # print("cos coherence of sent1-3: ", cosine(torch.stack([es1.mean(-2), es2.mean(-2), es3.mean(-2)], 0)).item())
+    # # print("similarity of sentences: ", sim(f1, f2).item() / 300)
+    # # print("words: (", sent1[f1_ix[0]], ",", sent2[f1_ix[1]],") , (", sent2[f2_ix[0]],",",sent3[f2_ix[1]],")")
+    # print("------------ DailyDialog Sentences -------------")
+    # rs1 = embed_fn(ref1)
+    # rs2 = embed_fn(ref2)
+    # rs3 = embed_fn(ref3)
+    # print("cos coherence of DailyDialog sent1-3: ", cosine(torch.stack([rs1.mean(-2), rs2.mean(-2), rs3.mean(-2)], 0)).item())
+    # f1_ix, f1 = sent_sim(rs1, rs2)
+    # f2_ix, f2 = sent_sim(rs2, rs3)
+    # # print("similarity of sentences: ", sim(f1, f2).item()/ 300)
+    # # print("words: (", ref1[f1_ix[0]], ",", ref2[f1_ix[1]],") , (", ref2[f2_ix[0]],",",ref3[f2_ix[1]],")")
+    # print("------------ ASAP Sentences --------------------")
+    # as1 = embed_fn(asap1)
+    # as2 = embed_fn(asap2)
+    # as3 = embed_fn(asap3)
+    # print("cos coherence of ASAP sent1-3: ", cosine(torch.stack([as1.mean(-2), as2.mean(-2), as3.mean(-2)], 0)).item())
+    # f1_ix, f1 = sent_sim(as1, as2)
+    # f2_ix, f2 = sent_sim(as2, as3)
     # print("similarity of sentences: ", sim(f1, f2).item()/ 300)
     # print("words: (", asap1[f1_ix[0]], ",", asap2[f1_ix[1]],") , (", asap2[f2_ix[0]],",",asap3[f2_ix[1]],")")
 

@@ -216,8 +216,8 @@ def main():
                         da2 = lda2[0].detach().cpu().numpy()
                         acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
                         acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                        da_y_pred = da_y_pred + acts_left.tolist() + acts_right.tolist()
-                        da_y_true = da_y_true + da1.tolist() + da2.tolist()
+                        da_y_pred = da_y_pred + da1.tolist() + da2.tolist()
+                        da_y_true = da_y_true + acts_left.tolist() + acts_right.tolist()
 
                 coh_ixs = coh_ixs.detach().cpu().numpy()
                 rankings.append(accuracy_score(coh_ixs, pred))
