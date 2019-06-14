@@ -156,8 +156,8 @@ def main():
                         acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
                         acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
                         acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
-                        da_rankings.append(accuracy_score(da1, acts_left))
-                        da_rankings.append(accuracy_score(da2, acts_right))
+                        da_rankings.append(accuracy_score(acts_left, da1))
+                        da_rankings.append(accuracy_score(acts_right, da2))
 
                     coh_ixs = coh_ixs.detach().cpu().numpy()
                     rankings.append(accuracy_score(coh_ixs, pred))
@@ -182,7 +182,7 @@ def main():
             assert False, "The best model to choose has not been given!"
 
         if model != None: # do non random evaluation
-            if args.model != "cosine" and  args.model != "random" and not args.test:
+            if args.model != "cosine" and  args.model != "random" :
                 output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(args.best_epoch)))
                 model.load_state_dict(torch.load(output_model_file_epoch))
             model.to(device)
@@ -194,8 +194,9 @@ def main():
         def _eval_datasource(dl):
             rankings = []
             da_rankings = []
-            da_y_pred = []
+            da_f1_scores = []
             da_y_true = []
+            da_y_pred = []
 
             for i,((utts_left, utts_right), 
                     (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dl),
@@ -216,8 +217,10 @@ def main():
                         da2 = lda2[0].detach().cpu().numpy()
                         acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
                         acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                        da_y_pred = da_y_pred + da1.tolist() + da2.tolist()
-                        da_y_true = da_y_true + acts_left.tolist() + acts_right.tolist()
+                        acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
+                        acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
+                        da_y_pred = da_y_pred + da1 + da2
+                        da_y_true = da_y_true + acts_left + acts_right
 
                 coh_ixs = coh_ixs.detach().cpu().numpy()
                 rankings.append(accuracy_score(coh_ixs, pred))
@@ -227,9 +230,7 @@ def main():
             return rankings, (da_y_true, da_y_pred)
 
         rankings_train, da_vals_train = _eval_datasource(train_dl)
-        da_vals_train = da_filter_zero(da_vals_train[0], da_vals_train[1])
         rankings_test, da_vals_test = _eval_datasource(test_dl)
-        da_vals_test = da_filter_zero(da_vals_test[0], da_vals_test[1])
 
         print("Coherence Accuracy Train: ", np.array(rankings_train).mean())
         logging.info("Coherence Accuracy Train: {}".format(np.array(rankings_train).mean()))
@@ -254,7 +255,8 @@ def da_filter_zero(y_true, y_pred):
 
 def init_logging(args):
     now = datetime.datetime.now()
-    logfile = os.path.join(args.logdir, 'coherency_{}_task_{}_{}.log'.format(args.model, args.task, now.strftime("%Y-%m-%d_%H:%M:%S")))
+    proc = "train" if args.do_train else "eval"
+    logfile = os.path.join(args.logdir, 'coherency_{}_{}_task_{}_{}.log'.format(proc, args.model, args.task, now.strftime("%Y-%m-%d_%H:%M:%S")))
     logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format='%(levelname)s:%(message)s')
     print("Logging to ", logfile)
 
