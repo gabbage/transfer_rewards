@@ -304,6 +304,10 @@ def parse_args():
                         type=float,
                         default=1e-4,
                         help="")
+    parser.add_argument('--dropout_prob',
+                        type=float,
+                        default=0.5,
+                        help="")
     parser.add_argument('--lstm_hidden_size',
                         type=int,
                         default=150,

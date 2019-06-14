@@ -67,6 +67,8 @@ class MTL_Model3(nn.Module):
         nn.init.normal_(self.ff_d.weight, mean=0, std=1)
         nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
+        self.dropout_u = nn.Dropout(args.dropout_prob)
+
         self.collect_da_predictions = collect_da_predictions
         self.da_predictions = []
 
@@ -93,7 +95,8 @@ class MTL_Model3(nn.Module):
 
         # view_size1 = int(H.size(0)/old_size[1])
         H1 = H.view(old_size[0], old_size[1], H.size(1))
-        m = self.ff_u(H1)
+        H_u = self.dropout_u(H1)
+        m = self.ff_u(H_u)
         pda = F.log_softmax(m, dim=2)
 
         _, da_pred = torch.max(pda.view(old_size[0]*old_size[1], pda.size(2)).data, 1)
