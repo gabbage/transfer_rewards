@@ -17,7 +17,7 @@ def animate(i):
     os.system(rsync_cmd)
     only_last_batch=False
 
-    df = pd.read_csv('logs/live_server.csv')
+    df = pd.read_csv('logs/live_server.csv', names=['step', 'loss', 'score', 'da_score'], header=1)
     ax1.clear()
     ax2.clear()
     ax2.set_ylim(-0.1, 1.1)
@@ -35,11 +35,15 @@ def animate(i):
         # ax2.plot(df['step'][-2725:-1], df['f1'][-2725:-1], 'o', color='green', label='F1 score [wrt current epoch]')
     else:
         ax2.plot(df['step'], df['score'], 'o', color='lightgrey', label='Coh. Acc. [curr. datapoint]')
+        ax2.plot(df['step'], df['da_score'], 'o', color='lightblue', label='DA Acc. [curr. datapoint]')
         ax1.plot(df['step'], df['loss'], 'o', color='black', label='Loss [curr. datapoint]')
         
-        if len(df['step'])>100:
-            ax1.plot(df['step'][99:], np.convolve(df['loss'], np.ones((100,))/100, mode='valid'), 'o', color='red', label='Mean Loss [last 100]')
-            ax2.plot(df['step'][99:], np.convolve(df['score'], np.ones((100,))/100, mode='valid'), 'o', color='green', label='Mean Acc. [last 100]')
+        # if len(df['step'])>100:
+            # ax1.plot(df['step'][99:], np.convolve(df['loss'], np.ones((100,))/100, mode='valid'), 'o', color='red', label='Mean Loss [last 100]')
+            # ax2.plot(df['step'][99:], np.convolve(df['score'], np.ones((100,))/100, mode='valid'), 'o', color='green', label='Mean Acc. [last 100]')
+        ax1.plot(df['step'], df['loss'].ewm(span=50, adjust=False).mean(), 'o', color='red', label='Mean Loss [last 100]')
+        ax2.plot(df['step'], df['score'].ewm(span=50, adjust=False).mean(), 'o', color='green', label='Mean Acc. [last 100]')
+        ax2.plot(df['step'], df['da_score'].ewm(span=50, adjust=False).mean(), 'o', color='blue', label='Mean Acc. [last 100]')
 
 
         # ax1.plot(df['step'], df['loss'], 'o', color='black', label='loss')

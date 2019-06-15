@@ -73,7 +73,7 @@ def main():
 
         if args.live:
             live_data = open("live_data_{}.csv".format(str(args.task)), 'w', buffering=1)
-            live_data.write("{},{},{}\n".format('step', 'loss', 'score'))
+            live_data.write("{},{},{},{}\n".format('step', 'loss', 'score', 'da_score'))
 
         train_dl = get_dataloader(train_datasetfile, args)
         val_dl = get_dataloader(val_datasetfile, args)
@@ -129,8 +129,8 @@ def main():
                     _, coh_pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
                     coh_pred = coh_pred.detach().cpu().numpy()
                     coh_ixs = coh_ixs.detach().cpu().numpy()
-                    acts_left = acts_left.detach().cpu().numpy()
-                    acts_right = acts_right.detach().cpu().numpy()
+                    acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                    acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
                     da1 = da1.detach().cpu().numpy()
                     da2 = da2.detach().cpu().numpy()
                     acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
