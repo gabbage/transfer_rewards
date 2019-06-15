@@ -64,6 +64,10 @@ def main():
         assert False, "specified model not supported"
 
     logging.info("Used Model: {}".format(str(model)))
+    best_epoch = None
+    train_dl = None
+    val_dl = None
+    test_dl = None
 
     if args.do_train:
 
@@ -93,10 +97,10 @@ def main():
                 if args.test and i >= 10: break
 
                 coh_ixs = coh_ixs.to(device)
-                coh1, (_,loss1) = model(utts_left.to(device),
+                coh1, (da1,loss1) = model(utts_left.to(device),
                         acts_left.to(device),
                         (len_u1.to(device), len_d1.to(device)))
-                coh2, (_,loss2) = model(utts_right.to(device),
+                coh2, (da2,loss2) = model(utts_right.to(device),
                         acts_right.to(device), 
                         (len_u2.to(device), len_d2.to(device)))
 
@@ -122,11 +126,19 @@ def main():
                 optimizer.step()
 
                 if i % 10 == 0 and args.live: # write to live_data file
-                    _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
-                    pred = pred.detach().cpu().numpy()
+                    _, coh_pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
+                    coh_pred = coh_pred.detach().cpu().numpy()
                     coh_ixs = coh_ixs.detach().cpu().numpy()
-                    score = accuracy_score(coh_ixs, pred)
-                    live_data.write("{},{},{}\n".format(((epoch*len(train_dl))+i)/10, loss.mean().item(), score))
+                    acts_left = acts_left.detach().cpu().numpy()
+                    acts_right = acts_right.detach().cpu().numpy()
+                    da1 = da1.detach().cpu().numpy()
+                    da2 = da2.detach().cpu().numpy()
+                    acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
+                    acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
+                    da_score = accuracy_score(acts_left+acts_right, da1+da2)
+
+                    score = accuracy_score(coh_ixs, coh_pred)
+                    live_data.write("{},{},{},{}\n".format(((epoch*len(train_dl))+i)/10, loss.mean().item(), score, da_score))
                     live_data.flush()
 
             # torch.cuda.empty_cache()
@@ -183,12 +195,18 @@ def main():
 
         if model != None: # do non random evaluation
             if args.model != "cosine" and  args.model != "random" :
-                output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(args.best_epoch)))
+                if best_epoch == None:
+                    best_epoch == args.best_epoch
+
+                output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(best_epoch)))
                 model.load_state_dict(torch.load(output_model_file_epoch))
             model.to(device)
             model.eval()
 
-        train_dl = get_dataloader(train_datasetfile, args)
+        if train_dl == None:
+            train_dl = get_dataloader(train_datasetfile, args)
+        if val_dl == None:
+            val_dl = get_dataloader(val_datasetfile, args)
         test_dl = get_dataloader(test_datasetfile, args)
 
         def _eval_datasource(dl):
