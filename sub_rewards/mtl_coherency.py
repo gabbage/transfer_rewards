@@ -69,6 +69,10 @@ def main():
     val_dl = None
     test_dl = None
 
+    #TODO: run assertion check if returned DA values by zero filter correspond to the original ones
+    #TODO: implement comparison in evaluation, ie call the eval function on all epochs and val set,
+    #      then eval train & test on the best!
+
     if args.do_train:
 
         if args.live:
@@ -109,15 +113,15 @@ def main():
                 # therefore, we need to transform the coh_ixs accordingly
                 loss_coh_ixs = torch.add(torch.add(coh_ixs*(-1), torch.ones(coh_ixs.size()).to(device))*2, torch.ones(coh_ixs.size()).to(device)*(-1))
                 if args.loss == "da":
-                    loss = torch.div(loss1 + loss2, 2)
+                    loss = loss1 + loss2
                 elif args.loss == "coh":
                     loss = hinge(coh1, coh2, loss_coh_ixs)
                 elif args.loss == "mtl":
-                    loss = torch.div(torch.div(loss1 + loss2, 2), sigma_1**2) + torch.div(hinge(coh1, coh2, loss_coh_ixs), sigma_2**2) + torch.log(sigma_1) + torch.log(sigma_2)
+                    loss = torch.div((loss1 + loss2), sigma_1**2) + torch.div(hinge(coh1, coh2, loss_coh_ixs), sigma_2**2) + torch.log(sigma_1) + torch.log(sigma_2)
                 elif args.loss == 'coin':
                     d = random.uniform(0,1)
                     if d < 0.5:
-                        loss = torch.div(loss1 + loss2, 2)
+                        loss = loss1 + loss2
                     else:
                         loss = hinge(coh1, coh2, loss_coh_ixs)
 
@@ -190,18 +194,15 @@ def main():
         logging.info("Best Epoch, ie final Model Number: {}".format(best_epoch))
 
     if args.do_eval:
-        if args.best_epoch == None:
-            assert False, "The best model to choose has not been given!"
+        # if model != None: # do non random evaluation
+            # if args.model != "cosine" and  args.model != "random" :
+                # if best_epoch == None:
+                    # best_epoch == args.best_epoch
 
-        if model != None: # do non random evaluation
-            if args.model != "cosine" and  args.model != "random" :
-                if best_epoch == None:
-                    best_epoch == args.best_epoch
-
-                output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(best_epoch)))
-                model.load_state_dict(torch.load(output_model_file_epoch))
-            model.to(device)
-            model.eval()
+                # output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(best_epoch)))
+                # model.load_state_dict(torch.load(output_model_file_epoch))
+            # model.to(device)
+            # model.eval()
 
         if train_dl == None:
             train_dl = get_dataloader(train_datasetfile, args)
@@ -209,16 +210,16 @@ def main():
             val_dl = get_dataloader(val_datasetfile, args)
         test_dl = get_dataloader(test_datasetfile, args)
 
-        def _eval_datasource(dl):
-            rankings = []
-            da_rankings = []
+        def _eval_datasource(dl, desc_str):
+            coh_y_true = []
+            coh_y_pred = []
             da_f1_scores = []
             da_y_true = []
             da_y_pred = []
 
             for i,((utts_left, utts_right), 
                     (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dl),
-                    total=len(dl), desc='Iteration Train', postfix="LR: {}".format(args.learning_rate)):
+                    total=len(dl), desc=desc_str, postfix="LR: {}".format(args.learning_rate)):
                 if args.test and i > 5: break
 
                 if model == None: #generate random values
@@ -228,7 +229,8 @@ def main():
                     coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
 
                     _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
-                    pred = pred.detach().cpu().numpy()
+                    coh_y_pred += pred.detach().cpu().numpy().tolist()
+                    coh_y_true += coh_ixs.detach().cpu().numpy().tolist()
 
                     if lda1 != None and lda2 != None:
                         da1 = lda1[0].detach().cpu().numpy()
@@ -237,34 +239,59 @@ def main():
                         acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
                         acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
                         acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
-                        da_y_pred = da_y_pred + da1 + da2
-                        da_y_true = da_y_true + acts_left + acts_right
+                        da_y_pred += da1 + da2
+                        da_y_true += acts_left + acts_right
 
-                coh_ixs = coh_ixs.detach().cpu().numpy()
-                rankings.append(accuracy_score(coh_ixs, pred))
+            return (coh_y_true, coh_y_pred), (da_y_true, da_y_pred)
 
-                torch.cuda.empty_cache()
+        def _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred):
+            coh_acc = accuracy_score(coh_y_true, coh_y_pred)
+            logging.info("{} coherency accuracy: {}".format(name, coh_acc))
+            da_acc = accuracy_score(da_y_true, da_y_pred)
+            logging.info("{} DA accuracy: {}".format(name, da_acc))
+            da_f1 = f1_score(da_y_true, da_y_pred, average='micro')
+            logging.info("{} DA MicroF1: {}".format(name, da_f1))
 
-            return rankings, (da_y_true, da_y_pred)
+        # choose the best epoch
+        best_epoch = 0
+        best_coh_acc, best_da_acc = None, None
+        for i in range(args.epochs):
+            model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(
+                str(model), str(args.task),str(args.loss), str(i)))
+            model.load_state_dict(torch.load(model_file_epoch))
+            model.to(device)
+            model.eval()
 
-        rankings_train, da_vals_train = _eval_datasource(train_dl)
-        rankings_test, da_vals_test = _eval_datasource(test_dl)
+            (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(val_dl, "Validation {}:".format(i))
+            if i == 0:
+                best_coh_acc = accuracy_score(coh_y_true, coh_y_pred)
+                best_da_acc = accuracy_score(da_y_true, da_y_pred)
+            elif args.loss == 'da':
+                curr_da_acc = accuracy_score(da_y_true, da_y_pred)
+                if curr_da_acc > best_da_acc:
+                    best_epoch = i
+            elif args.loss == 'coh':
+                curr_coh_acc = accuracy_score(coh_y_true, coh_y_pred)
+                if curr_coh_acc > best_coh_acc:
+                    best_epoch = i
+            elif args.loss == 'mtl' or args.loss == 'coin':
+                curr_coh_acc = accuracy_score(coh_y_true, coh_y_pred)
+                curr_da_acc = accuracy_score(da_y_true, da_y_pred)
+                if curr_coh_acc+curr_da_acc > best_coh_acc+best_da_acc:
+                    best_epoch = i
 
-        print("Coherence Accuracy Train: ", np.array(rankings_train).mean())
-        logging.info("Coherence Accuracy Train: {}".format(np.array(rankings_train).mean()))
-        print("Coherence Accuracy test: ", np.array(rankings_test).mean())
-        logging.info("Coherence Accuracy test: {}".format(np.array(rankings_test).mean()))
-        if len(da_vals_train[0]) > 0:
-            print("DA Accuracy Train: ", accuracy_score(da_vals_train[0], da_vals_train[1]))
-            logging.info("DA Accuracy Train: {}".format(accuracy_score(da_vals_train[0], da_vals_train[1])))
-            print("DA MicroF1 Train: ", f1_score(da_vals_train[0], da_vals_train[1], average='micro'))
-            logging.info("DA MicroF1 Train: {}".format(f1_score(da_vals_train[0], da_vals_train[1], average='micro')))
+        logging.info("Best Epoch = {}".format(best_epoch))
+        # evaluate all sets on the best epoch
+        model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(
+            str(model), str(args.task),str(args.loss), str(best_epoch)))
+        model.load_state_dict(torch.load(model_file_epoch))
+        model.to(device)
+        model.eval()
+        datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
+        for (name, dl) in datasets:
+            (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
+            _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
 
-        if len(da_vals_test[0]) > 0:
-            print("DA Accuracy test: ", accuracy_score(da_vals_test[0], da_vals_test[1]))
-            logging.info("DA Accuracy test: {}".format(accuracy_score(da_vals_test[0], da_vals_test[1])))
-            print("DA MicroF1 test: ", f1_score(da_vals_test[0], da_vals_test[1], average='micro'))
-            logging.info("DA MicroF1 test: {}".format(f1_score(da_vals_test[0], da_vals_test[1], average='micro')))
 
 def da_filter_zero(y_true, y_pred):
     x = zip(y_true, y_pred)
