@@ -26,10 +26,10 @@ from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
 from torch.nn.modules.distance import CosineSimilarity
 from torch.nn.modules import HingeEmbeddingLoss
 
-from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
-from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
+#from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
+#from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 
-from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper, CoherencyPairDataSet, GlovePairWrapper, CoherencyPairBatchWrapper
+#from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper, CoherencyPairDataSet, GlovePairWrapper, CoherencyPairBatchWrapper
 from model.mtl_models import CosineCoherence, MTL_Model3, MTL_Model4
 from data_preparation import get_dataloader
 
@@ -64,7 +64,7 @@ def main():
         assert False, "specified model not supported"
 
     logging.info("Used Model: {}".format(str(model)))
-    best_epoch = None
+    best_epoch = -1
     train_dl = None
     val_dl = None
     test_dl = None
@@ -129,7 +129,7 @@ def main():
                 loss.sum().backward()
                 optimizer.step()
 
-                if i % 10 == 0 and args.live: # write to live_data file
+                if i % 20 == 0 and args.live: # write to live_data file
                     _, coh_pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
                     coh_pred = coh_pred.detach().cpu().numpy()
                     coh_ixs = coh_ixs.detach().cpu().numpy()
@@ -198,7 +198,6 @@ def main():
             # if args.model != "cosine" and  args.model != "random" :
                 # if best_epoch == None:
                     # best_epoch == args.best_epoch
-
                 # output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(best_epoch)))
                 # model.load_state_dict(torch.load(output_model_file_epoch))
             # model.to(device)
@@ -312,6 +311,7 @@ def init_logging(args):
     logging.info("lstm_hidden_size = {}".format(args.lstm_hidden_size))
     logging.info("lstm_layers = {}".format(args.lstm_layers))
     logging.info("batch_size = {}".format(args.batch_size))
+    logging.info("dropout probability = {}".format(args.dropout_prob))
     logging.info("========================")
     logging.info("task = {}".format(args.task))
     logging.info("loss = {}".format(args.loss))
@@ -341,11 +341,11 @@ def parse_args():
                         help="random seed for initialization")
     parser.add_argument('--batch_size',
                         type=int,
-                        default=16,
+                        default=128,
                         help="")
     parser.add_argument('--epochs',
                         type=int,
-                        default=10,
+                        default=15,
                         help="amount of epochs")
     parser.add_argument('--learning_rate',
                         type=float,
@@ -357,7 +357,7 @@ def parse_args():
                         help="")
     parser.add_argument('--lstm_hidden_size',
                         type=int,
-                        default=150,
+                        default=256,
                         help="hidden size for the lstm models")
     parser.add_argument('--embedding',
                         type=str,
