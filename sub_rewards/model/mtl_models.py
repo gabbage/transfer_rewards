@@ -40,30 +40,32 @@ class MTL_Model3(nn.Module):
     def __init__(self, args, device, collect_da_predictions=True):
         super(MTL_Model3, self).__init__()
         self.input_size = args.embedding_dim
-        self.hidden_size = args.lstm_hidden_size
+        self.hidden_size_u = args.lstm_sent_size
+        self.hidden_size_d = args.lstm_utt_size
         self.num_layers = args.lstm_layers
         self.num_dialogacts = args.num_classes
         self.device = device
         self.emb = GloveEmbedding(args)
+        self.only_da = True if args.loss == 'da' else False
 
-        self.bilstm_u = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True)
+        self.bilstm_u = nn.LSTM(self.input_size, self.hidden_size_u, self.num_layers, bidirectional=True, batch_first=True)
         for param in self.bilstm_u.parameters():
             if len(param.shape) >= 2:
                 init.orthogonal_(param.data)
             else:
                 init.normal_(param.data)
-        self.bilstm_d = nn.LSTM(2*self.hidden_size, self.hidden_size, self.num_layers, bidirectional=True, batch_first=True)
+        self.bilstm_d = nn.LSTM(2*self.hidden_size_u, self.hidden_size_d, self.num_layers, bidirectional=True, batch_first=True)
         for param in self.bilstm_d.parameters():
             if len(param.shape) >= 2:
                 init.orthogonal_(param.data)
             else:
                 init.normal_(param.data)
 
-        self.attn_u = Attention(2*self.hidden_size)
-        self.attn_d = Attention(2*self.hidden_size)
+        self.attn_u = Attention(2*self.hidden_size_u)
+        self.attn_d = Attention(2*self.hidden_size_d)
 
-        self.ff_u = nn.Linear(2*self.hidden_size, self.num_dialogacts)
-        self.ff_d = nn.Linear(2*self.hidden_size, 1)
+        self.ff_u = nn.Linear(2*self.hidden_size_u, self.num_dialogacts)
+        self.ff_d = nn.Linear(2*self.hidden_size_d, 1)
         nn.init.normal_(self.ff_d.weight, mean=0, std=1)
         nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
@@ -87,8 +89,8 @@ class MTL_Model3(nn.Module):
         ten_acts = x_acts.view(old_size[0]*old_size[1]) 
 
         loss_da = torch.zeros(ten_acts.size(0)).to(self.device)
-        h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
-        c0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size).to(self.device)
+        h0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size_u).to(self.device)# 2 for bidirection 
+        c0 = torch.zeros(self.num_layers*2, ten_sents.size(0), self.hidden_size_u).to(self.device)
         ten_sents = pack_padded_sequence(ten_sents, s_lengths.view(s_lengths.size(0)*s_lengths.size(1)), batch_first=True, enforce_sorted=False)
         out, _ = self.bilstm_u(ten_sents, (h0, c0))
         out, _ = pad_packed_sequence(out, batch_first=True)
@@ -106,13 +108,16 @@ class MTL_Model3(nn.Module):
         loss2 = torch.sum(loss_da.view(old_size[0], old_size[1]), dim=1)
 
         # H = H.unsqueeze(0)
-        h0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)# 2 for bidirection 
-        c0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size).to(self.device)
-        H1 = pack_padded_sequence(H1, d_lengths, batch_first=True, enforce_sorted=False)
-        out, _ = self.bilstm_d(H1, (h0, c0))
-        out, _ = pad_packed_sequence(out, batch_first=True)
-        hd = self.attn_d(out)
-        s_coh = self.ff_d(hd).squeeze(1)
+        if not self.only_da:
+            h0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size_d).to(self.device)# 2 for bidirection 
+            c0 = torch.zeros(self.num_layers*2, H1.size(0), self.hidden_size_d).to(self.device)
+            H1 = pack_padded_sequence(H1, d_lengths, batch_first=True, enforce_sorted=False)
+            out, _ = self.bilstm_d(H1, (h0, c0))
+            out, _ = pad_packed_sequence(out, batch_first=True)
+            hd = self.attn_d(out)
+            s_coh = self.ff_d(hd).squeeze(1)
+        else:
+            s_coh = torch.randn(old_size[0])
         return (s_coh, (da_pred, loss2))
 
     def __str__(self):

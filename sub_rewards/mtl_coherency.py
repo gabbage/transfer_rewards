@@ -33,6 +33,8 @@ from torch.nn.modules import HingeEmbeddingLoss
 from model.mtl_models import CosineCoherence, MTL_Model3, MTL_Model4
 from data_preparation import get_dataloader
 
+test_amount = 1
+
 def main():
     args = parse_args()
     init_logging(args)
@@ -98,7 +100,7 @@ def main():
             for i,((utts_left, utts_right), 
                     (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(train_dl),
                     total=len(train_dl), desc='Training', postfix="LR: {}".format(args.learning_rate)):
-                if args.test and i >= 10: break
+                if args.test and i >= test_amount: break
 
                 coh_ixs = coh_ixs.to(device)
                 coh1, (da1,loss1) = model(utts_left.to(device),
@@ -107,6 +109,10 @@ def main():
                 coh2, (da2,loss2) = model(utts_right.to(device),
                         acts_right.to(device), 
                         (len_u2.to(device), len_d2.to(device)))
+
+                # print(coh_ixs)
+                # print( acts_left, da1, loss1)
+                # print( acts_right, da2, loss2)
 
                 # coh_ixs is of the form [0,1,1,0,1], where 0 indicates the first one is the more coherent one
                 # for this loss, the input is expected as [1,-1,-1,1,-1], where 1 indicates the first to be coherent, while -1 the second
@@ -151,47 +157,47 @@ def main():
             torch.save(model.state_dict(), output_model_file_epoch)
 
             # evaluate
-            rankings = []
-            da_rankings = []
-            with torch.no_grad():
-                for i,((utts_left, utts_right), 
-                        (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(val_dl),
-                        total=len(val_dl), desc='Evaluation', postfix="LR: {}".format(args.learning_rate)):
-                    if args.test and i >= 10: break
+            # rankings = []
+            # da_rankings = []
+            # with torch.no_grad():
+                # for i,((utts_left, utts_right), 
+                        # (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(val_dl),
+                        # total=len(val_dl), desc='Evaluation', postfix="LR: {}".format(args.learning_rate)):
+                    # if args.test and i >= 10: break
 
-                    coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
-                    coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
+                    # coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                    # coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
 
-                    _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
-                    pred = pred.detach().cpu().numpy()
+                    # _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
+                    # pred = pred.detach().cpu().numpy()
 
-                    if lda1 != None and lda2 != None:
-                        da1 = lda1[0].detach().cpu().numpy()
-                        da2 = lda2[0].detach().cpu().numpy()
-                        acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
-                        acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                        acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
-                        acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
-                        da_rankings.append(accuracy_score(acts_left, da1))
-                        da_rankings.append(accuracy_score(acts_right, da2))
+                    # if lda1 != None and lda2 != None:
+                        # da1 = lda1[0].detach().cpu().numpy()
+                        # da2 = lda2[0].detach().cpu().numpy()
+                        # acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                        # acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
+                        # acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
+                        # acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
+                        # da_rankings.append(accuracy_score(acts_left, da1))
+                        # da_rankings.append(accuracy_score(acts_right, da2))
 
-                    coh_ixs = coh_ixs.detach().cpu().numpy()
-                    rankings.append(accuracy_score(coh_ixs, pred))
+                    # coh_ixs = coh_ixs.detach().cpu().numpy()
+                    # rankings.append(accuracy_score(coh_ixs, pred))
 
-                if args.loss == "mtl" or args.loss == 'coin':
-                    epoch_scores[epoch] = (np.array(rankings).mean() + np.array(da_rankings).mean())
-                    logging.info("epoch {} has Coh. Acc: {} ; DA Acc: {}".format(epoch, np.array(rankings).mean(), np.array(da_rankings).mean()))
-                elif args.loss == "da":
-                    epoch_scores[epoch] = (np.array(da_rankings).mean())
-                    logging.info("epoch {} has DA Acc: {}".format(epoch, np.array(da_rankings).mean()))
-                elif args.loss == "coh":
-                    epoch_scores[epoch] = (np.array(rankings).mean())
-                    logging.info("epoch {} has Coh. Acc: {}".format(epoch, np.array(rankings).mean()))
+                # if args.loss == "mtl" or args.loss == 'coin':
+                    # epoch_scores[epoch] = (np.array(rankings).mean() + np.array(da_rankings).mean())
+                    # logging.info("epoch {} has Coh. Acc: {} ; DA Acc: {}".format(epoch, np.array(rankings).mean(), np.array(da_rankings).mean()))
+                # elif args.loss == "da":
+                    # epoch_scores[epoch] = (np.array(da_rankings).mean())
+                    # logging.info("epoch {} has DA Acc: {}".format(epoch, np.array(da_rankings).mean()))
+                # elif args.loss == "coh":
+                    # epoch_scores[epoch] = (np.array(rankings).mean())
+                    # logging.info("epoch {} has Coh. Acc: {}".format(epoch, np.array(rankings).mean()))
 
-        # get maximum epoch
-        best_epoch = max(epoch_scores.items(), key=operator.itemgetter(1))[0]
-        print("Best Epoch, ie final Model Number: {}".format(best_epoch))
-        logging.info("Best Epoch, ie final Model Number: {}".format(best_epoch))
+        # # get maximum epoch
+        # best_epoch = max(epoch_scores.items(), key=operator.itemgetter(1))[0]
+        # print("Best Epoch, ie final Model Number: {}".format(best_epoch))
+        # logging.info("Best Epoch, ie final Model Number: {}".format(best_epoch))
 
     if args.do_eval:
         # if model != None: # do non random evaluation
@@ -219,7 +225,7 @@ def main():
             for i,((utts_left, utts_right), 
                     (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dl),
                     total=len(dl), desc=desc_str, postfix="LR: {}".format(args.learning_rate)):
-                if args.test and i > 5: break
+                if args.test and i >= test_amount: break
 
                 if model == None: #generate random values
                     pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
@@ -308,7 +314,8 @@ def init_logging(args):
 
     logging.info("learning_rate = {}".format(args.learning_rate))
     logging.info("num_epochs = {}".format(args.epochs))
-    logging.info("lstm_hidden_size = {}".format(args.lstm_hidden_size))
+    logging.info("lstm_hidden_sent = {}".format(args.lstm_sent_size))
+    logging.info("lstm_hidden_utt = {}".format(args.lstm_utt_size))
     logging.info("lstm_layers = {}".format(args.lstm_layers))
     logging.info("batch_size = {}".format(args.batch_size))
     logging.info("dropout probability = {}".format(args.dropout_prob))
@@ -349,15 +356,19 @@ def parse_args():
                         help="amount of epochs")
     parser.add_argument('--learning_rate',
                         type=float,
-                        default=1e-4,
+                        default=0.015,
                         help="")
     parser.add_argument('--dropout_prob',
                         type=float,
-                        default=0.5,
+                        default=0.0,
                         help="")
-    parser.add_argument('--lstm_hidden_size',
+    parser.add_argument('--lstm_sent_size',
                         type=int,
-                        default=256,
+                        default=100,
+                        help="hidden size for the lstm models")
+    parser.add_argument('--lstm_utt_size',
+                        type=int,
+                        default=200,
                         help="hidden size for the lstm models")
     parser.add_argument('--embedding',
                         type=str,
