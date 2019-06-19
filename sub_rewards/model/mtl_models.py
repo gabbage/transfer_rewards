@@ -77,7 +77,8 @@ class MTL_Model3(nn.Module):
         #add weights to the loss function to account for the distribution of dialog acts in daily dialog
         #nll_class_weights = torch.tensor([0.0, 2.1861911569232313, 3.4904300472491396, 6.120629125122877, 10.787031308006435]).to(device)
         nll_class_weights = torch.tensor([0.0, 1.0, 1.0, 1.0, 1.0]).to(device)
-        self.nll = nn.NLLLoss(weight=nll_class_weights, reduction='none')
+        # self.nll = nn.NLLLoss(weight=nll_class_weights, reduction='none')
+        self.nll = nn.CrossEntropyLoss(weight=nll_class_weights, reduction='mean')
 
     def forward(self, x_dialogues, x_acts, lengths):
         s_lengths = lengths[0]
@@ -100,12 +101,15 @@ class MTL_Model3(nn.Module):
         H1 = H.view(old_size[0], old_size[1], H.size(1))
         H_u = self.dropout_u(H1)
         m = self.ff_u(H_u)
-        pda = F.log_softmax(m, dim=2)
+        m = m.view(m.size(0)* m.size(1), m.size(2))
+        loss_da = self.nll(m, ten_acts)
+        pda = F.log_softmax(m, 1)
 
-        _, da_pred = torch.max(pda.view(old_size[0]*old_size[1], pda.size(2)).data, 1)
+        _, da_pred = torch.max(pda, 1)
 
-        loss_da = self.nll(pda.view(old_size[0] * old_size[1], pda.size(2)), ten_acts)
-        loss2 = torch.sum(loss_da.view(old_size[0], old_size[1]), dim=1)
+        da_pred = da_pred.view(old_size[0], old_size[1])
+        # loss_da = self.nll(pda.view(old_size[0] * old_size[1], pda.size(2)), ten_acts)
+        # loss2 = torch.sum(loss_da.view(old_size[0], old_size[1]), dim=1)
 
         # H = H.unsqueeze(0)
         if not self.only_da:
@@ -118,7 +122,7 @@ class MTL_Model3(nn.Module):
             s_coh = self.ff_d(hd).squeeze(1)
         else:
             s_coh = torch.randn(old_size[0])
-        return (s_coh, (da_pred, loss2))
+        return (s_coh, (da_pred, loss_da))
 
     def __str__(self):
         return "model-3"

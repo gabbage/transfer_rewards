@@ -84,12 +84,16 @@ def main():
         train_dl = get_dataloader(train_datasetfile, args)
         val_dl = get_dataloader(val_datasetfile, args)
 
+        sigma_da1 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
+        sigma_da2 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
         if args.loss == "mtl":
             sigma_1 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
             sigma_2 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
-            optimizer = torch.optim.Adam(list(model.parameters())+[sigma_1,sigma_2], lr=args.learning_rate)
+            optimizer = torch.optim.Adam(list(model.parameters())+[
+                sigma_1,sigma_2,sigma_da1,sigma_da2], lr=args.learning_rate)
         else:
-            optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+            optimizer = torch.optim.Adam(list(model.parameters())+[
+                sigma_da1,sigma_da2], lr=args.learning_rate)
 
         hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.1).to(device)
         epoch_scores = dict()
@@ -110,26 +114,26 @@ def main():
                         acts_right.to(device), 
                         (len_u2.to(device), len_d2.to(device)))
 
-                # print(coh_ixs)
-                # print( acts_left, da1, loss1)
-                # print( acts_right, da2, loss2)
-
                 # coh_ixs is of the form [0,1,1,0,1], where 0 indicates the first one is the more coherent one
                 # for this loss, the input is expected as [1,-1,-1,1,-1], where 1 indicates the first to be coherent, while -1 the second
                 # therefore, we need to transform the coh_ixs accordingly
                 loss_coh_ixs = torch.add(torch.add(coh_ixs*(-1), torch.ones(coh_ixs.size()).to(device))*2, torch.ones(coh_ixs.size()).to(device)*(-1))
+                loss_da = torch.div(loss1, sigma_da1**2)+torch.div(loss2, sigma_da2**2)+torch.log(sigma_da1)+torch.log(sigma_da2)
+                loss_coh = hinge(coh1, coh2, loss_coh_ixs)
                 if args.loss == "da":
-                    loss = loss1 + loss2
+                    loss = loss_da
+                    logging.info("loss1 {}".format(loss1))
+                    logging.info("loss2 {}".format(loss2))
                 elif args.loss == "coh":
                     loss = hinge(coh1, coh2, loss_coh_ixs)
                 elif args.loss == "mtl":
-                    loss = torch.div((loss1 + loss2), sigma_1**2) + torch.div(hinge(coh1, coh2, loss_coh_ixs), sigma_2**2) + torch.log(sigma_1) + torch.log(sigma_2)
+                    loss = torch.div(loss_da, sigma_1**2) + torch.div(loss_coh, sigma_2**2) + torch.log(sigma_1) + torch.log(sigma_2)
                 elif args.loss == 'coin':
                     d = random.uniform(0,1)
                     if d < 0.5:
-                        loss = loss1 + loss2
+                        loss = loss_da
                     else:
-                        loss = hinge(coh1, coh2, loss_coh_ixs)
+                        loss = loss_coh
 
                 optimizer.zero_grad()
                 loss.sum().backward()
@@ -141,14 +145,14 @@ def main():
                     coh_ixs = coh_ixs.detach().cpu().numpy()
                     acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
                     acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                    da1 = da1.detach().cpu().numpy()
-                    da2 = da2.detach().cpu().numpy()
+                    da1 = da1.detach().view(acts_left.size(0)*acts_left.size(1)).cpu().numpy()
+                    da2 = da2.detach().view(acts_left.size(0)*acts_left.size(1)).cpu().numpy()
                     acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
                     acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
                     da_score = accuracy_score(acts_left+acts_right, da1+da2)
 
                     score = accuracy_score(coh_ixs, coh_pred)
-                    live_data.write("{},{},{},{}\n".format(((epoch*len(train_dl))+i)/10, loss.mean().item(), score, da_score))
+                    live_data.write("{},{},{},{}\n".format(((epoch*len(train_dl))+i)/20, loss.mean().item(), score, da_score))
                     live_data.flush()
 
             # torch.cuda.empty_cache()
@@ -238,8 +242,8 @@ def main():
                     coh_y_true += coh_ixs.detach().cpu().numpy().tolist()
 
                     if lda1 != None and lda2 != None:
-                        da1 = lda1[0].detach().cpu().numpy()
-                        da2 = lda2[0].detach().cpu().numpy()
+                        da1 = lda1[0].view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                        da2 = lda2[0].view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
                         acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
                         acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
                         acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
@@ -295,6 +299,9 @@ def main():
         datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
         for (name, dl) in datasets:
             (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
+            if name == 'train':
+                logging.info("train true: {}".format(da_y_true))
+                logging.info("train pred: {}".format(da_y_pred))
             _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
 
 
