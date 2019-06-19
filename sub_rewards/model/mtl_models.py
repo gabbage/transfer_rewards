@@ -121,7 +121,7 @@ class MTL_Model3(nn.Module):
             hd = self.attn_d(out)
             s_coh = self.ff_d(hd).squeeze(1)
         else:
-            s_coh = torch.randn(old_size[0])
+            s_coh = torch.randn(old_size[0]).to(self.device)
         return (s_coh, (da_pred, loss_da))
 
     def __str__(self):
