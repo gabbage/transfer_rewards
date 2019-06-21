@@ -85,8 +85,8 @@ def main():
         val_dl = get_dataloader(val_datasetfile, args)
 
         if args.loss == "mtl":
-            sigma_1 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
-            sigma_2 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
+            sigma_1 = nn.Parameter(torch.tensor(args.mtl_sigma, requires_grad=True).to(device))
+            sigma_2 = nn.Parameter(torch.tensor(args.mtl_sigma, requires_grad=True).to(device))
             optimizer = torch.optim.Adam(list(model.parameters())+[
                 sigma_1,sigma_2], lr=args.learning_rate)
         else:
@@ -321,6 +321,7 @@ def init_logging(args):
     logging.info("lstm_layers = {}".format(args.lstm_layers))
     logging.info("batch_size = {}".format(args.batch_size))
     logging.info("dropout probability = {}".format(args.dropout_prob))
+    logging.info("MTL Sigma Init = {}".format(args.mtl_sigma))
     logging.info("========================")
     logging.info("task = {}".format(args.task))
     logging.info("loss = {}".format(args.loss))
@@ -372,6 +373,10 @@ def parse_args():
                         type=int,
                         default=200,
                         help="hidden size for the lstm models")
+    parser.add_argument('--mtl_sigma',
+                        type=float,
+                        default=1.0,
+                        help="initialization value for the two sigma values when using MTL Loss")
     parser.add_argument('--embedding',
                         type=str,
                         default="glove",
