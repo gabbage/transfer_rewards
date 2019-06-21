@@ -79,7 +79,7 @@ def main():
 
         if args.live:
             live_data = open("live_data_{}.csv".format(str(args.task)), 'w', buffering=1)
-            live_data.write("{},{},{},{}\n".format('step', 'loss', 'score', 'da_score'))
+            live_data.write("{},{},{},{},{},{}\n".format('step', 'loss', 'score', 'da_score', 'sigma1', 'sigma2'))
 
         train_dl = get_dataloader(train_datasetfile, args)
         val_dl = get_dataloader(val_datasetfile, args)
@@ -122,8 +122,6 @@ def main():
                 loss_coh = hinge(coh1, coh2, loss_coh_ixs)
                 if args.loss == "da":
                     loss = loss_da
-                    logging.info("loss1 {}".format(loss1))
-                    logging.info("loss2 {}".format(loss2))
                 elif args.loss == "coh":
                     loss = hinge(coh1, coh2, loss_coh_ixs)
                 elif args.loss == "mtl":
@@ -152,7 +150,7 @@ def main():
                     da_score = accuracy_score(acts_left+acts_right, da1+da2)
 
                     score = accuracy_score(coh_ixs, coh_pred)
-                    live_data.write("{},{},{},{}\n".format(((epoch*len(train_dl))+i)/20, loss.mean().item(), score, da_score))
+                    live_data.write("{},{},{},{},{},{}\n".format(((epoch*len(train_dl))+i)/20, loss.mean().item(), score, da_score, sigma_1.item(), sigma_2.item()))
                     live_data.flush()
 
             # torch.cuda.empty_cache()
