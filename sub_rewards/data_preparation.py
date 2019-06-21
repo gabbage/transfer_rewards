@@ -92,7 +92,7 @@ class CoherencyPairDataSet(Dataset):
                 utt2 = [[i for i in sent if i not in self.stop] for sent in utt2]
             utt2 = [sent+["<eos>"] for sent in utt2]
             if args.embedding == 'glove':
-                utt2 = [[self.word2id[w] for w in sent] for sent in utt1]
+                utt2 = [[self.word2id[w] for w in sent] for sent in utt2]
 
             self.utts1.append(utt1)
             self.utts2.append(utt2)
@@ -199,7 +199,7 @@ def get_dataloader(filename, args):
 
 
     if args.embedding == 'glove':
-        dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_glove)
+        dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=False, collate_fn=_collate_glove)
     # if args.embedding == 'elmo':
         # dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_elmo)
     return dload

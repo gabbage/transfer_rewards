@@ -84,16 +84,13 @@ def main():
         train_dl = get_dataloader(train_datasetfile, args)
         val_dl = get_dataloader(val_datasetfile, args)
 
-        sigma_da1 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
-        sigma_da2 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
         if args.loss == "mtl":
             sigma_1 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
             sigma_2 = nn.Parameter(torch.tensor(1.0, requires_grad=True).to(device))
             optimizer = torch.optim.Adam(list(model.parameters())+[
-                sigma_1,sigma_2,sigma_da1,sigma_da2], lr=args.learning_rate)
+                sigma_1,sigma_2], lr=args.learning_rate)
         else:
-            optimizer = torch.optim.Adam(list(model.parameters())+[
-                sigma_da1,sigma_da2], lr=args.learning_rate)
+            optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
         hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.1).to(device)
         epoch_scores = dict()
@@ -118,7 +115,7 @@ def main():
                 # for this loss, the input is expected as [1,-1,-1,1,-1], where 1 indicates the first to be coherent, while -1 the second
                 # therefore, we need to transform the coh_ixs accordingly
                 loss_coh_ixs = torch.add(torch.add(coh_ixs*(-1), torch.ones(coh_ixs.size()).to(device))*2, torch.ones(coh_ixs.size()).to(device)*(-1))
-                loss_da = torch.div(loss1, sigma_da1**2)+torch.div(loss2, sigma_da2**2)+torch.log(sigma_da1)+torch.log(sigma_da2)
+                loss_da = loss1+loss2
                 loss_coh = hinge(coh1, coh2, loss_coh_ixs)
                 if args.loss == "da":
                     loss = loss_da
@@ -256,7 +253,7 @@ def main():
             logging.info("{} coherency accuracy: {}".format(name, coh_acc))
             da_acc = accuracy_score(da_y_true, da_y_pred)
             logging.info("{} DA accuracy: {}".format(name, da_acc))
-            da_f1 = f1_score(da_y_true, da_y_pred, average='micro')
+            da_f1 = f1_score(da_y_true, da_y_pred, average='weighted')
             logging.info("{} DA MicroF1: {}".format(name, da_f1))
 
         # choose the best epoch
