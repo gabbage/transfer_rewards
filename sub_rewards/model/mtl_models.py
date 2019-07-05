@@ -76,9 +76,12 @@ class MTL_Model3(nn.Module):
 
         #add weights to the loss function to account for the distribution of dialog acts in daily dialog
         #nll_class_weights = torch.tensor([0.0, 2.1861911569232313, 3.4904300472491396, 6.120629125122877, 10.787031308006435]).to(device)
-        nll_class_weights = torch.tensor([0.0, 1.0, 1.0, 1.0, 1.0]).to(device)
+        if args.num_classes == 5:
+            nll_class_weights = torch.tensor([0.0, 1.0, 1.0, 1.0, 1.0]).to(device)
         # self.nll = nn.NLLLoss(weight=nll_class_weights, reduction='none')
-        self.nll = nn.CrossEntropyLoss(weight=nll_class_weights, reduction='mean')
+            self.nll = nn.CrossEntropyLoss(weight=nll_class_weights, reduction='mean')
+        else:
+            self.nll = nn.CrossEntropyLoss( reduction='mean')
 
     def forward(self, x_dialogues, x_acts, lengths):
         s_lengths = lengths[0]

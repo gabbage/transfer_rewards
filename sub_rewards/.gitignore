@@ -5,4 +5,5 @@ __pycache__/*
 
 live*.csv
 dd_parser.py
+*.pyc
 
