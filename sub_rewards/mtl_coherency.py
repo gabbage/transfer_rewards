@@ -71,10 +71,6 @@ def main():
     val_dl = None
     test_dl = None
 
-    #TODO: run assertion check if returned DA values by zero filter correspond to the original ones
-    #TODO: implement comparison in evaluation, ie call the eval function on all epochs and val set,
-    #      then eval train & test on the best!
-
     if args.do_train:
 
         if args.live:
@@ -84,9 +80,9 @@ def main():
         train_dl = get_dataloader(train_datasetfile, args)
         val_dl = get_dataloader(val_datasetfile, args)
 
+        sigma_1 = nn.Parameter(torch.tensor(args.mtl_sigma, requires_grad=True).to(device))
+        sigma_2 = nn.Parameter(torch.tensor(args.mtl_sigma, requires_grad=True).to(device))
         if args.loss == "mtl":
-            sigma_1 = nn.Parameter(torch.tensor(args.mtl_sigma, requires_grad=True).to(device))
-            sigma_2 = nn.Parameter(torch.tensor(args.mtl_sigma, requires_grad=True).to(device))
             optimizer = torch.optim.Adam(list(model.parameters())+[
                 sigma_1,sigma_2], lr=args.learning_rate)
         else:

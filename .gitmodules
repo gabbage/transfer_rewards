@@ -1,0 +1,4 @@
+[submodule "sub_rewards/swda"]
+	path = sub_rewards/swda
+	url = https://github.com/cgpotts/swda
+	branch = master

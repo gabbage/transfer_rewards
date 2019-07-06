@@ -3,12 +3,16 @@ from copy import deepcopy
 import pandas as pd
 from math import factorial
 import random
+from collections import Counter, defaultdict
 import sys
 from nltk import word_tokenize
 from tqdm import tqdm, trange
 import argparse
 import numpy as np
-import torchtext
+import re
+from sklearn.model_selection import train_test_split
+
+from swda.swda import CorpusReader, Transcript, Utterance
 #from pytorch_pretrained_bert.tokenization import BertTokenizer
 #from allennlp.modules.elmo import batch_to_ids
 
@@ -80,6 +84,33 @@ def half_perturb(sents, sent_DAs, amount):
     for _ in range(amount):
         speaker = random.randint(0,1) # choose one of the speakers
         speaker_ix = list(filter(lambda x: (x-speaker) % 2 == 0, range(len(sents))))
+        if len(speaker_ix) < 2:
+            return []
+
+        permuted_speaker_ix = np.random.permutation(speaker_ix)
+        while speaker_ix == permuted_speaker_ix.tolist():
+            permuted_speaker_ix = np.random.permutation(speaker_ix)
+        new_sents = list(range(len(sents)))
+        for (i_to, i_from) in zip(speaker_ix, permuted_speaker_ix):
+            new_sents[i_to] = i_from
+
+        if not new_sents in permutations:
+            permutations.append(new_sents)
+
+    return permutations
+
+
+def half_perturb_switchboard(sents, sent_DAs, amount, speaker_ixs):
+    assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
+    
+    if amount == 0 or len(sents) < 4:
+        return []
+
+    permutations = []
+    for _ in range(amount):
+        speaker = random.randint(0,1) # choose one of the speakers
+        speaker_ix = list(filter(lambda x: speaker_ixs[x] == speaker, range(len(sents))))
+        #TODO: rename either speaker_ix or speaker_ixs, they are something different, but the names are too close
         if len(speaker_ix) < 2:
             return []
 
@@ -219,14 +250,166 @@ class DailyDialogConverter:
         cmd = "shuf {} > {}".format(self.output_file, shuf_file)
         os.system(cmd)
 
+class SwitchboardConverter:
+    def __init__(self, data_dir, tokenizer, word2id, task='', seed=42):
+        self.corpus = CorpusReader(data_dir)
+        self.data_dir = data_dir
+        self.tokenizer = tokenizer
+        self.word2id = word2id
+        self.task = task
+
+        self.utt_num = 0
+        for utt in self.corpus.iter_utterances():
+            self.utt_num += 1
+
+        self.trans_num = 0
+        for trans in self.corpus.iter_transcripts():
+            self.trans_num += 1
+
+        self.da2num = switchboard_da_mapping()
+        
+        # CAUTION: make sure that for each task the seed is the same s.t. the splits will be the same!
+        train_ixs, val_ixs = train_test_split(range(self.trans_num), shuffle=True, train_size=0.8, random_state=seed)
+        val_ixs, test_ixs = train_test_split(val_ixs, shuffle=True, train_size=0.5, random_state=seed)
+        self.train_ixs, self.val_ixs, self.test_ixs = train_ixs, val_ixs, test_ixs
+        print(len(train_ixs), len(val_ixs), len(test_ixs))
+
+    def draw_rand_sent(self):
+        r = random.randint(0, self.utt_num-1)
+        prev_da = "%"
+        for i, utt in enumerate(self.corpus.iter_utterances()):
+            if i == r:
+                sentence = re.sub(r"([+/\}\[\]]|\{\w)", "",
+                                utt.text)
+                act = utt.damsl_act_tag()
+                if act == None: act = "%"
+                if act == "+": act = prev_da
+
+                return sentence, act
+
+            prev_da = utt.damsl_act_tag()
+
+    def create_vocab(self):
+        print("Creating Vocab file for Switchboard")
+
+        cnt = Counter()
+        for utt in self.corpus.iter_utterances():
+            sentence = re.sub(r"([+/\}\[\]]|\{\w)", "",
+                            utt.text)
+            sentence = self.tokenizer(sentence)
+            for w in sentence:
+                cnt[w] += 1
+
+        itos_file = os.path.join(self.data_dir, "itos.txt")
+        itosf = open(itos_file, "w")
+
+        for (word, _) in cnt.most_common(25000):
+            itosf.write("{}\n".format(word))
+
+    def convert_dset(self, amounts):
+        # create distinct train/validation/test files. they'll correspond to the created
+        # splits from the constructor
+        train_output_file = os.path.join(self.data_dir, 'train', 'coherency_dset_{}.txt'.format(self.task))
+        val_output_file = os.path.join(self.data_dir, 'validation', 'coherency_dset_{}.txt'.format(self.task))
+        test_output_file = os.path.join(self.data_dir, 'test', 'coherency_dset_{}.txt'.format(self.task))
+        if not os.path.exists(os.path.join(self.data_dir, 'train')):
+            os.makedirs(os.path.join(self.data_dir, 'train'))
+        if not os.path.exists(os.path.join(self.data_dir, 'validation')):
+            os.makedirs(os.path.join(self.data_dir, 'validation'))
+        if not os.path.exists(os.path.join(self.data_dir, 'test')):
+            os.makedirs(os.path.join(self.data_dir, 'test'))
+
+        trainfile = open(train_output_file, 'w')
+        valfile = open(val_output_file, 'w')
+        testfile = open(test_output_file, 'w')
+
+        for i,trans in enumerate(tqdm(self.corpus.iter_transcripts(display_progress=False))):
+            if i > 20:
+                break
+
+            utterances = []
+            acts = []
+            speaker_ixs = []
+            prev_act = "%"
+            for utt in trans.utterances:
+                sentence = re.sub(r"([+/\}\[\]]|\{\w)", "",
+                                utt.text)
+                # print(sentence, " ## DAs: ", utt.act_tag)
+                sentence = self.word2id(self.tokenizer(sentence))
+                utterances.append(sentence)
+                act = utt.damsl_act_tag()
+                if act == None: act = "%"
+                if act == "+": act = prev_act
+                acts.append(self.da2num[act])
+                prev_act = act
+                if "A" in utt.caller:
+                    speaker_ixs.append(0)
+                else:
+                    speaker_ixs.append(1)
+
+            if self.task == 'up':
+                permuted_ixs = permute(utterances, acts, amounts)
+            elif self.task == 'us':
+                l = self.utt_num
+                permuted_ixs = draw_rand_sent(l, len(utterances)-1, amounts) #TODO: write a Switchboard specific draw function
+            elif self.task == 'hup':
+                permuted_ixs = half_perturb_switchboard(utterances, acts, amounts, speaker_ixs)
+            elif self.task == 'ui':
+                permuted_ixs = utterance_insertions(len(utterances), amounts)
+
+            if self.task == 'us':
+                for p in permuted_ixs:
+                    a = " ".join([str(a) for a in acts])
+                    u = str(utterances)
+                    insert_sent, insert_da = self.draw_rand_sent()
+                    insert_ix = p[1]
+                    p_a = deepcopy(acts)
+                    p_a[insert_ix] = insert_da
+                    pa = " ".join([str(a) for a in p_a])
+                    p_u = deepcopy(utterances)
+                    p_u[insert_ix] = self.word2id([w.lower() for w in self.tokenizer(insert_sent)])
+
+                    if i in self.train_ixs:
+                        trainfile.write("{}|{}|{}|{}|{}\n".format("0",a,u,pa,p_u))
+                        trainfile.write("{}|{}|{}|{}|{}\n".format("1",pa,p_u,a,u))
+                    if i in self.val_ixs:
+                        valfile.write("{}|{}|{}|{}|{}\n".format("0",a,u,pa,p_u))
+                        valfile.write("{}|{}|{}|{}|{}\n".format("1",pa,p_u,a,u))
+                    if i in self.test_ixs:
+                        testfile.write("{}|{}|{}|{}|{}\n".format("0",a,u,pa,p_u))
+                        testfile.write("{}|{}|{}|{}|{}\n".format("1",pa,p_u,a,u))
+
+            else:
+                for p in permuted_ixs:
+                    a = " ".join([str(a) for a in acts])
+                    u = str(utterances)
+                    pa = [acts[i] for i in p]
+                    p_a = " ".join([str(a) for a in pa])
+                    pu = [utterances[i] for i in p]
+                    p_u = str(pu)
+
+                    if i in self.train_ixs:
+                        trainfile.write("{}|{}|{}|{}|{}\n".format("0",a,u,p_a,p_u))
+                        trainfile.write("{}|{}|{}|{}|{}\n".format("1",p_a,p_u,a,u))
+                    if i in self.val_ixs:
+                        valfile.write("{}|{}|{}|{}|{}\n".format("0",a,u,p_a,p_u))
+                        valfile.write("{}|{}|{}|{}|{}\n".format("1",p_a,p_u,a,u))
+                    if i in self.test_ixs:
+                        testfile.write("{}|{}|{}|{}|{}\n".format("0",a,u,p_a,p_u))
+                        testfile.write("{}|{}|{}|{}|{}\n".format("1",p_a,p_u,a,u))
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--datadir",
                         required=True,
                         type=str,
-                        help="""The input directory where the files of daily
-                        dialog are located. """)
+                        help="""The input directory where the files of the corpus
+                        are located. """)
+    parser.add_argument("--corpus",
+                        required=True,
+                        type=str,
+                        help="""the name of the corpus to use, currently either 'DailyDialog' or 'Switchboard' """)
     parser.add_argument('--seed',
                         type=int,
                         default=42,
@@ -266,10 +449,73 @@ def main():
         word2id = lambda x: x
 
     tokenizer = word_tokenize
-    converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
+    if args.corpus == 'DailyDialog':
+        converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
+    elif args.corpus == 'Switchboard':
+        converter = SwitchboardConverter(args.datadir, tokenizer, word2id, args.task, args.seed)
+        converter.create_vocab()
+
     converter.convert_dset(amounts=args.amount)
     # converter.call_shuf_on_output()
-    print("Amount of pertubations for task {} is: {}".format(args.task, converter.perturbation_statistics))
+    # print("Amount of pertubations for task {} is: {}".format(args.task, converter.perturbation_statistics))
+
+
+def switchboard_da_mapping():
+    mapping_dict = dict({
+                "sd": 1,
+                "b": 2,
+                "sv": 3,
+                "aa": 4,
+                "%-": 5,
+                "ba": 6,
+                "qy": 7,
+                "x": 8,
+                "ny": 9,
+                "fc": 10,
+                "%": 11,
+                "qw": 12,
+                "nn": 13,
+                "bk": 14,
+                "h": 15,
+                "qy^d": 16,
+                "o": 17,
+                "bh": 18,
+                "^q": 19,
+                "bf": 20,
+                "na": 21,
+                "ny^e": 22,
+                "ad": 23,
+                "^2": 24,
+                "b^m": 25,
+                "qo": 26,
+                "qh": 27,
+                "^h": 28,
+                "ar": 29,
+                "ng": 30,
+                "nn^e": 31,
+                "br": 32,
+                "no": 33,
+                "fp": 34,
+                "qrr": 35,
+                "arp": 36,
+                "nd": 37,
+                "t3": 38,
+                "oo": 39,
+                "co": 40,
+                "cc": 41,
+                "t1": 42,
+                "bd": 43,
+                "aap": 44,
+                "am": 45,
+                "^g": 46,
+                "qw^d": 47,
+                "fa": 48,
+                "ft":49 
+            })
+    d = defaultdict(lambda: 11)
+    for (k, v) in mapping_dict.items():
+        d[k] = v
+    return d
 
 if __name__ == "__main__":
     main()
