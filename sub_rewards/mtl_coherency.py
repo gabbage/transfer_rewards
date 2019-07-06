@@ -133,7 +133,7 @@ def main():
                     loss = loss_da + loss_coh
 
                 optimizer.zero_grad()
-                loss.sum().backward()
+                loss.mean().backward()
                 optimizer.step()
 
                 if i % 20 == 0 and args.live: # write to live_data file
@@ -296,9 +296,6 @@ def main():
         datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
         for (name, dl) in datasets:
             (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
-            if name == 'train':
-                logging.info("train true: {}".format(da_y_true))
-                logging.info("train pred: {}".format(da_y_pred))
             _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
 
 
@@ -357,27 +354,27 @@ def parse_args():
                         help="")
     parser.add_argument('--epochs',
                         type=int,
-                        default=15,
+                        default=20,
                         help="amount of epochs")
     parser.add_argument('--learning_rate',
                         type=float,
-                        default=0.015,
+                        default=0.0005,
                         help="")
     parser.add_argument('--dropout_prob',
                         type=float,
-                        default=0.0,
+                        default=0.1,
                         help="")
     parser.add_argument('--lstm_sent_size',
                         type=int,
-                        default=100,
+                        default=128,
                         help="hidden size for the lstm models")
     parser.add_argument('--lstm_utt_size',
                         type=int,
-                        default=200,
+                        default=256,
                         help="hidden size for the lstm models")
     parser.add_argument('--mtl_sigma',
                         type=float,
-                        default=1.0,
+                        default=2.0,
                         help="initialization value for the two sigma values when using MTL Loss")
     parser.add_argument('--embedding',
                         type=str,
