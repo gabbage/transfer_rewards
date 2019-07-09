@@ -272,10 +272,8 @@ class SwitchboardConverter:
         train_ixs, val_ixs = train_test_split(range(self.trans_num), shuffle=True, train_size=0.8, random_state=seed)
         val_ixs, test_ixs = train_test_split(val_ixs, shuffle=True, train_size=0.5, random_state=seed)
         self.train_ixs, self.val_ixs, self.test_ixs = train_ixs, val_ixs, test_ixs
-        print(len(train_ixs), len(val_ixs), len(test_ixs))
 
-    def draw_rand_sent(self):
-        r = random.randint(0, self.utt_num-1)
+        self.utt_da_pairs = []
         prev_da = "%"
         for i, utt in enumerate(self.corpus.iter_utterances()):
             if i == r:
@@ -285,9 +283,12 @@ class SwitchboardConverter:
                 if act == None: act = "%"
                 if act == "+": act = prev_da
 
-                return sentence, act
+            self.utt_da_pair.append((sentence, act))
 
-            prev_da = utt.damsl_act_tag()
+    def draw_rand_sent(self):
+        #TODO: redo this function. this approach takes too long. maybe load sentences into a list once and then just random pick...
+        r = random.randint(0, len(self.utt_da_pairs)-1)
+        return self.utt_da_pairs[r]
 
     def create_vocab(self):
         print("Creating Vocab file for Switchboard")
