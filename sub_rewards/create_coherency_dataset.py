@@ -10,6 +10,7 @@ from tqdm import tqdm, trange
 import argparse
 import numpy as np
 import re
+import csv
 from sklearn.model_selection import train_test_split
 
 from swda.swda import CorpusReader, Transcript, Utterance
@@ -165,6 +166,9 @@ class DailyDialogConverter:
         self.ranking_dataset = ranking_dataset
         self.perturbation_statistics = 0
 
+        self.setname = os.path.split(data_dir)[1]
+        assert self.setname == 'train' or self.setname == 'validation' or self.setname == 'test', "wrong data dir name"
+
 
     def convert_dset(self, amounts):
         # data_dir is supposed to be the dir with the respective train/test/val-dataset files
@@ -173,6 +177,11 @@ class DailyDialogConverter:
         dial_file = os.path.join(self.data_dir, 'dialogues.txt')
         act_file = os.path.join(self.data_dir, 'dialogues_act.txt')
         self.output_file = os.path.join(self.data_dir, 'coherency_dset_{}.txt'.format(self.task))
+
+        root_data_dir = os.path.split(self.data_dir)[0]
+        shuffled_path = os.path.join(root_data_dir, "shuffled_{}".format(self.task))
+        if not os.path.isdir(shuffled_path):
+            os.mkdir(shuffled_path)
 
         assert os.path.isfile(dial_file) and os.path.isfile(act_file), "could not find input files"
         assert os.path.isfile(self.act_utt_file), "missing act_utt.txt in data_dir"
@@ -208,6 +217,13 @@ class DailyDialogConverter:
                 permuted_ixs = half_perturb(tok_seqs, acts, amounts)
             elif self.task == 'ui':
                 permuted_ixs = utterance_insertions(len(tok_seqs), amounts)
+
+            # output shuffled indices for the Cervone Implementation
+            shuffle_file = os.path.join(shuffled_path, "{}_{}.csv".format(self.setname, line_count))
+            with open(shuffle_file, "w") as f:
+                csv_writer = csv.writer(f)
+                for perm in permuted_ixs:
+                    csv_writer.writerow(perm)
 
             self.perturbation_statistics += len(permuted_ixs)
 
@@ -276,17 +292,15 @@ class SwitchboardConverter:
         self.utt_da_pairs = []
         prev_da = "%"
         for i, utt in enumerate(self.corpus.iter_utterances()):
-            if i == r:
-                sentence = re.sub(r"([+/\}\[\]]|\{\w)", "",
-                                utt.text)
-                act = utt.damsl_act_tag()
-                if act == None: act = "%"
-                if act == "+": act = prev_da
+            sentence = re.sub(r"([+/\}\[\]]|\{\w)", "",
+                            utt.text)
+            act = utt.damsl_act_tag()
+            if act == None: act = "%"
+            if act == "+": act = prev_da
 
-            self.utt_da_pair.append((sentence, act))
+            self.utt_da_pairs.append((sentence, act))
 
     def draw_rand_sent(self):
-        #TODO: redo this function. this approach takes too long. maybe load sentences into a list once and then just random pick...
         r = random.randint(0, len(self.utt_da_pairs)-1)
         return self.utt_da_pairs[r]
 
@@ -307,6 +321,45 @@ class SwitchboardConverter:
         for (word, _) in cnt.most_common(25000):
             itosf.write("{}\n".format(word))
 
+
+    #getKeysByValue
+    def swda_permute(self, sents, sent_DAs, amount, speaker_ixs):
+        if amount == 0:
+            return []
+
+        permutations = [list(range(len(sents)))]
+        segment_permutations = []
+        amount = min(amount, factorial(len(sents))-1)
+        segm_ixs = self.speaker_segment_ixs(speaker_ixs)
+        segments = list(set(segm_ixs.values()))
+
+        for i in range(amount):
+            while True:
+                permutation = []
+                segm_perm = np.random.permutation(len(segments))
+                segment_permutations.append(segm_perm)
+                for segm_ix in segm_perm:
+                    utt_ixs = sorted(getKeysByValue(segm_ixs, segm_ix))
+                    permutation = permutation + utt_ixs
+
+                if permutation not in permutations:
+                    break
+
+            permutations.append(permutation)
+        return permutations[1:] , segment_permutations #the first one is the original, which was included s.t. won't be generated
+
+    def speaker_segment_ixs(self, speaker_ixs):
+        i = 0
+        segment_indices = dict()
+        prev_speaker = speaker_ixs[0]
+        for j,speaker in enumerate(speaker_ixs):
+            if speaker != prev_speaker:
+                prev_speaker = speaker
+                i += 1
+            segment_indices[j] = i
+        return segment_indices
+
+
     def convert_dset(self, amounts):
         # create distinct train/validation/test files. they'll correspond to the created
         # splits from the constructor
@@ -324,10 +377,11 @@ class SwitchboardConverter:
         valfile = open(val_output_file, 'w')
         testfile = open(test_output_file, 'w')
 
-        for i,trans in enumerate(tqdm(self.corpus.iter_transcripts(display_progress=False))):
-            if i > 20:
-                break
+        shuffled_path = os.path.join(self.data_dir, "shuffled_{}".format(self.task))
+        if not os.path.isdir(shuffled_path):
+            os.mkdir(shuffled_path)
 
+        for i,trans in enumerate(tqdm(self.corpus.iter_transcripts(display_progress=False), total=1155)):
             utterances = []
             acts = []
             speaker_ixs = []
@@ -349,7 +403,7 @@ class SwitchboardConverter:
                     speaker_ixs.append(1)
 
             if self.task == 'up':
-                permuted_ixs = permute(utterances, acts, amounts)
+                permuted_ixs , segment_perms = self.swda_permute(utterances, acts, amounts, speaker_ixs)
             elif self.task == 'us':
                 l = self.utt_num
                 permuted_ixs = draw_rand_sent(l, len(utterances)-1, amounts) #TODO: write a Switchboard specific draw function
@@ -357,6 +411,13 @@ class SwitchboardConverter:
                 permuted_ixs = half_perturb_switchboard(utterances, acts, amounts, speaker_ixs)
             elif self.task == 'ui':
                 permuted_ixs = utterance_insertions(len(utterances), amounts)
+
+            swda_fname = os.path.split(trans.swda_filename)[1]
+            shuffle_file = os.path.join(shuffled_path, swda_fname) # [:-4]
+            with open(shuffle_file, "w") as f:
+                csv_writer = csv.writer(f)
+                for perm in segment_perms:
+                    csv_writer.writerow(perm)
 
             if self.task == 'us':
                 for p in permuted_ixs:
@@ -454,12 +515,18 @@ def main():
         converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
     elif args.corpus == 'Switchboard':
         converter = SwitchboardConverter(args.datadir, tokenizer, word2id, args.task, args.seed)
-        converter.create_vocab()
+        # converter.create_vocab()
 
     converter.convert_dset(amounts=args.amount)
     # converter.call_shuf_on_output()
     # print("Amount of pertubations for task {} is: {}".format(args.task, converter.perturbation_statistics))
 
+def getKeysByValue(dictOfElements, valueToFind):
+    listOfKeys = list()
+    for item in dictOfElements.items():
+        if item[1] == valueToFind:
+            listOfKeys.append(item[0])
+    return  listOfKeys
 
 def switchboard_da_mapping():
     mapping_dict = dict({
