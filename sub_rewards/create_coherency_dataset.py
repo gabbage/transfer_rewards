@@ -1,3 +1,4 @@
+import math
 import os
 from copy import deepcopy
 import pandas as pd
@@ -77,55 +78,34 @@ def random_insert(sents, sent_DAs, generator, amount):
 
 def half_perturb(sents, sent_DAs, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
-    
-    if amount == 0 or len(sents) < 4:
-        return []
 
-    permutations = []
+    # if amount == 0 or len(sents) < 4:
+        # return []
+
+    permutations = [list(range(len(sents)))]
+
     for _ in range(amount):
-        speaker = random.randint(0,1) # choose one of the speakers
-        speaker_ix = list(filter(lambda x: (x-speaker) % 2 == 0, range(len(sents))))
-        if len(speaker_ix) < 2:
-            return []
+        while True:
+            speaker = random.randint(0,1) # choose one of the speakers
+            speaker_ix = list(filter(lambda x: (x-speaker) % 2 == 0, range(len(sents))))
+            # if len(speaker_ix) < 2:
+                # return []
 
-        permuted_speaker_ix = np.random.permutation(speaker_ix)
-        while speaker_ix == permuted_speaker_ix.tolist():
             permuted_speaker_ix = np.random.permutation(speaker_ix)
-        new_sents = list(range(len(sents)))
-        for (i_to, i_from) in zip(speaker_ix, permuted_speaker_ix):
-            new_sents[i_to] = i_from
+            # while speaker_ix == permuted_speaker_ix.tolist():
+                # permuted_speaker_ix = np.random.permutation(speaker_ix)
+            new_sents = list(range(len(sents)))
+            for (i_to, i_from) in zip(speaker_ix, permuted_speaker_ix):
+                new_sents[i_to] = i_from
 
-        if not new_sents in permutations:
-            permutations.append(new_sents)
+            if (not new_sents == permutations[0]) and (
+                    not new_sents in permutations or len(permutations) > math.factorial(len(speaker_ix))):
+                permutations.append(new_sents)
+                break
 
-    return permutations
+    return permutations[1:]
 
 
-def half_perturb_switchboard(sents, sent_DAs, amount, speaker_ixs):
-    assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
-    
-    if amount == 0 or len(sents) < 4:
-        return []
-
-    permutations = []
-    for _ in range(amount):
-        speaker = random.randint(0,1) # choose one of the speakers
-        speaker_ix = list(filter(lambda x: speaker_ixs[x] == speaker, range(len(sents))))
-        #TODO: rename either speaker_ix or speaker_ixs, they are something different, but the names are too close
-        if len(speaker_ix) < 2:
-            return []
-
-        permuted_speaker_ix = np.random.permutation(speaker_ix)
-        while speaker_ix == permuted_speaker_ix.tolist():
-            permuted_speaker_ix = np.random.permutation(speaker_ix)
-        new_sents = list(range(len(sents)))
-        for (i_to, i_from) in zip(speaker_ix, permuted_speaker_ix):
-            new_sents[i_to] = i_from
-
-        if not new_sents in permutations:
-            permutations.append(new_sents)
-
-    return permutations
 
 def utterance_insertions(length, amount):
     possible_permutations = []
@@ -199,6 +179,9 @@ class DailyDialogConverter:
         for line_count, (dial, act) in tqdm(enumerate(zip(df, af)), total=11118):
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
+
+            if len(seqs) < 4:
+                continue
 
             tok_seqs = [self.tokenizer(seq) for seq in seqs]
             tok_seqs = [[w.lower() for w in utt] for utt in tok_seqs]
@@ -323,7 +306,7 @@ class SwitchboardConverter:
 
 
     #getKeysByValue
-    def swda_permute(self, sents, sent_DAs, amount, speaker_ixs):
+    def swda_permute(self, sents, amount, speaker_ixs):
         if amount == 0:
             return []
 
@@ -359,6 +342,41 @@ class SwitchboardConverter:
             segment_indices[j] = i
         return segment_indices
 
+    def swda_half_perturb(self, amount, speaker_ixs):
+        segm_ixs = self.speaker_segment_ixs(speaker_ixs)
+        segments = list(set(segm_ixs.values()))
+        segment_permutations = []
+        permutations = [list(segm_ixs.keys())]
+        for _ in range(amount):
+            speaker = random.randint(0,1) # choose one of the speakers
+            speaker_to_perm = list(filter(lambda x: (x-speaker) % 2 == 0, segments))
+            speaker_orig = list(filter(lambda x: (x-speaker) % 2 != 0, segments))
+            #TODO: rename either speaker_ix or speaker_ixs, they are something different, but the names are too close
+            if len(speaker_to_perm) < 2:
+                return []
+
+            while True:
+                permuted_speaker_ix = np.random.permutation(speaker_to_perm).tolist()
+
+                new_segments = [None]*(len(speaker_orig)+len(permuted_speaker_ix))
+                if speaker == 0 : 
+                    new_segments[::2] = permuted_speaker_ix
+                    new_segments[1::2] = speaker_orig
+                else:
+                    new_segments[1::2] = permuted_speaker_ix
+                    new_segments[::2] = speaker_orig
+                segment_permutations.append(new_segments)
+
+                permutation = []
+                for segm_ix in new_segments:
+                    utt_ixs = sorted(getKeysByValue(segm_ixs, segm_ix))
+                    permutation = permutation + utt_ixs
+
+                if not permutation in permutations:
+                    permutations.append(permutation)
+                    break
+
+        return permutations, segment_permutations
 
     def convert_dset(self, amounts):
         # create distinct train/validation/test files. they'll correspond to the created
@@ -403,13 +421,13 @@ class SwitchboardConverter:
                     speaker_ixs.append(1)
 
             if self.task == 'up':
-                permuted_ixs , segment_perms = self.swda_permute(utterances, acts, amounts, speaker_ixs)
+                permuted_ixs , segment_perms = self.swda_permute(utterances, amounts, speaker_ixs)
             elif self.task == 'us':
                 l = self.utt_num
                 permuted_ixs = draw_rand_sent(l, len(utterances)-1, amounts) #TODO: write a Switchboard specific draw function
             elif self.task == 'hup':
-                permuted_ixs = half_perturb_switchboard(utterances, acts, amounts, speaker_ixs)
-            elif self.task == 'ui':
+                permuted_ixs , segment_perms = self.swda_half_perturb(amounts, speaker_ixs)
+            elif self.task == 'ui': #TODO: update like up & hup
                 permuted_ixs = utterance_insertions(len(utterances), amounts)
 
             swda_fname = os.path.split(trans.swda_filename)[1]
@@ -424,6 +442,7 @@ class SwitchboardConverter:
                     a = " ".join([str(a) for a in acts])
                     u = str(utterances)
                     insert_sent, insert_da = self.draw_rand_sent()
+                    insert_da = self.da2num[insert_da]
                     insert_ix = p[1]
                     p_a = deepcopy(acts)
                     p_a[insert_ix] = insert_da
