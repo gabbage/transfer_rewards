@@ -175,12 +175,15 @@ class DailyDialogConverter:
         af = open(act_file, 'r')
         of = open(self.output_file, 'w')
 
+        discarded = 0
+
 
         for line_count, (dial, act) in tqdm(enumerate(zip(df, af)), total=11118):
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
 
             if len(seqs) < 4:
+                discarded += 1
                 continue
 
             tok_seqs = [self.tokenizer(seq) for seq in seqs]
@@ -235,7 +238,9 @@ class DailyDialogConverter:
                     of.write("{}|{}|{}|{}|{}\n".format("0",a,u,p_a,p_u))
                     of.write("{}|{}|{}|{}|{}\n".format("1",p_a,p_u,a,u))
 
-            """ write the original and created datapoints in random order to the file """
+        print(discarded)
+
+            # """ write the original and created datapoints in random order to the file """
             # a = " ".join([str(a) for a in acts])
             # # u = " ".join([str(s) for s in sent_data[i]])
             # u = str(tok_seqs)
@@ -378,6 +383,34 @@ class SwitchboardConverter:
 
         return permutations, segment_permutations
 
+    def swda_utterance_insertion(self, speaker_ixs, amounts):
+        segment_ixs = self.speaker_segment_ixs(speaker_ixs)
+        segments = list(set(segment_ixs.values()))
+        segment_permutations = []
+        permutations = []
+
+        i = 0
+        for _ in range(amounts):
+            while True: # actually: do ... while permutation not in permutations
+                i_from = random.randint(0, len(segments)-1)
+                i_to = random.randint(0, len(segments)-2)
+                segm_perm = deepcopy(segments)
+                rem_elem = segm_perm[i_from]
+                segm_perm = segm_perm[0:i_from] + ([] if i_from == len(segments)-1 else segm_perm[i_from+1:])
+                segm_perm = segm_perm[0:i_to] + [rem_elem] + ([] if i_to == len(segm_perm)-1 else segm_perm[i_to:])
+
+                permutation = []
+                for segm_ix in segm_perm:
+                    utt_ixs = sorted(getKeysByValue(segment_ixs, segm_ix))
+                    permutation = permutation + utt_ixs
+
+                if permutation not in permutations:
+                    permutations.append(permutation)
+                    segment_permutations.append(segm_perm)
+                    break
+
+        return permutations, segment_permutations
+
     def convert_dset(self, amounts):
         # create distinct train/validation/test files. they'll correspond to the created
         # splits from the constructor
@@ -428,7 +461,7 @@ class SwitchboardConverter:
             elif self.task == 'hup':
                 permuted_ixs , segment_perms = self.swda_half_perturb(amounts, speaker_ixs)
             elif self.task == 'ui': #TODO: update like up & hup
-                permuted_ixs = utterance_insertions(len(utterances), amounts)
+                permuted_ixs, segment_perms = self.swda_utterance_insertion(speaker_ixs, amounts)
 
             swda_fname = os.path.split(trans.swda_filename)[1]
             shuffle_file = os.path.join(shuffled_path, swda_fname) # [:-4]
