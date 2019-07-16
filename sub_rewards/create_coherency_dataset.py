@@ -395,9 +395,13 @@ class SwitchboardConverter:
                 i_from = random.randint(0, len(segments)-1)
                 i_to = random.randint(0, len(segments)-2)
                 segm_perm = deepcopy(segments)
-                rem_elem = segm_perm[i_from]
-                segm_perm = segm_perm[0:i_from] + ([] if i_from == len(segments)-1 else segm_perm[i_from+1:])
-                segm_perm = segm_perm[0:i_to] + [rem_elem] + ([] if i_to == len(segm_perm)-1 else segm_perm[i_to:])
+                rem_elem = segments[i_from]
+                segm_perm = segm_perm[0:i_from] + segm_perm[i_from+1:]
+                segm_perm = segm_perm[0:i_to] + [rem_elem] + segm_perm[i_to:]
+
+                # print(segments)
+                # print(segm_perm)
+                assert set(segm_perm) == set(segments), "Sth Wrong!!!"
 
                 permutation = []
                 for segm_ix in segm_perm:
@@ -460,7 +464,7 @@ class SwitchboardConverter:
                 permuted_ixs = draw_rand_sent(l, len(utterances)-1, amounts) #TODO: write a Switchboard specific draw function
             elif self.task == 'hup':
                 permuted_ixs , segment_perms = self.swda_half_perturb(amounts, speaker_ixs)
-            elif self.task == 'ui': #TODO: update like up & hup
+            elif self.task == 'ui':
                 permuted_ixs, segment_perms = self.swda_utterance_insertion(speaker_ixs, amounts)
 
             swda_fname = os.path.split(trans.swda_filename)[1]
