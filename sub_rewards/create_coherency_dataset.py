@@ -45,20 +45,20 @@ def permute(sents, sent_DAs, amount):
         permutations.append(permutation.tolist())
     return permutations[1:] #the first one is the original, which was included s.t. won't be generated
 
-def draw_rand_sent(dialogues_amount, dialogue_len, amount):
+def draw_rand_sent(act_utt_df, sent_len, amount):
     """ df is supposed to be a pandas dataframe with colums 'act' and 'utt' (utterance), 
         with act being a number from 1 to 4 and utt being a sentence """
 
     permutations = []
     for _ in range(amount):
-        permutations.append(
-                [random.randint(0, dialogues_amount-1),
-                 random.randint(0, dialogue_len)])
+        (utt, da, name, ix) = draw_rand_sent_from_df(act_utt_df)
+        sent_insert_ix = random.randint(0, sent_len-1)
+        permutations.append((utt, da, name, ix, sent_insert_ix))
     return permutations
 
 def draw_rand_sent_from_df(df):
     ix = random.randint(0, len(df['utt'])-1)
-    return df['utt'][ix], df['act'][ix]
+    return df['utt'][ix], df['act'][ix], df['dialogue'][ix], df['ix'][ix]
 
 def random_insert(sents, sent_DAs, generator, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
@@ -137,7 +137,7 @@ def draw_sent_from_df(df, dialogue_ix, utt_ix):
 class DailyDialogConverter:
     def __init__(self, data_dir, tokenizer, word2id, task='', ranking_dataset = True):
         self.data_dir = data_dir
-        self.act_utt_file = os.path.join(data_dir, 'act_utt.txt')
+        self.act_utt_file = os.path.join(data_dir, 'act_utt_name.txt')
 
         self.tokenizer = tokenizer
         self.word2id = word2id
@@ -148,7 +148,36 @@ class DailyDialogConverter:
 
         self.setname = os.path.split(data_dir)[1]
         assert self.setname == 'train' or self.setname == 'validation' or self.setname == 'test', "wrong data dir name"
+    
+    def create_act_utt(self):
+        dial_file = os.path.join(self.data_dir, 'dialogues.txt')
+        act_file = os.path.join(self.data_dir, 'dialogues_act.txt')
+        output_file = os.path.join(self.data_dir, 'act_utt_name.txt'.format(self.task))
+        
+        df = open(dial_file, 'r')
+        af = open(act_file, 'r')
+        of = open(output_file, 'w')
+        csv_writer = csv.writer(of, delimiter='|')
 
+        for line_count, (dial, act) in tqdm(enumerate(zip(df, af)), total=11118):
+            seqs = dial.split('__eou__')
+            seqs = seqs[:-1]
+
+            if len(seqs) < 5:
+                continue
+
+            tok_seqs = [self.tokenizer(seq) for seq in seqs]
+            tok_seqs = [[w.lower() for w in utt] for utt in tok_seqs]
+            tok_seqs = [self.word2id(seq) for seq in tok_seqs]
+
+            acts = act.split(' ')
+            acts = acts[:-1]
+            acts = [int(act) for act in acts]
+
+            for utt_i, (act, utt) in enumerate(zip(acts, tok_seqs)):
+                dialog_name = "{}_{}".format(self.setname, line_count)
+                row = (act, utt, dialog_name,utt_i)
+                csv_writer.writerow(row)
 
     def convert_dset(self, amounts):
         # data_dir is supposed to be the dir with the respective train/test/val-dataset files
@@ -167,7 +196,7 @@ class DailyDialogConverter:
         assert os.path.isfile(self.act_utt_file), "missing act_utt.txt in data_dir"
 
         with open(self.act_utt_file, 'r') as f:
-            act_utt_df = pd.read_csv(f, sep='|', names=['act','utt'])
+            act_utt_df = pd.read_csv(f, sep='|', names=['act','utt','dialogue','ix'])
 
         rand_generator = lambda: draw_rand_sent_from_df(act_utt_df)
 
@@ -177,14 +206,20 @@ class DailyDialogConverter:
 
         discarded = 0
 
+        # four_dialogs = open("four_dialogs.txt", 'w')
 
         for line_count, (dial, act) in tqdm(enumerate(zip(df, af)), total=11118):
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
 
-            if len(seqs) < 4:
+            if len(seqs) < 5:
                 discarded += 1
                 continue
+
+            # if len(seqs) == 4:
+                # four_dialogs.write("####\n")
+                # for seq in seqs:
+                    # four_dialogs.write("{}: {} - ".format(line_count, seq))
 
             tok_seqs = [self.tokenizer(seq) for seq in seqs]
             tok_seqs = [[w.lower() for w in utt] for utt in tok_seqs]
@@ -197,8 +232,9 @@ class DailyDialogConverter:
             if self.task == 'up':
                 permuted_ixs = permute(tok_seqs, acts, amounts)
             elif self.task == 'us':
-                l = 11118 if self.data_dir.endswith("train") else 1000
-                permuted_ixs = draw_rand_sent(l, len(tok_seqs)-1, amounts)
+                # l = 11118 if self.data_dir.endswith("train") else 1000
+
+                permuted_ixs = draw_rand_sent(act_utt_df, len(tok_seqs), amounts)
             elif self.task == 'hup':
                 permuted_ixs = half_perturb(tok_seqs, acts, amounts)
             elif self.task == 'ui':
@@ -209,15 +245,21 @@ class DailyDialogConverter:
             with open(shuffle_file, "w") as f:
                 csv_writer = csv.writer(f)
                 for perm in permuted_ixs:
-                    csv_writer.writerow(perm)
+                    if self.task == 'us':
+                        (utt, da, name, ix, insert_ix) = perm
+                        row = [name, ix,insert_ix]
+                        csv_writer.writerow(row)
+                    else:
+                        csv_writer.writerow(perm)
 
             self.perturbation_statistics += len(permuted_ixs)
 
             if self.task == 'us':
                 for p in permuted_ixs:
+                    (insert_sent, insert_da, name, ix, insert_ix) = p
                     a = " ".join([str(a) for a in acts])
                     u = str(tok_seqs)
-                    insert_sent, insert_da = draw_rand_sent_from_df(act_utt_df)
+                    insert_sent, insert_da = utt, da
                     insert_ix = p[1]
                     p_a = deepcopy(acts)
                     p_a[insert_ix] = insert_da
@@ -399,10 +441,6 @@ class SwitchboardConverter:
                 segm_perm = segm_perm[0:i_from] + segm_perm[i_from+1:]
                 segm_perm = segm_perm[0:i_to] + [rem_elem] + segm_perm[i_to:]
 
-                # print(segments)
-                # print(segm_perm)
-                assert set(segm_perm) == set(segments), "Sth Wrong!!!"
-
                 permutation = []
                 for segm_ix in segm_perm:
                     utt_ixs = sorted(getKeysByValue(segment_ixs, segm_ix))
@@ -470,6 +508,7 @@ class SwitchboardConverter:
             swda_fname = os.path.split(trans.swda_filename)[1]
             shuffle_file = os.path.join(shuffled_path, swda_fname) # [:-4]
             with open(shuffle_file, "w") as f:
+                #TODO: analogous to DD, write switchboard name into the file
                 csv_writer = csv.writer(f)
                 for perm in segment_perms:
                     csv_writer.writerow(perm)
@@ -569,6 +608,7 @@ def main():
     tokenizer = word_tokenize
     if args.corpus == 'DailyDialog':
         converter = DailyDialogConverter(args.datadir, tokenizer, word2id, task=args.task)
+        # converter.create_act_utt()
     elif args.corpus == 'Switchboard':
         converter = SwitchboardConverter(args.datadir, tokenizer, word2id, args.task, args.seed)
         # converter.create_vocab()
