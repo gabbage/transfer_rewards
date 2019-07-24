@@ -62,7 +62,7 @@ def draw_rand_sent_from_df(df):
 
 def random_insert(sents, sent_DAs, generator, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
-    
+
     if amount == 0:
         return [], []
 
@@ -206,7 +206,7 @@ class DailyDialogConverter:
 
         discarded = 0
 
-        # four_dialogs = open("four_dialogs.txt", 'w')
+        four_dialogs = open("four_dialogs.txt", 'w')
 
         for line_count, (dial, act) in tqdm(enumerate(zip(df, af)), total=11118):
             seqs = dial.split('__eou__')
@@ -216,10 +216,10 @@ class DailyDialogConverter:
                 discarded += 1
                 continue
 
-            # if len(seqs) == 4:
-                # four_dialogs.write("####\n")
-                # for seq in seqs:
-                    # four_dialogs.write("{}: {} - ".format(line_count, seq))
+            if len(seqs) == 5:
+                four_dialogs.write("####\n")
+                for seq in seqs:
+                    four_dialogs.write("{}: {} - ".format(line_count, seq))
 
             tok_seqs = [self.tokenizer(seq) for seq in seqs]
             tok_seqs = [[w.lower() for w in utt] for utt in tok_seqs]
@@ -328,7 +328,12 @@ class SwitchboardConverter:
             if act == None: act = "%"
             if act == "+": act = prev_da
 
-            self.utt_da_pairs.append((sentence, act))
+            _, swda_name = os.path.split(utt.swda_filename)
+            swda_name = swda_name[:-4] if swda_name.endswith('.csv') else swda_name
+
+            ix = utt.utterance_index
+
+            self.utt_da_pairs.append((sentence, act, swda_name, ix))
 
     def draw_rand_sent(self):
         r = random.randint(0, len(self.utt_da_pairs)-1)
@@ -453,6 +458,19 @@ class SwitchboardConverter:
 
         return permutations, segment_permutations
 
+    def swda_utterance_sampling(self, speaker_ixs, amount):
+        segm_ixs = self.speaker_segment_ixs(speaker_ixs)
+        segments = list(set(segm_ixs.values()))
+
+        permutations = []
+
+        for i in range(amount):
+            (sentence, act, swda_name, ix) = self.draw_rand_sent()
+            insert_ix = random.choice(segments)
+            permutations.append((sentence, act, swda_name, ix, insert_ix))
+
+        return permutations
+
     def convert_dset(self, amounts):
         # create distinct train/validation/test files. they'll correspond to the created
         # splits from the constructor
@@ -498,8 +516,7 @@ class SwitchboardConverter:
             if self.task == 'up':
                 permuted_ixs , segment_perms = self.swda_permute(utterances, amounts, speaker_ixs)
             elif self.task == 'us':
-                l = self.utt_num
-                permuted_ixs = draw_rand_sent(l, len(utterances)-1, amounts) #TODO: write a Switchboard specific draw function
+                permuted_ixs = self.swda_utterance_sampling(speaker_ixs, amounts)
             elif self.task == 'hup':
                 permuted_ixs , segment_perms = self.swda_half_perturb(amounts, speaker_ixs)
             elif self.task == 'ui':
@@ -510,16 +527,21 @@ class SwitchboardConverter:
             with open(shuffle_file, "w") as f:
                 #TODO: analogous to DD, write switchboard name into the file
                 csv_writer = csv.writer(f)
-                for perm in segment_perms:
-                    csv_writer.writerow(perm)
+                if self.task == 'us':
+                    for perm in permuted_ixs:
+                        (utt, da, name, ix, insert_ix) = perm
+                        row = [name, ix,insert_ix]
+                        csv_writer.writerow(row)
+                else:
+                    for perm in segment_perms:
+                        csv_writer.writerow(perm)
 
             if self.task == 'us':
                 for p in permuted_ixs:
                     a = " ".join([str(a) for a in acts])
                     u = str(utterances)
-                    insert_sent, insert_da = self.draw_rand_sent()
+                    insert_sent, insert_da, name, ix, insert_ix = perm
                     insert_da = self.da2num[insert_da]
-                    insert_ix = p[1]
                     p_a = deepcopy(acts)
                     p_a[insert_ix] = insert_da
                     pa = " ".join([str(a) for a in p_a])
