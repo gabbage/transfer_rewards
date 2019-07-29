@@ -30,7 +30,7 @@ from torch.nn.modules import HingeEmbeddingLoss
 #from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 
 #from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper, CoherencyPairDataSet, GlovePairWrapper, CoherencyPairBatchWrapper
-from model.mtl_models import CosineCoherence, MTL_Model3, MTL_Model4
+from model.mtl_models import CosineCoherence, MTL_Model3, MTL_Model4, MTL_Elmo1
 from data_preparation import get_dataloader
 
 test_amount = 1
@@ -53,7 +53,7 @@ def main():
     if args.model == "cosine":
         if args.do_train:
             assert False, "cannot train the cosine model!"
-        model = CosineCoherence(args, device)
+        model = CosineCoherence(args, device).to(device)
     elif args.model == "random":
         if args.do_train:
             assert False, "cannot train the random model!"
@@ -62,6 +62,8 @@ def main():
         model = MTL_Model3(args, device).to(device)
     elif args.model == "model-4":
         model = MTL_Model4(args, device).to(device)
+    elif args.model == "elmo-1":
+        model = MTL_Elmo1(args, device).to(device)
     else:
         assert False, "specified model not supported"
 
@@ -383,7 +385,7 @@ def parse_args():
                         type=str,
                         default="cosine",
                         help="""with which model the dataset should be trained/evaluated.
-                                alternatives: random | cosine | model-3 | model-4""")
+                                alternatives: random | cosine | model-3 | model-4 | elmo-1""")
     parser.add_argument('--loss',
                         type=str,
                         default="mtl",

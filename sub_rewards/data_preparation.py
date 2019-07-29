@@ -10,7 +10,9 @@ from ast import literal_eval
 from tqdm import tqdm
 import torch
 from torch.utils.data import SequentialSampler, BatchSampler, DataLoader, Dataset
-# from allennlp.modules.elmo import batch_to_ids
+from allennlp.modules.elmo import batch_to_ids
+
+test_amount = 20
 
 def get_batches(filename, batch_size):
     coh_ixs = []
@@ -75,6 +77,9 @@ class CoherencyPairDataSet(Dataset):
             coh_df = pd.read_csv(f, sep='|', names=['coh_idx', 'acts1', 'utts1', 'acts2', 'utts2'])
 
         for (idx, row) in tqdm(coh_df.iterrows(), desc="Data Loading"):
+            if args.test and  idx >  test_amount:
+                break
+
             acts1 = [int(x) for x in row['acts1'].split(' ')]
             self.acts1.append(acts1)
             acts2 = [int(x) for x in row['acts2'].split(' ')]
@@ -154,54 +159,56 @@ def get_dataloader(filename, args):
                 (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),
                  torch.tensor(dial_len_left, dtype=torch.long), torch.tensor(dial_len_right, dtype=torch.long)))
 
-    # def _collate_elmo(samples):
-        # # get max_seq_len and max_utt_len
-        # max_seq_len, max_utt_len = 0, 0
-        # for sample in samples:
-            # (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
-            # max_utt_len = max(max_utt_len, len(acts1), len(acts2))
-            # for (u1,u2) in zip(utt1, utt2):
-                # max_seq_len = max(max_seq_len, len(u1), len(u2))
+    def _collate_elmo(samples):
+        # get max_seq_len and max_utt_len
+        max_seq_len, max_utt_len = 0, 0
+        for sample in samples:
+            (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
+            max_utt_len = max(max_utt_len, len(acts1), len(acts2))
+            for (u1,u2) in zip(utt1, utt2):
+                max_seq_len = max(max_seq_len, len(u1), len(u2))
 
-        # # create padded batch
-        # utts_left, utts_right, coh_ixs, acts_left, acts_right = [], [], [], [], []
-        # sent_len_left, sent_len_right, dial_len_left, dial_len_right = [], [], [], []
-        # pad = "<pad>"
-        # eos = "<eos>"
+        # create padded batch
+        utts_left, utts_right, coh_ixs, acts_left, acts_right = [], [], [], [], []
+        sent_len_left, sent_len_right, dial_len_left, dial_len_right = [], [], [], []
+        pad = "<pad>"
+        eos = "<eos>"
 
-        # for sample in samples:
-            # (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
+        for sample in samples:
+            (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
 
-            # sent_len_left.append([len(u) for u in utt1] + [1]*(max_utt_len-len(utt1)))
-            # sent_len_right.append([len(u) for u in utt2] + [1]*(max_utt_len-len(utt2)))
-            # dial_len_left.append(len(utt1))
-            # dial_len_right.append(len(utt2))
+            sent_len_left.append([len(u) for u in utt1] + [1]*(max_utt_len-len(utt1)))
+            sent_len_right.append([len(u) for u in utt2] + [1]*(max_utt_len-len(utt2)))
+            dial_len_left.append(len(utt1))
+            dial_len_right.append(len(utt2))
 
-            # acts1 = acts1 + [0]*(max_utt_len-len(acts1))
-            # acts_left.append(acts1)
-            # acts2 = acts2 + [0]*(max_utt_len-len(acts2))
-            # acts_right.append(acts2)
-            # coh_ixs.append(coh_ix)
+            acts1 = acts1 + [0]*(max_utt_len-len(acts1))
+            acts_left.append(acts1)
+            acts2 = acts2 + [0]*(max_utt_len-len(acts2))
+            acts_right.append(acts2)
+            coh_ixs.append(coh_ix)
 
-            # utt1 = [ u + [pad]*(max_seq_len-len(u)) for u in utt1]
-            # utt1 = utt1 + [[eos]+[pad]*(max_seq_len-1)]*(max_utt_len-len(utt1))
-            # utt1 = batch_to_ids(utt1)
-            # utts_left.append(utt1)
-            # utt2 = [ u + [pad]*(max_seq_len-len(u)) for u in utt2]
-            # utt2 = utt2 + [[eos]+[pad]*(max_seq_len-1)]*(max_utt_len-len(utt2))
-            # utt2 = batch_to_ids(utt2)
-            # utts_right.append(utt2)
+            utt1 = [ u + [pad]*(max_seq_len-len(u)) for u in utt1]
+            utt1 = utt1 + [[eos]+[pad]*(max_seq_len-1)]*(max_utt_len-len(utt1))
+            utt1 = batch_to_ids(utt1)
+            utts_left.append(utt1)
+            utt2 = [ u + [pad]*(max_seq_len-len(u)) for u in utt2]
+            utt2 = utt2 + [[eos]+[pad]*(max_seq_len-1)]*(max_utt_len-len(utt2))
+            utt2 = batch_to_ids(utt2)
+            utts_right.append(utt2)
 
-        # return ((torch.stack(utts_left, 0), torch.stack(utts_right, 0)),
-                # (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))),
-                # (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),
-                 # torch.tensor(dial_len_left, dtype=torch.long), torch.tensor(dial_len_right, dtype=torch.long)))
+            # print("size utt1: {} ; size utt2: {}".format(utt1.size(), utt2.size()))
+
+        return ((torch.stack(utts_left, 0), torch.stack(utts_right, 0)),
+                (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))),
+                (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),
+                 torch.tensor(dial_len_left, dtype=torch.long), torch.tensor(dial_len_right, dtype=torch.long)))
 
 
     if args.embedding == 'glove':
         dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=False, collate_fn=_collate_glove)
-    # if args.embedding == 'elmo':
-        # dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_elmo)
+    if args.embedding == 'elmo':
+        dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_elmo)
     return dload
 
 def load_vocab(args):
