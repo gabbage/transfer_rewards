@@ -42,9 +42,12 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-
-    cuda_device_name = "cuda:{}".format(args.cuda)
-    device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
+    
+    if args.cuda != -1:
+        cuda_device_name = "cuda:{}".format(args.cuda)
+        device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     train_datasetfile = os.path.join(args.datadir,"train", "coherency_dset_{}.txt".format(str(args.task)))
     val_datasetfile = os.path.join(args.datadir, "validation", "coherency_dset_{}.txt".format(str(args.task)))
@@ -408,7 +411,7 @@ def parse_args():
                         help= "just do a test run on small amount of data")
     parser.add_argument('--cuda',
                         type=int,
-                        default = 0,
+                        default = -1,
                         help= "which cuda device to take")
     parser.add_argument('--do_train',
                         action='store_true',
