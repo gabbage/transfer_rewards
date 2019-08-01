@@ -65,6 +65,7 @@ class CoherencyPairDataSet(Dataset):
             self.word2id = load_vocab(args).stoi
         elif args.embedding == 'elmo':
             self.word2id = None
+            self.vocab = load_vocab(args).stoi.keys()
         else:
             assert False, "wrong or not supported embedding"
 
@@ -91,6 +92,8 @@ class CoherencyPairDataSet(Dataset):
             utt1 = [sent+["<eos>"] for sent in utt1]
             if args.embedding == 'glove':
                 utt1 = [[self.word2id[w] for w in sent] for sent in utt1]
+            elif args.embedding == 'elmo':
+                utt1 = [["<S>"] + sent + ["</S>"] for sent in utt1]
 
             utt2 = literal_eval(row['utts2'])
             if self.stop:
@@ -98,6 +101,8 @@ class CoherencyPairDataSet(Dataset):
             utt2 = [sent+["<eos>"] for sent in utt2]
             if args.embedding == 'glove':
                 utt2 = [[self.word2id[w] for w in sent] for sent in utt2]
+            elif args.embedding == 'elmo':
+                utt2 = [["<S>"] + sent + ["</S>"] for sent in utt2]
 
             self.utts1.append(utt1)
             self.utts2.append(utt2)
@@ -206,7 +211,7 @@ def get_dataloader(filename, args):
 
 
     if args.embedding == 'glove':
-        dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=False, collate_fn=_collate_glove)
+        dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_glove)
     if args.embedding == 'elmo':
         dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_elmo)
     return dload
