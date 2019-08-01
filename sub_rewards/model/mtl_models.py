@@ -231,7 +231,7 @@ class MTL_Elmo1(nn.Module):
         self.num_layers = args.lstm_layers
         self.num_dialogacts = args.num_classes
         self.device = device
-        self.emb = ElmoEmbedding(args)
+        self.emb = ElmoEmbedding(args, device)
         self.only_da = True if args.loss == 'da' else False
 
         self.bilstm_d = nn.LSTM(self.input_size, self.hidden_size_d, self.num_layers, bidirectional=True, batch_first=True)
