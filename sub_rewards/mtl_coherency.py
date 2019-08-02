@@ -47,7 +47,7 @@ def main():
     #    cuda_device_name = "cuda:{}".format(args.cuda)
     #    device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
     #else:
-    device = torch.device('cuda') # if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu') # if torch.cuda.is_available() else 'cpu')
 
     train_datasetfile = os.path.join(args.datadir,"train", "coherency_dset_{}.txt".format(str(args.task)))
     val_datasetfile = os.path.join(args.datadir, "validation", "coherency_dset_{}.txt".format(str(args.task)))
@@ -260,7 +260,7 @@ def main():
             logging.info("{} DA MicroF1: {}".format(name, da_f1))
 
         # choose the best epoch
-        if args.model != "random" and args.model != "cosine":
+        if args.model != "random" and args.model != "cosine" and args.oot_model == None:
             best_epoch = 0
             best_coh_acc, best_da_acc = None, None
             for i in range(args.epochs):
@@ -296,6 +296,11 @@ def main():
             model.to(device)
             model.eval()
 
+        elif args.oot_model:
+            model.load_state_dict(torch.load(args.oot_model))
+            model.to(device)
+            model.eval()
+
         datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
         for (name, dl) in datasets:
             (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
@@ -324,6 +329,8 @@ def init_logging(args):
     logging.info("batch_size = {}".format(args.batch_size))
     logging.info("dropout probability = {}".format(args.dropout_prob))
     logging.info("MTL Sigma Init = {}".format(args.mtl_sigma))
+    if args.oot_model:
+        logging.info("using OOT Model = {}".format(args.oot_model))
     logging.info("========================")
     logging.info("task = {}".format(args.task))
     logging.info("loss = {}".format(args.loss))
@@ -402,6 +409,11 @@ def parse_args():
                                 alternatives: up (utterance permutation)
                                               us (utterance sampling)
                                               hup (half utterance petrurbation) """)
+    parser.add_argument('--oot_model',
+                        required=False,
+                        type=str,
+                        default=None,
+                        help="""when doing Out-Of-Task evaluations, this gives the model file""")
     parser.add_argument('--best_epoch',
                         type=int,
                         default = None,
