@@ -230,7 +230,15 @@ def get_stopword_ids(args):
     return [vocab.stoi[w] for w in words]
 
 def get_stopwords(args):
-    return set(stopwords.words('english'))
+    exclude_f = os.path.join(args.datadir, "words2exclude.txt")
+    words2exclude = []
+    if os.path.isfile(exclude_f):
+        print("loading excluded words")
+        with open(exclude_f) as f:
+            for line in f:
+                words2exclude.append(line[:-1])
+
+    return set(stopwords.words('english') + words2exclude)
 
 # for testing purpose
 if __name__ == "__main__":
