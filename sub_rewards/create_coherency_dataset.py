@@ -163,7 +163,7 @@ class DailyDialogConverter:
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
 
-            if len(seqs) < 5:
+            if len(seqs) < 5 or len(seqs) > 20:
                 continue
 
             tok_seqs = [self.tokenizer(seq) for seq in seqs]
@@ -522,25 +522,36 @@ class SwitchboardConverter:
             elif self.task == 'ui':
                 permuted_ixs, segment_perms = self.swda_utterance_insertion(speaker_ixs, amounts)
 
-            swda_fname = os.path.split(trans.swda_filename)[1]
-            shuffle_file = os.path.join(shuffled_path, swda_fname) # [:-4]
-            with open(shuffle_file, "w") as f:
-                #TODO: analogous to DD, write switchboard name into the file
-                csv_writer = csv.writer(f)
-                if self.task == 'us':
-                    for perm in permuted_ixs:
-                        (utt, da, name, ix, insert_ix) = perm
-                        row = [name, ix,insert_ix]
-                        csv_writer.writerow(row)
-                else:
-                    for perm in segment_perms:
-                        csv_writer.writerow(perm)
+            # swda_fname = os.path.split(trans.swda_filename)[1]
+            # shuffle_file = os.path.join(shuffled_path, swda_fname) # [:-4]
+            # with open(shuffle_file, "w") as f:
+                # #TODO: analogous to DD, write switchboard name into the file
+                # csv_writer = csv.writer(f)
+                # if self.task == 'us':
+                    # for perm in permuted_ixs:
+                        # (utt, da, name, ix, insert_ix) = perm
+                        # row = [name, ix,insert_ix]
+                        # csv_writer.writerow(row)
+                # else:
+                    # for perm in segment_perms:
+                        # csv_writer.writerow(perm)
+            segment_utterances = []
+            curr_sgmt = []
+            prev = 0
+            for ix, spk in enumerate(speaker_ixs):
+                if spk == prev:
+                    curr_sgmt = [word for sent in curr_sgmt for word in sent]
+                    segment_utterances.append(curr_sgmt)
+                    curr_sgmt = []
+                    prev = (spk+1)%2
+                curr_sgmt.append(utterances[ix])
+            # print(len(segment_utterances), len(utterances), len(segment_perms[0]))
 
             if self.task == 'us':
                 for p in permuted_ixs:
                     a = " ".join([str(a) for a in acts])
                     u = str(utterances)
-                    insert_sent, insert_da, name, ix, insert_ix = perm
+                    insert_sent, insert_da, name, ix, insert_ix = p
                     insert_da = self.da2num[insert_da]
                     p_a = deepcopy(acts)
                     p_a[insert_ix] = insert_da
@@ -559,12 +570,12 @@ class SwitchboardConverter:
                         testfile.write("{}|{}|{}|{}|{}\n".format("1",pa,p_u,a,u))
 
             else:
-                for p in permuted_ixs:
+                for p in segment_perms:
                     a = " ".join([str(a) for a in acts])
-                    u = str(utterances)
+                    u = str(segment_utterances)
                     pa = [acts[i] for i in p]
                     p_a = " ".join([str(a) for a in pa])
-                    pu = [utterances[i] for i in p]
+                    pu = [segment_utterances[i] for i in p if i < len(segment_utterances)]
                     p_u = str(pu)
 
                     if i in self.train_ixs:
