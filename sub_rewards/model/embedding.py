@@ -9,10 +9,10 @@ import torchtext as tt
 from allennlp.modules.elmo import Elmo, batch_to_ids
 from data_preparation import load_vocab
 
-elmo_options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
-elmo_weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
-# elmo_options_file = "/ukp-storage-1/buecker/transfer_rewards/sub_rewards/data/elmo_2x4096_512_2048cnn_2xhighway_options.json"
-# elmo_weight_file = "/ukp-storage-1/buecker/transfer_rewards/sub_rewards/data/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5" 
+#elmo_options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
+#elmo_weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+elmo_options_file = "/ukp-storage-1/buecker/transfer_rewards/sub_rewards/data/elmo_2x4096_512_2048cnn_2xhighway_options.json"
+elmo_weight_file = "/ukp-storage-1/buecker/transfer_rewards/sub_rewards/data/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5" 
 class GloveEmbedding(nn.Module):
     def __init__(self, args):
         super(GloveEmbedding, self).__init__()
@@ -30,10 +30,10 @@ class ElmoEmbedding(nn.Module):
     def __init__(self, args, device):
         super(ElmoEmbedding, self).__init__()
         self.vocab = list(load_vocab(args).stoi.keys())
-        self.elmo = Elmo(elmo_options_file, elmo_weight_file, 2, dropout=0, requires_grad=True, vocab_to_cache=self.vocab).to(device)
+        self.elmo = Elmo(elmo_options_file, elmo_weight_file, 1, dropout=0, requires_grad=False, vocab_to_cache=self.vocab).to(device)
         self.device = device
         #otimization TODO: vocab_to_cache argument
 
     def forward(self, x):
-        return self.elmo(x.contiguous())['elmo_representations'][1]
+        return self.elmo(x.contiguous())['elmo_representations'][0]
 

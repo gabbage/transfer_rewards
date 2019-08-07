@@ -163,7 +163,7 @@ class DailyDialogConverter:
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
 
-            if len(seqs) < 5:
+            if len(seqs) < 5 or len(seqs) > 20:
                 continue
 
             tok_seqs = [self.tokenizer(seq) for seq in seqs]
