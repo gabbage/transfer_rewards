@@ -209,11 +209,50 @@ def get_dataloader(filename, args):
                 (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),
                  torch.tensor(dial_len_left, dtype=torch.long), torch.tensor(dial_len_right, dtype=torch.long)))
 
+    def _collate_bert(samples):
+        # get max_seq_len and max_utt_len
+        max_seq_len, max_utt_len = 0, 0
+        for sample in samples:
+            (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
+            max_utt_len = max(max_utt_len, len(acts1), len(acts2))
+            for (u1,u2) in zip(utt1, utt2):
+                max_seq_len = max(max_seq_len, len(u1), len(u2))
+
+        utts_left, utts_right, coh_ixs, acts_left, acts_right = [], [], [], [], []
+        sent_len_left, sent_len_right, dial_len_left, dial_len_right = [], [], [], []
+
+        for sample in samples:
+            (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
+
+            sent_len_left.append([len(u) for u in utt1] + [1]*(max_utt_len-len(utt1)))
+            sent_len_right.append([len(u) for u in utt2] + [1]*(max_utt_len-len(utt2)))
+            dial_len_left.append(len(utt1))
+            dial_len_right.append(len(utt2))
+
+            acts1 = acts1 + [0]*(max_utt_len-len(acts1))
+            acts_left.append(acts1)
+            acts2 = acts2 + [0]*(max_utt_len-len(acts2))
+            acts_right.append(acts2)
+            coh_ixs.append(coh_ix)
+
+            utt1 = [[" ".join(u) for sent in utt] for utt in utt1]
+            utt1 = utt1 + [" "]*(max_utt_len-len(utt1))
+            utts_left.append(utt1)
+            utt2 = [[" ".join(u) for sent in utt] for utt in utt2]
+            utt2 = utt2 + [" "]*(max_utt_len-len(utt2))
+            utts_right.append(utt2)
+        
+        return ((utts_left, utts_right),
+                (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))),
+                (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),
+                 torch.tensor(dial_len_left, dtype=torch.long), torch.tensor(dial_len_right, dtype=torch.long)))
 
     if args.embedding == 'glove':
         dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_glove)
     if args.embedding == 'elmo':
         dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_elmo)
+    if args.embedding == 'bert':
+        dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_bert)
     return dload
 
 def load_vocab(args):
