@@ -327,7 +327,7 @@ class MTL_Bert(nn.Module):
         # self.attn_u = Attention(self.input_size)
         self.attn_d = Attention(2*self.hidden_size_d)
 
-        self.ff_u = nn.Linear(self.input_size, self.num_dialogacts)
+        self.ff_u = nn.Linear(self.input_size, self.num_dialogacts).to(device)
         self.ff_d = nn.Linear(2*self.hidden_size_d, 1)
         nn.init.normal_(self.ff_d.weight, mean=0, std=1)
         nn.init.normal_(self.ff_u.weight, mean=0, std=1)

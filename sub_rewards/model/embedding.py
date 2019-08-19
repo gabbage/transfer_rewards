@@ -51,18 +51,9 @@ class BertEmbedding(nn.Module):
         # batch = List[List[str]]
         batch_encodings = []
         batch_size = len(batch)
-        print(batch_size)
         all_sents = [sent for d in batch for sent in d]
-        enc = torch.tensor(self.model.encode(all_sents), dtype=torch.float)
+        enc = torch.tensor(self.model.encode(all_sents, show_progress_bar=False), dtype=torch.float)
         d_size = int(enc.size(0) / batch_size)
         enc = enc.view(batch_size, d_size, enc.size(1))
-        return enc
-
-        # for dialog in batch:
-            # dialog_encodings = []
-            # enc = torch.tensor(self.model.encode(dialog), dtype=torch.float)
-            # batch_encodings.append(enc)
-
-        # batch = torch.stack(batch_encodings)
-        # return batch.to(self.device)
+        return enc.to(self.device)
 

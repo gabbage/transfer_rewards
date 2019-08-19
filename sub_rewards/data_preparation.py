@@ -252,7 +252,7 @@ def get_dataloader(filename, args):
     if args.embedding == 'elmo':
         dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_elmo)
     if args.embedding == 'bert':
-        dload = DataLoader(dset, batch_size=batch_size, num_workers=4, shuffle=True, collate_fn=_collate_bert)
+        dload = DataLoader(dset, batch_size=batch_size, num_workers=8, shuffle=True, collate_fn=_collate_bert)
     return dload
 
 def load_vocab(args):
