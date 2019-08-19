@@ -52,6 +52,8 @@ def main():
     train_datasetfile = os.path.join(args.datadir,"train", "coherency_dset_{}.txt".format(str(args.task)))
     val_datasetfile = os.path.join(args.datadir, "validation", "coherency_dset_{}.txt".format(str(args.task)))
     test_datasetfile = os.path.join(args.datadir, "test", "coherency_dset_{}.txt".format(str(args.task)))
+    
+    print("using device: ", str(device))
 
     if args.model == "cosine":
         if args.do_train:

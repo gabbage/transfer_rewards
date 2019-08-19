@@ -43,7 +43,9 @@ class ElmoEmbedding(nn.Module):
 class BertEmbedding(nn.Module):
     def __init__(self, args, device):
         super(BertEmbedding, self).__init__()
-        self.model = SentenceTransformer('bert-base-nli-stsb-mean-tokens')
+        dev_str = "{}:{}".format(device.type, device.index)
+        self.model = SentenceTransformer('bert-base-nli-stsb-mean-tokens', device=dev_str)
+        self.device = device
 
     def forward(self, batch):
         # batch = List[List[str]]
@@ -54,5 +56,5 @@ class BertEmbedding(nn.Module):
             batch_encodings.append(enc)
 
         batch = torch.stack(batch_encodings)
-        return batch
+        return batch.to(self.device)
 
