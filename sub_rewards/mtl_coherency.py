@@ -30,7 +30,7 @@ from torch.nn.modules import HingeEmbeddingLoss
 #from pytorch_pretrained_bert.modeling import BertModel,BertPreTrainedModel, BertConfig, WEIGHTS_NAME, CONFIG_NAME
 
 #from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper, CoherencyPairDataSet, GlovePairWrapper, CoherencyPairBatchWrapper
-from model.mtl_models import CosineCoherence, MTL_Model3, MTL_Model4, MTL_Elmo1
+from model.mtl_models import CosineCoherence, MTL_Model3, MTL_Model4, MTL_Elmo1, MTL_Bert
 from data_preparation import get_dataloader
 
 test_amount = 1
@@ -67,6 +67,8 @@ def main():
         model = MTL_Model4(args, device).to(device)
     elif args.model == "elmo-1":
         model = MTL_Elmo1(args, device).to(device)
+    elif args.model == "bert":
+        model = MTL_Bert(args, device).to(device)
     else:
         assert False, "specified model not supported"
 
@@ -105,12 +107,20 @@ def main():
                 if args.test and i >= test_amount: break
 
                 coh_ixs = coh_ixs.to(device)
-                coh1, (da1,loss1) = model(utts_left.to(device),
-                        acts_left.to(device),
-                        (len_u1.to(device), len_d1.to(device)))
-                coh2, (da2,loss2) = model(utts_right.to(device),
-                        acts_right.to(device), 
-                        (len_u2.to(device), len_d2.to(device)))
+                if args.model == 'bert':
+                    coh1, (da1,loss1) = model(utts_left,
+                            acts_left.to(device),
+                            (len_u1.to(device), len_d1.to(device)))
+                    coh2, (da2,loss2) = model(utts_right,
+                            acts_right.to(device), 
+                            (len_u2.to(device), len_d2.to(device)))
+                else:
+                    coh1, (da1,loss1) = model(utts_left.to(device),
+                            acts_left.to(device),
+                            (len_u1.to(device), len_d1.to(device)))
+                    coh2, (da2,loss2) = model(utts_right.to(device),
+                            acts_right.to(device), 
+                            (len_u2.to(device), len_d2.to(device)))
 
                 # coh_ixs is of the form [0,1,1,0,1], where 0 indicates the first one is the more coherent one
                 # for this loss, the input is expected as [1,-1,-1,1,-1], where 1 indicates the first to be coherent, while -1 the second
@@ -232,8 +242,13 @@ def main():
                 if model == None: #generate random values
                     pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
                 else:
-                    coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
-                    coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
+
+                    if args.model == 'bert':
+                        coh1, lda1 = model(utts_left, acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                        coh2, lda2 = model(utts_right, acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
+                    else:
+                        coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                        coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
 
                     _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
                     coh_y_pred += pred.detach().cpu().numpy().tolist()

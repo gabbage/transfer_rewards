@@ -40,22 +40,19 @@ class ElmoEmbedding(nn.Module):
         return self.elmo(x.contiguous())['elmo_representations'][0]
 
 
-class BertEmbedding(nn.Module)
+class BertEmbedding(nn.Module):
     def __init__(self, args, device):
         super(BertEmbedding, self).__init__()
         self.model = SentenceTransformer('bert-base-nli-stsb-mean-tokens')
 
     def forward(self, batch):
         # batch = List[List[str]]
-        
         batch_encodings = []
         for dialog in batch:
             dialog_encodings = []
-            for sent in dialog:
-                enc = torch.tensor(self.model(sent), dtype=torch.float)
-                dialog_encodings.append(enc)
-            batch_encodings.append(torch.stack(dialog_encodings))
+            enc = torch.tensor(self.model.encode(dialog), dtype=torch.float)
+            batch_encodings.append(enc)
 
         batch = torch.stack(batch_encodings)
-        print(batch.size())
+        return batch
 

@@ -63,7 +63,7 @@ class CoherencyPairDataSet(Dataset):
 
         if args.embedding == 'glove':
             self.word2id = load_vocab(args).stoi
-        elif args.embedding == 'elmo':
+        elif args.embedding == 'elmo' or args.embedding.startswith('bert'):
             self.word2id = None
             self.vocab = load_vocab(args).stoi.keys()
         else:
@@ -214,7 +214,7 @@ def get_dataloader(filename, args):
         max_seq_len, max_utt_len = 0, 0
         for sample in samples:
             (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
-            max_utt_len = max(max_utt_len, len(acts1), len(acts2))
+            max_utt_len = max(max_utt_len, len(utt1), len(utt2))
             for (u1,u2) in zip(utt1, utt2):
                 max_seq_len = max(max_seq_len, len(u1), len(u2))
 
@@ -235,13 +235,13 @@ def get_dataloader(filename, args):
             acts_right.append(acts2)
             coh_ixs.append(coh_ix)
 
-            utt1 = [[" ".join(u) for sent in utt] for utt in utt1]
-            utt1 = utt1 + [" "]*(max_utt_len-len(utt1))
+            utt1 = [" ".join(utt) for utt in utt1]
+            utt1 = utt1 + ["<eos>"]*(max_utt_len-len(utt1))
             utts_left.append(utt1)
-            utt2 = [[" ".join(u) for sent in utt] for utt in utt2]
-            utt2 = utt2 + [" "]*(max_utt_len-len(utt2))
+            utt2 = [" ".join(utt) for utt in utt2]
+            utt2 = utt2 + ["<eos>"]*(max_utt_len-len(utt2))
             utts_right.append(utt2)
-        
+
         return ((utts_left, utts_right),
                 (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))),
                 (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),
