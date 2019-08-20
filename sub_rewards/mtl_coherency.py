@@ -276,16 +276,18 @@ def main():
 
             utt_len_tensor = lambda x: torch.tensor(list(map(len, x)), dtype=torch.long)
 
-            def _score_utt(model, utterance):
-                dialog_len = torch.tensor(len(utterance), dtype=torch.long).unsqueeze(0)
-                utt_len = utt_len_tensor(utterance).unsqueeze(0)
-                none_da_values = torch.zeros(len(utterance)).unsqueeze(0)
+            def _score_dialog(model, dialog):
+                dialog_len = torch.tensor(len(dialog), dtype=torch.long).unsqueeze(0)
+                utt_len = utt_len_tensor(dialog).unsqueeze(0)
+                none_da_values = torch.zeros(len(dialog)).unsqueeze(0)
 
                 if args.model != 'bert':
-                    utterance = torch.tensor(utterance, dtype=torch.long).unsqueeze(0)
-                    _score, _ = model(utterance, none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
+                    max_utt_len = max(map(len, dialog))
+                    dialog = [ u + [0]*(max_utt_len-len(u)) for u in dialog]
+                    dialog = torch.tensor(dialog, dtype=torch.long).unsqueeze(0)
+                    _score, _ = model(dialog, none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
                 else:
-                    _score, _ = model(utterance.to(device), none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
+                    _score, _ = model(dialog.to(device), none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
 
                 return _score
 
