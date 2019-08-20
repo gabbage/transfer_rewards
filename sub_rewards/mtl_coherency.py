@@ -295,11 +295,11 @@ def main():
                 curr_y_true = [1] + [0]*len(perturbations)
                 curr_y_score = []
 
-                original_score = _score_utt(model, original)
+                original_score = _score_dialog(model, original)
                 curr_y_score.append(original_score)
 
                 for pert in perturbations:
-                    pert_score = _score_utt(model, pert)
+                    pert_score = _score_dialog(model, pert)
                     curr_y_score.append(pert_score)
 
             y_true.append(curr_y_true)
