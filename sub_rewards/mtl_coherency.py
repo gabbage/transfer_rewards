@@ -223,11 +223,11 @@ def main():
             # model.to(device)
             # model.eval()
 
-        if train_dl == None:
-            train_dl = get_dataloader(train_datasetfile, args)
-        if val_dl == None:
-            val_dl = get_dataloader(val_datasetfile, args)
-        test_dl = get_dataloader(test_datasetfile, args)
+        # if train_dl == None:
+            # train_dl = get_dataloader(train_datasetfile, args)
+        # if val_dl == None:
+            # val_dl = get_dataloader(val_datasetfile, args)
+        # test_dl = get_dataloader(test_datasetfile, args)
 
         def _eval_datasource(dl, desc_str):
             coh_y_true = []
@@ -279,15 +279,15 @@ def main():
             def _score_dialog(model, dialog):
                 dialog_len = torch.tensor(len(dialog), dtype=torch.long).unsqueeze(0)
                 utt_len = utt_len_tensor(dialog).unsqueeze(0)
-                none_da_values = torch.zeros(len(dialog)).unsqueeze(0)
+                none_da_values = torch.zeros(len(dialog), dtype=torch.long).unsqueeze(0)
 
                 if args.model != 'bert':
                     max_utt_len = max(map(len, dialog))
                     dialog = [ u + [0]*(max_utt_len-len(u)) for u in dialog]
                     dialog = torch.tensor(dialog, dtype=torch.long).unsqueeze(0)
-                    _score, _ = model(dialog, none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
-                else:
                     _score, _ = model(dialog.to(device), none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
+                else:
+                    _score, _ = model(dialog, none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
 
                 return _score
 
@@ -296,17 +296,17 @@ def main():
                 curr_y_score = []
 
                 original_score = _score_dialog(model, original)
-                curr_y_score.append(original_score)
+                curr_y_score.append(original_score.detach().cpu().item())
 
                 for pert in perturbations:
                     pert_score = _score_dialog(model, pert)
-                    curr_y_score.append(pert_score)
+                    curr_y_score.append(pert_score.detach().cpu().item())
 
-            y_true.append(curr_y_true)
-            y_score.appen(curr_y_score)
+                y_true.append(curr_y_true)
+                y_score.append(curr_y_score)
 
             print("true/score lengths: ", len(y_true), len(y_score))
-            print("MRR: ", label_ranking_average_precision_score(y_true, y_score))
+            print("MRR: ", label_ranking_average_precision_score(y_true[:-1], y_score[:-1]))
 
         def _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred):
             coh_acc = accuracy_score(coh_y_true, coh_y_pred)

@@ -67,6 +67,11 @@ class CoherencyDialogDataSet(Dataset):
         else:
             assert False, "wrong or not supported embedding"
 
+        if args.model == 'cosine':
+            self.stop = get_stopwords(args)
+        else:
+            self.stop = None
+
         with open(filename, 'r') as f:
             coh_df = pd.read_csv(f, sep='|', names=['coh_idx', 'acts1', 'utts1', 'acts2', 'utts2'])
 
