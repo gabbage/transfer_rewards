@@ -31,7 +31,7 @@ from torch.nn.modules import HingeEmbeddingLoss
 
 #from data.coherency import CoherencyDataSet, UtterancesWrapper, BertWrapper, GloveWrapper, CoherencyPairDataSet, GlovePairWrapper, CoherencyPairBatchWrapper
 from model.mtl_models import CosineCoherence, MTL_Model3, MTL_Model4, MTL_Elmo1, MTL_Bert
-from data_preparation import get_dataloader
+from data_preparation import get_dataloader, CoherencyDialogDataSet
 
 test_amount = 1
 
@@ -268,6 +268,44 @@ def main():
 
             return (coh_y_true, coh_y_pred), (da_y_true, da_y_pred)
 
+        def _eval_mrr_p1(model):
+            dset = CoherencyDialogDataSet(test_datasetfile, args)
+
+            y_true = []
+            y_score = []
+
+            utt_len_tensor = lambda x: torch.tensor(list(map(len, x)), dtype=torch.long)
+
+            def _score_utt(model, utterance):
+                dialog_len = torch.tensor(len(utterance), dtype=torch.long).unsqueeze(0)
+                utt_len = utt_len_tensor(utterance).unsqueeze(0)
+                none_da_values = torch.zeros(len(utterance)).unsqueeze(0)
+
+                if args.model != 'bert':
+                    utterance = torch.tensor(utterance, dtype=torch.long).unsqueeze(0)
+                    _score, _ = model(utterance, none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
+                else:
+                    _score, _ = model(utterance.to(device), none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
+
+                return _score
+
+            for (original, perturbations) in tqdm(dset):
+                curr_y_true = [1] + [0]*len(perturbations)
+                curr_y_score = []
+
+                original_score = _score_utt(model, original)
+                curr_y_score.append(original_score)
+
+                for pert in perturbations:
+                    pert_score = _score_utt(model, pert)
+                    curr_y_score.append(pert_score)
+
+            y_true.append(curr_y_true)
+            y_score.appen(curr_y_score)
+
+            print("true/score lengths: ", len(y_true), len(y_score))
+            print("MRR: ", label_ranking_average_precision_score(y_true, y_score))
+
         def _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred):
             coh_acc = accuracy_score(coh_y_true, coh_y_pred)
             logging.info("{} coherency accuracy: {}".format(name, coh_acc))
@@ -318,10 +356,13 @@ def main():
             model.to(device)
             model.eval()
 
-        datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
-        for (name, dl) in datasets:
-            (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
-            _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
+        _eval_mrr_p1(model)
+
+        # datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
+        # for (name, dl) in datasets:
+            # (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
+            # _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
+
 
 
 def da_filter_zero(y_true, y_pred):

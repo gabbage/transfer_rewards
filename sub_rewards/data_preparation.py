@@ -47,6 +47,75 @@ def get_batches(filename, batch_size):
 
     return batches
 
+class CoherencyDialogDataSet(Dataset):
+    def __init__(self, filename, args):
+        super(CoherencyDialogDataSet, self).__init__()
+        assert os.path.isfile(filename), "could not find dataset file: {}".format(filename)
+
+        self.max_dialogue_len = 0
+
+        self.dialogues = []
+        # self.dialogue_acts = []
+        self.perturbations = []
+        # self.perturb_acts = []
+
+        if args.embedding == 'glove':
+            self.word2id = load_vocab(args).stoi
+        elif args.embedding == 'elmo' or args.embedding.startswith('bert'):
+            self.word2id = None
+            self.vocab = load_vocab(args).stoi.keys()
+        else:
+            assert False, "wrong or not supported embedding"
+
+        with open(filename, 'r') as f:
+            coh_df = pd.read_csv(f, sep='|', names=['coh_idx', 'acts1', 'utts1', 'acts2', 'utts2'])
+
+        for (idx, row) in tqdm(coh_df.iterrows(), desc="Data Loading"):
+            if args.test and  idx >  test_amount:
+                break
+
+            # acts1 = [int(x) for x in row['acts1'].split(' ')]
+            # acts2 = [int(x) for x in row['acts2'].split(' ')]
+
+            utt1 = literal_eval(row['utts1'])
+            if self.stop:
+                utt1 = [[i for i in sent if i not in self.stop] for sent in utt1]
+            utt1 = [sent+["<eos>"] for sent in utt1]
+            if args.embedding == 'glove':
+                utt1 = [[self.word2id[w] for w in sent] for sent in utt1]
+            elif args.embedding == 'elmo':
+                utt1 = [["<S>"] + sent + ["</S>"] for sent in utt1]
+
+            utt2 = literal_eval(row['utts2'])
+            if self.stop:
+                utt2 = [[i for i in sent if i not in self.stop] for sent in utt2]
+            utt2 = [sent+["<eos>"] for sent in utt2]
+            if args.embedding == 'glove':
+                utt2 = [[self.word2id[w] for w in sent] for sent in utt2]
+            elif args.embedding == 'elmo':
+                utt2 = [["<S>"] + sent + ["</S>"] for sent in utt2]
+
+            coh_idx = int(row['coh_idx'])
+
+            if idx % 40 == 0:
+                if coh_idx == 0:
+                    self.dialogues.append(utt1)
+                else:
+                    self.dialogues.append(utt2)
+                self.perturbations.append([])
+
+            if coh_idx == 0:
+                self.perturbations[-1].append(utt2)
+            else:
+                self.perturbations[-1].append(utt1)
+
+
+    def __len__(self):
+        return len(self.dialogues)
+
+    def __getitem__(self, idx):
+        return (self.dialogues[idx], self.perturbations[idx])
+
 class CoherencyPairDataSet(Dataset):
     def __init__(self, filename, args):
         super(CoherencyPairDataSet, self).__init__()
