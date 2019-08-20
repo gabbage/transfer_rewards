@@ -75,6 +75,8 @@ class CoherencyDialogDataSet(Dataset):
         with open(filename, 'r') as f:
             coh_df = pd.read_csv(f, sep='|', names=['coh_idx', 'acts1', 'utts1', 'acts2', 'utts2'])
 
+        curr_original = None
+
         for (idx, row) in tqdm(coh_df.iterrows(), desc="Data Loading"):
             if args.test and  idx >  test_amount:
                 break
@@ -102,17 +104,14 @@ class CoherencyDialogDataSet(Dataset):
 
             coh_idx = int(row['coh_idx'])
 
-            if idx % 40 == 0:
-                if coh_idx == 0:
-                    self.dialogues.append(utt1)
-                else:
-                    self.dialogues.append(utt2)
+            original = utt1 if coh_idx == 0 else utt2
+            perturbation = utt1 if coh_idx == 1 else utt2
+
+            if original != curr_original:
+                self.dialogues.append(original)
                 self.perturbations.append([])
 
-            if coh_idx == 0:
-                self.perturbations[-1].append(utt2)
-            else:
-                self.perturbations[-1].append(utt1)
+            self.perturbations[-1].append(perturbation)
 
 
     def __len__(self):
