@@ -44,16 +44,17 @@ class BertEmbedding(nn.Module):
     def __init__(self, args, device):
         super(BertEmbedding, self).__init__()
         dev_str = "{}:{}".format(device.type, device.index)
+        print("SentBERT device: ", dev_str)
         self.model = SentenceTransformer('bert-base-nli-stsb-mean-tokens', device=dev_str)
         self.device = device
 
     def forward(self, batch):
         # batch = List[List[str]]
-        batch_encodings = []
         batch_size = len(batch)
+        #flatten the batch to one list
         all_sents = [sent for d in batch for sent in d]
-        enc = torch.tensor(self.model.encode(all_sents, show_progress_bar=False), dtype=torch.float)
+        enc = self.model.encode_torch(all_sents, show_progress_bar=False)
         d_size = int(enc.size(0) / batch_size)
         enc = enc.view(batch_size, d_size, enc.size(1))
-        return enc.to(self.device)
+        return enc
 
