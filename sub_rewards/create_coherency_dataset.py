@@ -216,10 +216,10 @@ class DailyDialogConverter:
                 discarded += 1
                 continue
 
-            if len(seqs) == 5:
-                four_dialogs.write("####\n")
-                for seq in seqs:
-                    four_dialogs.write("{}: {} - ".format(line_count, seq))
+            # if len(seqs) == 5:
+                # four_dialogs.write("####\n")
+                # for seq in seqs:
+                    # four_dialogs.write("{}: {} - ".format(line_count, seq))
 
             tok_seqs = [self.tokenizer(seq) for seq in seqs]
             tok_seqs = [[w.lower() for w in utt] for utt in tok_seqs]
@@ -259,8 +259,8 @@ class DailyDialogConverter:
                     (insert_sent, insert_da, name, ix, insert_ix) = p
                     a = " ".join([str(a) for a in acts])
                     u = str(tok_seqs)
-                    insert_sent, insert_da = utt, da
-                    insert_ix = p[1]
+                    # insert_sent, insert_da = utt, da
+                    # insert_ix = p[1]
                     p_a = deepcopy(acts)
                     p_a[insert_ix] = insert_da
                     pa = " ".join([str(a) for a in p_a])
