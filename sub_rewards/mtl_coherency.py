@@ -12,7 +12,7 @@ from collections import Counter
 from ast import literal_eval
 from tqdm import tqdm, trange
 from nltk.corpus import stopwords
-from sklearn.metrics import mean_squared_error, f1_score, accuracy_score, label_ranking_average_precision_score, confusion_matrix
+from sklearn.metrics import mean_squared_error, f1_score, accuracy_score, label_ranking_average_precision_score, confusion_matrix, average_precision_score
 
 import torch
 import torch.nn as nn
@@ -225,9 +225,9 @@ def main():
 
         # if train_dl == None:
             # train_dl = get_dataloader(train_datasetfile, args)
-        # if val_dl == None:
-            # val_dl = get_dataloader(val_datasetfile, args)
-        # test_dl = get_dataloader(test_datasetfile, args)
+        if val_dl == None:
+            val_dl = get_dataloader(val_datasetfile, args)
+        test_dl = get_dataloader(test_datasetfile, args)
 
         def _eval_datasource(dl, desc_str):
             coh_y_true = []
@@ -269,6 +269,7 @@ def main():
             return (coh_y_true, coh_y_pred), (da_y_true, da_y_pred)
 
         def _eval_mrr_p1(model):
+            test_datasetfile = os.path.join(args.datadir, "test", "coherency_dset_{}_nodoubles.txt".format(str(args.task)))
             dset = CoherencyDialogDataSet(test_datasetfile, args)
 
             y_true = []
@@ -281,13 +282,19 @@ def main():
                 utt_len = utt_len_tensor(dialog).unsqueeze(0)
                 none_da_values = torch.zeros(len(dialog), dtype=torch.long).unsqueeze(0)
 
-                if args.model != 'bert':
+                if args.model == 'random':
+                    _score = random.random()
+                elif args.model != 'bert':
                     max_utt_len = max(map(len, dialog))
                     dialog = [ u + [0]*(max_utt_len-len(u)) for u in dialog]
                     dialog = torch.tensor(dialog, dtype=torch.long).unsqueeze(0)
-                    _score, _ = model(dialog.to(device), none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
+                    with torch.no_grad():
+                        _score, _ = model(dialog.to(device), none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
+                    _score = _score.detach().cpu().item()
                 else:
-                    _score, _ = model(dialog, none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
+                    with torch.no_grad():
+                        _score, _ = model(dialog, none_da_values.to(device), (utt_len.to(device), dialog_len.to(device)))
+                    _score = _score.detach().cpu().item()
 
                 return _score
 
@@ -296,17 +303,17 @@ def main():
                 curr_y_score = []
 
                 original_score = _score_dialog(model, original)
-                curr_y_score.append(original_score.detach().cpu().item())
+                curr_y_score.append(original_score)
 
                 for pert in perturbations:
                     pert_score = _score_dialog(model, pert)
-                    curr_y_score.append(pert_score.detach().cpu().item())
+                    curr_y_score.append(pert_score)
 
                 y_true.append(curr_y_true)
                 y_score.append(curr_y_score)
 
-            print("true/score lengths: ", len(y_true), len(y_score))
-            print("MRR: ", label_ranking_average_precision_score(y_true[:-1], y_score[:-1]))
+            mrr = label_ranking_average_precision_score(y_true, y_score)
+            logging.info("{} MRR: {}".format(args.task, mrr))
 
         def _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred):
             coh_acc = accuracy_score(coh_y_true, coh_y_pred)
@@ -358,12 +365,13 @@ def main():
             model.to(device)
             model.eval()
 
-        _eval_mrr_p1(model)
+        # _eval_mrr_p1(model)
 
         # datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
-        # for (name, dl) in datasets:
-            # (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
-            # _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
+        datasets = [('validation', val_dl), ('test', test_dl)]
+        for (name, dl) in datasets:
+            (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
+            _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
 
 
 
