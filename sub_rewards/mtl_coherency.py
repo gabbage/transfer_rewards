@@ -384,13 +384,10 @@ def main():
 def mem_alloc(device):
     # use this to first allocate max memory on the gpu
     # to avoid running out of memory by processes started by other idiots
-    try:
-        tensors = []
-        while(True):
-            tensors.append(torch.randn(10000000).to(device))
-    except RuntimeError:
-        for ten in tensors:
-            del ten
+    alloc = torch.cuda.memory_allocated(device)
+    max_alloc = torch.cuda.max_memory_allocated(device)
+    zeros = torch.zeros(max_alloc-alloc, dtype=torch.int8).to(device)
+    del zeros
 
 
 def da_filter_zero(y_true, y_pred):
