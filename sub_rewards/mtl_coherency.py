@@ -46,8 +46,10 @@ def main():
     if args.cuda != -1:
         cuda_device_name = "cuda:{}".format(args.cuda)
         device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
+        mem_alloc(device)
     else:
         device = torch.device('cpu') # if torch.cuda.is_available() else 'cpu')
+
 
     train_datasetfile = os.path.join(args.datadir,"train", "coherency_dset_{}.txt".format(str(args.task)))
     val_datasetfile = os.path.join(args.datadir, "validation", "coherency_dset_{}.txt".format(str(args.task)))
@@ -223,8 +225,8 @@ def main():
             # model.to(device)
             # model.eval()
 
-        # if train_dl == None:
-            # train_dl = get_dataloader(train_datasetfile, args)
+        if train_dl == None:
+            train_dl = get_dataloader(train_datasetfile, args)
         if val_dl == None:
             val_dl = get_dataloader(val_datasetfile, args)
         test_dl = get_dataloader(test_datasetfile, args)
@@ -271,6 +273,12 @@ def main():
         def _eval_mrr_p1(model):
             test_datasetfile = os.path.join(args.datadir, "test", "coherency_dset_{}_nodoubles.txt".format(str(args.task)))
             dset = CoherencyDialogDataSet(test_datasetfile, args)
+
+            # check that all perturbations are w.r.t. to the original by checking their sums
+            # doesn't work for US !
+            # for (orig, pert) in dset:
+                # x = list(map(lambda x: sum(map(sum, x)), pert + [orig]))
+                # assert x.count(x[0]) == len(x), "some perturbations dont match"
 
             y_true = []
             y_score = []
@@ -365,14 +373,24 @@ def main():
             model.to(device)
             model.eval()
 
-        # _eval_mrr_p1(model)
+        _eval_mrr_p1(model)
 
-        # datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
-        datasets = [('validation', val_dl), ('test', test_dl)]
+        datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
+        # datasets = [('validation', val_dl), ('test', test_dl)]
         for (name, dl) in datasets:
             (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
             _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
 
+def mem_alloc(device):
+    # use this to first allocate max memory on the gpu
+    # to avoid running out of memory by processes started by other idiots
+    try:
+        tensors = []
+        while(True):
+            tensors.append(torch.randn(10000000).to(device))
+    except RuntimeError:
+        for ten in tensors:
+            del ten
 
 
 def da_filter_zero(y_true, y_pred):
