@@ -1,6 +1,7 @@
 import math
 import os
 from copy import deepcopy
+from ast import literal_eval
 import pandas as pd
 from math import factorial
 import random
@@ -58,7 +59,7 @@ def draw_rand_sent(act_utt_df, sent_len, amount):
 
 def draw_rand_sent_from_df(df):
     ix = random.randint(0, len(df['utt'])-1)
-    return df['utt'][ix], df['act'][ix], df['dialogue'][ix], df['ix'][ix]
+    return literal_eval(df['utt'][ix]), df['act'][ix], df['dialogue'][ix], df['ix'][ix]
 
 def random_insert(sents, sent_DAs, generator, amount):
     assert len(sents) == len(sent_DAs), "length of permuted sentences and list of DAs must be equal"
@@ -163,7 +164,7 @@ class DailyDialogConverter:
             seqs = dial.split('__eou__')
             seqs = seqs[:-1]
 
-            if len(seqs) < 5 or len(seqs) > 20:
+            if len(seqs) < 5:
                 continue
 
             tok_seqs = [self.tokenizer(seq) for seq in seqs]
@@ -265,7 +266,7 @@ class DailyDialogConverter:
                     p_a[insert_ix] = insert_da
                     pa = " ".join([str(a) for a in p_a])
                     p_u = deepcopy(tok_seqs)
-                    p_u[insert_ix] = self.word2id([w.lower() for w in self.tokenizer(insert_sent)])
+                    p_u[insert_ix] = self.word2id(insert_sent)
                     of.write("{}|{}|{}|{}|{}\n".format("0",a,u,pa,p_u))
                     of.write("{}|{}|{}|{}|{}\n".format("1",pa,p_u,a,u))
 
