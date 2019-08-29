@@ -325,6 +325,8 @@ class SwitchboardConverter:
         for i, utt in enumerate(self.corpus.iter_utterances()):
             sentence = re.sub(r"([+/\}\[\]]|\{\w)", "",
                             utt.text)
+
+            sentence = self.word2id(self.tokenizer(sentence))
             act = utt.damsl_act_tag()
             if act == None: act = "%"
             if act == "+": act = prev_da
@@ -539,15 +541,16 @@ class SwitchboardConverter:
 
             if self.task == 'us':
                 for p in permuted_ixs:
-                    a = " ".join([str(a) for a in acts])
+                    a = " ".join([str(x) for x in acts])
                     u = str(utterances)
-                    insert_sent, insert_da, name, ix, insert_ix = perm
+                    # (sentence, act, swda_name, ix, insert_ix)
+                    insert_sent, insert_da, name, ix, insert_ix = p
                     insert_da = self.da2num[insert_da]
                     p_a = deepcopy(acts)
                     p_a[insert_ix] = insert_da
-                    pa = " ".join([str(a) for a in p_a])
+                    pa = " ".join([str(x) for x in p_a])
                     p_u = deepcopy(utterances)
-                    p_u[insert_ix] = self.word2id([w.lower() for w in self.tokenizer(insert_sent)])
+                    p_u[insert_ix] = insert_sent
 
                     if i in self.train_ixs:
                         trainfile.write("{}|{}|{}|{}|{}\n".format("0",a,u,pa,p_u))
@@ -561,10 +564,10 @@ class SwitchboardConverter:
 
             else:
                 for p in permuted_ixs:
-                    a = " ".join([str(a) for a in acts])
+                    a = " ".join([str(x) for x in acts])
                     u = str(utterances)
                     pa = [acts[i] for i in p]
-                    p_a = " ".join([str(a) for a in pa])
+                    p_a = " ".join([str(x) for x in pa])
                     pu = [utterances[i] for i in p]
                     p_u = str(pu)
 
