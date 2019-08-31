@@ -8,6 +8,7 @@ import random
 from collections import Counter, defaultdict
 import sys
 from nltk import word_tokenize
+from nltk.corpus import stopwords
 from tqdm import tqdm, trange
 import argparse
 import numpy as np
@@ -20,13 +21,6 @@ from swda.swda import CorpusReader, Transcript, Utterance
 #from allennlp.modules.elmo import batch_to_ids
 
 act2word = {1:"inform",2:"question", 3:"directive", 4:"commissive"}
-BERT_MODEL_NAME = "bert-base-uncased"
-# how many sentence permutations and random inserts should be created per coherent dialog
-PERMUTATIONS_PER_DIALOG = 1
-RANDINSERTS_PER_DIALOG = 0
-HALF_PERTURBATIONS_PER_DIALOG = 0
-# how many original examples should be included in the dataset
-PLAIN_COPIES_PER_DIALOG = 1
 
 def permute(sents, sent_DAs, amount):
     """ return a list of different! permuted sentences and their respective dialog acts """
@@ -314,6 +308,8 @@ class SwitchboardConverter:
             self.trans_num += 1
 
         self.da2num = switchboard_da_mapping()
+
+        self.stopwords = get_stopwords(data_dir, word2id)
         
         # CAUTION: make sure that for each task the seed is the same s.t. the splits will be the same!
         train_ixs, val_ixs = train_test_split(range(self.trans_num), shuffle=True, train_size=0.8, random_state=seed)
@@ -327,6 +323,17 @@ class SwitchboardConverter:
                             utt.text)
 
             sentence = self.word2id(self.tokenizer(sentence))
+            if len(sentence) == 0:
+                continue
+
+            stop_cnt = 0
+            for w in sentence:
+                if w in self.stopwords:
+                    stop_cnt += 1
+
+            if (float(stop_cnt) / float(len(sentence))) >= 0.999:
+                continue
+
             act = utt.damsl_act_tag()
             if act == None: act = "%"
             if act == "+": act = prev_da
@@ -461,7 +468,7 @@ class SwitchboardConverter:
 
         return permutations, segment_permutations
 
-    def swda_utterance_sampling(self, speaker_ixs, amount):
+    def swda_utterance_sampling(self, utterances, speaker_ixs, amount):
         segm_ixs = self.speaker_segment_ixs(speaker_ixs)
         segments = list(set(segm_ixs.values()))
 
@@ -469,7 +476,17 @@ class SwitchboardConverter:
 
         for i in range(amount):
             (sentence, act, swda_name, ix) = self.draw_rand_sent()
-            insert_ix = random.choice(segments)
+            while(True):
+                insert_ix = random.choice(range(len(utterances)))
+                utt = utterances[insert_ix]
+                if len(utt) == 0: continue
+                stop_cnt = 0
+                for w in utt:
+                    if w in self.stopwords:
+                        stop_cnt += 1
+
+                if (float(stop_cnt) / float(len(utt))) < 0.99: break
+
             permutations.append((sentence, act, swda_name, ix, insert_ix))
 
         return permutations
@@ -519,7 +536,7 @@ class SwitchboardConverter:
             if self.task == 'up':
                 permuted_ixs , segment_perms = self.swda_permute(utterances, amounts, speaker_ixs)
             elif self.task == 'us':
-                permuted_ixs = self.swda_utterance_sampling(speaker_ixs, amounts)
+                permuted_ixs = self.swda_utterance_sampling(utterances, speaker_ixs, amounts)
             elif self.task == 'hup':
                 permuted_ixs , segment_perms = self.swda_half_perturb(amounts, speaker_ixs)
             elif self.task == 'ui':
@@ -581,6 +598,18 @@ class SwitchboardConverter:
                         testfile.write("{}|{}|{}|{}|{}\n".format("0",a,u,p_a,p_u))
                         testfile.write("{}|{}|{}|{}|{}\n".format("1",p_a,p_u,a,u))
 
+
+def get_stopwords(data_dir, word2id):
+    exclude_f = os.path.join(data_dir, "words2exclude.txt")
+    words2exclude = []
+    if os.path.isfile(exclude_f):
+        print("loading excluded words")
+        with open(exclude_f) as f:
+            for line in f:
+                words2exclude.append(line[:-1])
+
+    stop = set(stopwords.words('english') + words2exclude)
+    return word2id(list(stop))
 
 def main():
     parser = argparse.ArgumentParser()
