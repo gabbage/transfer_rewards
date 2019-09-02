@@ -243,10 +243,14 @@ def main():
                     total=len(dl), desc=desc_str, postfix="LR: {}".format(args.learning_rate)):
                 if args.test and i >= test_amount: break
 
+                if args.ignore_da:
+                    acts_left = torch.zeros(acts_left.size(), dtype=torch.long)
+                    acts_right = torch.zeros(acts_right.size(), dtype=torch.long)
+
                 if model == None: #generate random values
                     pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
                 else:
-
+                    print(acts_left.size())
                     if args.model == 'bert':
                         coh1, lda1 = model(utts_left, acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
                         coh2, lda2 = model(utts_right, acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
@@ -514,6 +518,9 @@ def parse_args():
     parser.add_argument('--do_eval',
                         action='store_true',
                         help= "just do a test run on small amount of data")
+    parser.add_argument('--ignore_da',
+                        action='store_true',
+                        help= "whether to ignore the da values, i.e. set them 0 in the model (for evaluation)")
     parser.add_argument('--live',
                         action='store_true',
                         help= "whether to do live output of accuracy and loss values")
