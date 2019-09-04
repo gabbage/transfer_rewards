@@ -70,6 +70,7 @@ class MTL_Model3(nn.Module):
         nn.init.normal_(self.ff_u.weight, mean=0, std=1)
 
         self.dropout_u = nn.Dropout(args.dropout_prob)
+        self.dropout_d = nn.Dropout(0.5)
 
         self.collect_da_predictions = collect_da_predictions
         self.da_predictions = []
@@ -122,6 +123,7 @@ class MTL_Model3(nn.Module):
             out, _ = self.bilstm_d(H1, (h0, c0))
             out, _ = pad_packed_sequence(out, batch_first=True)
             hd = self.attn_d(out)
+            hd = self.dropout_d(hd)
             s_coh = self.ff_d(hd).squeeze(1)
         else:
             s_coh = torch.randn(old_size[0]).to(self.device)
