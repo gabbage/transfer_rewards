@@ -122,7 +122,7 @@ class MTL_Model3(nn.Module):
             H1 = pack_padded_sequence(H1, d_lengths, batch_first=True, enforce_sorted=False)
             out, _ = self.bilstm_d(H1, (h0, c0))
             out, _ = pad_packed_sequence(out, batch_first=True)
-            out = self.dropout_d(out)
+            # out = self.dropout_d(out)
             hd = self.attn_d(out)
             s_coh = self.ff_d(hd).squeeze(1)
         else:

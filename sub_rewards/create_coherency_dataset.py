@@ -468,7 +468,7 @@ class SwitchboardConverter:
 
         return permutations, segment_permutations
 
-    def swda_utterance_sampling(self, utterances, speaker_ixs, amount):
+    def swda_utterance_sampling(self, utterances, acts, speaker_ixs, amount):
         segm_ixs = self.speaker_segment_ixs(speaker_ixs)
         segments = list(set(segm_ixs.values()))
 
@@ -479,13 +479,14 @@ class SwitchboardConverter:
             while(True):
                 insert_ix = random.choice(range(len(utterances)))
                 utt = utterances[insert_ix]
+                act_orig = acts[insert_ix]
                 if len(utt) == 0: continue
                 stop_cnt = 0
                 for w in utt:
                     if w in self.stopwords:
                         stop_cnt += 1
 
-                if (float(stop_cnt) / float(len(utt))) < 0.99: break
+                if (float(stop_cnt) / float(len(utt))) < 0.99 and act != act_orig : break
 
             permutations.append((sentence, act, swda_name, ix, insert_ix))
 
@@ -536,7 +537,7 @@ class SwitchboardConverter:
             if self.task == 'up':
                 permuted_ixs , segment_perms = self.swda_permute(utterances, amounts, speaker_ixs)
             elif self.task == 'us':
-                permuted_ixs = self.swda_utterance_sampling(utterances, speaker_ixs, amounts)
+                permuted_ixs = self.swda_utterance_sampling(utterances, acts, speaker_ixs, amounts)
             elif self.task == 'hup':
                 permuted_ixs , segment_perms = self.swda_half_perturb(amounts, speaker_ixs)
             elif self.task == 'ui':
