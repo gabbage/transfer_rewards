@@ -82,6 +82,57 @@ def main():
     val_dl = None
     test_dl = None
 
+    def _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred):
+        coh_acc = accuracy_score(coh_y_true, coh_y_pred)
+        logging.info("{} coherency accuracy: {}".format(name, coh_acc))
+        da_acc = accuracy_score(da_y_true, da_y_pred)
+        logging.info("{} DA accuracy: {}".format(name, da_acc))
+        da_f1 = f1_score(da_y_true, da_y_pred, average='weighted')
+        logging.info("{} DA MicroF1: {}".format(name, da_f1))
+
+    def _eval_datasource(dl, desc_str):
+        coh_y_true = []
+        coh_y_pred = []
+        da_f1_scores = []
+        da_y_true = []
+        da_y_pred = []
+
+        for i,((utts_left, utts_right), 
+                (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dl),
+                total=len(dl), desc=desc_str, postfix="LR: {}".format(args.learning_rate)):
+            if args.test and i >= test_amount: break
+
+            if args.ignore_da:
+                acts_left = torch.zeros(acts_left.size(), dtype=torch.long)
+                acts_right = torch.zeros(acts_right.size(), dtype=torch.long)
+
+            if model == None: #generate random values
+                pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
+            else:
+                print(acts_left.size())
+                if args.model == 'bert':
+                    coh1, lda1 = model(utts_left, acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                    coh2, lda2 = model(utts_right, acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
+                else:
+                    coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
+                    coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
+
+                _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
+                coh_y_pred += pred.detach().cpu().numpy().tolist()
+                coh_y_true += coh_ixs.detach().cpu().numpy().tolist()
+
+                if lda1 != None and lda2 != None:
+                    da1 = lda1[0].view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                    da2 = lda2[0].view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                    acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
+                    acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
+                    acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
+                    acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
+                    da_y_pred += da1 + da2
+                    da_y_true += acts_left + acts_right
+
+        return (coh_y_true, coh_y_pred), (da_y_true, da_y_pred)
+
     if args.do_train:
 
         if args.live:
@@ -172,6 +223,12 @@ def main():
             #save after every epoch
             torch.save(model.state_dict(), output_model_file_epoch)
 
+            datasets = [('train', train_dl), ('validation', val_dl)]
+            # datasets = [('validation', val_dl), ('test', test_dl)]
+            for (name, dl) in datasets:
+                (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
+                _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
+
             # evaluate
             # rankings = []
             # da_rankings = []
@@ -231,48 +288,6 @@ def main():
             val_dl = get_dataloader(val_datasetfile, args)
         test_dl = get_dataloader(test_datasetfile, args)
 
-        def _eval_datasource(dl, desc_str):
-            coh_y_true = []
-            coh_y_pred = []
-            da_f1_scores = []
-            da_y_true = []
-            da_y_pred = []
-
-            for i,((utts_left, utts_right), 
-                    (coh_ixs, (acts_left, acts_right)), (len_u1, len_u2, len_d1, len_d2)) in tqdm(enumerate(dl),
-                    total=len(dl), desc=desc_str, postfix="LR: {}".format(args.learning_rate)):
-                if args.test and i >= test_amount: break
-
-                if args.ignore_da:
-                    acts_left = torch.zeros(acts_left.size(), dtype=torch.long)
-                    acts_right = torch.zeros(acts_right.size(), dtype=torch.long)
-
-                if model == None: #generate random values
-                    pred = [random.randint(0,1) for _ in range(coh_ixs.size(0))]
-                else:
-                    print(acts_left.size())
-                    if args.model == 'bert':
-                        coh1, lda1 = model(utts_left, acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
-                        coh2, lda2 = model(utts_right, acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
-                    else:
-                        coh1, lda1 = model(utts_left.to(device), acts_left.to(device), (len_u1.to(device), len_d1.to(device)))
-                        coh2, lda2 = model(utts_right.to(device), acts_right.to(device), (len_u2.to(device), len_d2.to(device)))
-
-                    _, pred = torch.max(torch.cat([coh1.unsqueeze(1), coh2.unsqueeze(1)], dim=1), dim=1)
-                    coh_y_pred += pred.detach().cpu().numpy().tolist()
-                    coh_y_true += coh_ixs.detach().cpu().numpy().tolist()
-
-                    if lda1 != None and lda2 != None:
-                        da1 = lda1[0].view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
-                        da2 = lda2[0].view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
-                        acts_left = acts_left.view(acts_left.size(0)*acts_left.size(1)).detach().cpu().numpy()
-                        acts_right = acts_right.view(acts_right.size(0)*acts_right.size(1)).detach().cpu().numpy()
-                        acts_left, da1 = da_filter_zero(acts_left.tolist(), da1.tolist())
-                        acts_right, da2 = da_filter_zero(acts_right.tolist(), da2.tolist())
-                        da_y_pred += da1 + da2
-                        da_y_true += acts_left + acts_right
-
-            return (coh_y_true, coh_y_pred), (da_y_true, da_y_pred)
 
         def _eval_mrr_p1(model):
             test_datasetfile = os.path.join(args.datadir, "test", "coherency_dset_{}_nodoubles.txt".format(str(args.task)))
@@ -327,13 +342,6 @@ def main():
             mrr = label_ranking_average_precision_score(y_true, y_score)
             logging.info("{} MRR: {}".format(args.task, mrr))
 
-        def _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred):
-            coh_acc = accuracy_score(coh_y_true, coh_y_pred)
-            logging.info("{} coherency accuracy: {}".format(name, coh_acc))
-            da_acc = accuracy_score(da_y_true, da_y_pred)
-            logging.info("{} DA accuracy: {}".format(name, da_acc))
-            da_f1 = f1_score(da_y_true, da_y_pred, average='weighted')
-            logging.info("{} DA MicroF1: {}".format(name, da_f1))
 
         # choose the best epoch
         if args.model != "random" and args.model != "cosine" and args.oot_model == None:
@@ -377,7 +385,7 @@ def main():
             model.to(device)
             model.eval()
 
-        _eval_mrr_p1(model)
+        # _eval_mrr_p1(model)
 
         datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
         # datasets = [('validation', val_dl), ('test', test_dl)]
