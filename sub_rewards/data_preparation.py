@@ -1,6 +1,7 @@
 import os
 import sys
 import pandas as pd
+import numpy as np
 import argparse
 from copy import deepcopy
 from collections import Counter
@@ -102,7 +103,7 @@ class CoherencyDialogDataSet(Dataset):
 
             coh_idx = int(row['coh_idx'])
 
-            if idx % 40 == 0:
+            if idx % 20 == 0:
                 if coh_idx == 0:
                     self.dialogues.append(utt1)
                 else:
@@ -295,6 +296,7 @@ def get_dataloader(filename, args):
         utts_left, utts_right, coh_ixs, acts_left, acts_right = [], [], [], [], []
         sent_len_left, sent_len_right, dial_len_left, dial_len_right = [], [], [], []
 
+        sent_lens = []
         for sample in samples:
             (utt1, utt2), (coh_ix, (acts1, acts2)) = sample
 
@@ -309,6 +311,7 @@ def get_dataloader(filename, args):
             acts_right.append(acts2)
             coh_ixs.append(coh_ix)
 
+            sent_lens.extend(map(len, utt1))
             utt1 = [" ".join(utt) for utt in utt1]
             utt1 = utt1 + ["<eos>"]*(max_utt_len-len(utt1))
             utts_left.append(utt1)
@@ -316,6 +319,7 @@ def get_dataloader(filename, args):
             utt2 = utt2 + ["<eos>"]*(max_utt_len-len(utt2))
             utts_right.append(utt2)
 
+        # print("batch avg. sent len:", np.array(sent_lens).mean())
         return ((utts_left, utts_right),
                 (torch.tensor(coh_ixs, dtype=torch.float), (torch.tensor(acts_left, dtype=torch.long), torch.tensor(acts_right, dtype=torch.long))),
                 (torch.tensor(sent_len_left, dtype=torch.long), torch.tensor(sent_len_right, dtype=torch.long),

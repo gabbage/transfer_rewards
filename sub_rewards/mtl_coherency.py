@@ -46,7 +46,7 @@ def main():
     if args.cuda != -1:
         cuda_device_name = "cuda:{}".format(args.cuda)
         device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
-        mem_alloc(device)
+        mem_alloc(device, args)
     else:
         device = torch.device('cpu') # if torch.cuda.is_available() else 'cpu')
 
@@ -153,7 +153,12 @@ def main():
         hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.1).to(device)
         epoch_scores = dict()
 
+        # previous_model_file = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(19)))
+        # model.load_state_dict(torch.load(previous_model_file))
+        # model.to(device)
+
         for epoch in trange(args.epochs, desc="Epoch"):
+
             output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(epoch)))
 
             for i,((utts_left, utts_right), 
@@ -393,13 +398,20 @@ def main():
             (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
             _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
 
-def mem_alloc(device):
+def mem_alloc(device, args):
     # use this to first allocate max memory on the gpu
     # to avoid running out of memory by processes started by other idiots
-    alloc = torch.cuda.memory_allocated(device)
-    max_alloc = torch.cuda.max_memory_allocated(device)
-    zeros = torch.zeros(max_alloc-alloc, dtype=torch.int8).to(device)
-    del zeros
+#     alloc = torch.cuda.memory_cached(device)
+    # max_alloc = torch.cuda.max_memory_cached(device)
+    # print("MEM max:{} ; current: {} ; to allocate: {}".format(max_alloc, alloc, max_alloc - alloc))
+    # if args.cuda == 3:
+        # zeros = torch.zeros(7150000000, dtype=torch.int8).to(device)
+    # else:
+    zeros = torch.zeros(16300000000, dtype=torch.int8).to(device)
+     # # 7150000000
+    # # 16300000000
+    del zeros,
+    # pass
 
 
 def da_filter_zero(y_true, y_pred):
