@@ -305,6 +305,8 @@ class SwitchboardConverter:
 
         self.trans_num = 1155
         self.deleted_utterances = 0
+        self.deleted_tokens = 0
+        self.in_tokens = 0
         # for trans in self.corpus.iter_transcripts():
             # self.trans_num += 1
 
@@ -322,7 +324,8 @@ class SwitchboardConverter:
         for i, utt in enumerate(self.corpus.iter_utterances()):
             sentence = self.clean_utt(utt.text)
             if not sentence: continue
-
+            
+            self.in_tokens += len(sentence)
             sentence = self.word2id(sentence)
             if len(sentence) == 0:
                 continue
@@ -347,18 +350,18 @@ class SwitchboardConverter:
             self.utt_da_pairs.append((sentence, act, swda_name, ix))
 
     def clean_utt(self, utterance):
-        utterance = re.sub(r"([+/\}\[\],\-\(\)#]|\{\w)", "", utterance)
-        utterance = re.sub(r"<+.*>+", "", utterance)
-        utterance = re.sub(r"\*\w+", "", utterance)
-        utterance = re.sub(r">[\s\w'?]+$", "", utterance)
-        utterance = re.sub(r"\*.+$", "", utterance)
-        utterance = re.sub(r"\^\w+$", "", utterance)
+        utterance, cnt = re.subn(r"([+/\}\[\],\-\(\)#]|\{\w)", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"<+.*>+", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"\*\w+", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r">[\s\w'?]+$", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"\*.+$", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"\^\w+$", "", utterance) ; self.deleted_tokens += cnt
         
         ml = re.search("(^\s*\.\s*$)|>", utterance)
         if ml:
             self.deleted_utterances += 1
             return None
-        utterance = self.tokenizer(utterance)
+        utterance = utterance.split(" ")
 
         return utterance
 
@@ -686,6 +689,7 @@ def main():
     elif args.corpus == 'Switchboard':
         converter = SwitchboardConverter(args.datadir, tokenizer, word2id, args.task, args.seed)
         print("SW deleted utterances : ", converter.deleted_utterances)
+        print("SW deleted tokens : ", float(converter.deleted_tokens) / float(converter.in_tokens+converter.deleted_tokens))
         # converter.create_vocab()
 
     converter.convert_dset(amounts=args.amount)
