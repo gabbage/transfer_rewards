@@ -326,13 +326,13 @@ class SwitchboardConverter:
             if len(sentence) == 0:
                 continue
 
-            stop_cnt = 0
-            for w in sentence:
-                if w in self.stopwords:
-                    stop_cnt += 1
+            # stop_cnt = 0
+            # for w in sentence:
+                # if w in self.stopwords:
+                    # stop_cnt += 1
 
-            if (float(stop_cnt) / float(len(sentence))) >= 0.999:
-                continue
+            # if (float(stop_cnt) / float(len(sentence))) >= 0.999:
+                # continue
 
             act = utt.damsl_act_tag()
             if act == None: act = "%"
@@ -476,6 +476,8 @@ class SwitchboardConverter:
 
         for i in range(amount):
             (sentence, act, swda_name, ix) = self.draw_rand_sent()
+            # insert_ix = random.choice(range(len(utterances)))
+
             while(True):
                 insert_ix = random.choice(range(len(utterances)))
                 utt = utterances[insert_ix]

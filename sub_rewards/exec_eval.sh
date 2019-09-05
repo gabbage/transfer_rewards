@@ -12,16 +12,17 @@
 #done
 
 
-Tasks="hup ui us"
+Tasks="up hup ui us"
 Datasets="train validation test"
 Losses="coh mtl"
 
 #BD=/ukp-storage-1/buecker/transfer_rewards/sub_rewards
 BD=/home/buecker/transfer_rewards/sub_rewards
+BD=.
 
 for task in $Tasks; do
         for loss in $Losses; do 
                 echo $task $loss
-                python $BD/mtl_coherency.py --logdir $BD/logs/elmo --seed $RANDOM --datadir $BD/data/daily_dialog --embedding elmo --task $task --do_train --do_eval --model elmo-1 --epochs 5 --num_classes 5 --batch_size 4 --loss $loss --cuda 1
+                python $BD/mtl_coherency.py --logdir $BD/logs/cosine --seed $RANDOM --datadir $BD/data/daily_dialog --embedding glove --task $task --do_eval --model cosine --num_classes 5
         done
 done
