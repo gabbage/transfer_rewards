@@ -330,13 +330,13 @@ class SwitchboardConverter:
             if len(sentence) == 0:
                 continue
 
-            # stop_cnt = 0
-            # for w in sentence:
-                # if w in self.stopwords:
-                    # stop_cnt += 1
+            stop_cnt = 0
+            for w in sentence:
+                if w in self.stopwords:
+                    stop_cnt += 1
 
-            # if (float(stop_cnt) / float(len(sentence))) >= 0.999:
-                # continue
+            if (float(stop_cnt) / float(len(sentence))) >= 0.999:
+                continue
 
             act = utt.damsl_act_tag()
             if act == None: act = "%"
@@ -356,12 +356,14 @@ class SwitchboardConverter:
         utterance, cnt = re.subn(r">[\s\w'?]+$", "", utterance) ; self.deleted_tokens += cnt
         utterance, cnt = re.subn(r"\*.+$", "", utterance) ; self.deleted_tokens += cnt
         utterance, cnt = re.subn(r"\^\w+$", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"^uh+$", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"(uh+)", "", utterance) ; self.deleted_tokens += cnt
         
         ml = re.search("(^\s*\.\s*$)|>", utterance)
         if ml:
             self.deleted_utterances += 1
             return None
-        utterance = utterance.split(" ")
+        utterance = [w.lower() for w in utterance.split(" ") if len(w) > 0 and not re.search("[Uu][Hh]+", w)]
 
         return utterance
 
