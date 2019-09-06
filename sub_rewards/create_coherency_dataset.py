@@ -509,16 +509,11 @@ class SwitchboardConverter:
             # insert_ix = random.choice(range(len(utterances)))
 
             while(True):
-                insert_ix = random.choice(range(len(utterances)))
+                insert_ix = np.random.choice(range(len(utterances)))
                 utt = utterances[insert_ix]
                 act_orig = acts[insert_ix]
-                if len(utt) == 0: continue
-                stop_cnt = 0
-                for w in utt:
-                    if w in self.stopwords:
-                        stop_cnt += 1
-
-                if (float(stop_cnt) / float(len(utt))) < 0.99 and act != act_orig : break
+                if self.utt_acceptable(utt) and act != act_orig:
+                    break
 
             permutations.append((sentence, act, swda_name, ix, insert_ix))
 
@@ -552,19 +547,18 @@ class SwitchboardConverter:
             prev_act = "%"
             for utt in trans.utterances:
                 sentence = self.clean_utt(utt.text)
-                if self.utt_acceptable(sentence):
-                    sentence = self.word2id(sentence)
-                    # print(sentence, " ## DAs: ", utt.act_tag)
-                    utterances.append(sentence)
-                    act = utt.damsl_act_tag()
-                    if act == None: act = "%"
-                    if act == "+": act = prev_act
-                    acts.append(self.da2num[act])
-                    prev_act = act
-                    if "A" in utt.caller:
-                        speaker_ixs.append(0)
-                    else:
-                        speaker_ixs.append(1)
+                sentence = self.word2id(sentence)
+                # print(sentence, " ## DAs: ", utt.act_tag)
+                utterances.append(sentence)
+                act = utt.damsl_act_tag()
+                if act == None: act = "%"
+                if act == "+": act = prev_act
+                acts.append(self.da2num[act])
+                prev_act = act
+                if "A" in utt.caller:
+                    speaker_ixs.append(0)
+                else:
+                    speaker_ixs.append(1)
 
             if self.task == 'up':
                 permuted_ixs , segment_perms = self.swda_permute(utterances, amounts, speaker_ixs)
