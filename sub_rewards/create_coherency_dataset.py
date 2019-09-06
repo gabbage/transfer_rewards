@@ -330,12 +330,7 @@ class SwitchboardConverter:
             if len(sentence) == 0:
                 continue
 
-            stop_cnt = 0
-            for w in sentence:
-                if w in self.stopwords:
-                    stop_cnt += 1
-
-            if (float(stop_cnt) / float(len(sentence))) >= 0.999:
+            if not self.utt_acceptable(sentence):
                 continue
 
             act = utt.damsl_act_tag()
@@ -366,6 +361,19 @@ class SwitchboardConverter:
         utterance = [w.lower() for w in utterance.split(" ") if len(w) > 0 and not re.search("[Uu][Hh]+", w)]
 
         return utterance
+
+    def utt_acceptable(self, utt):
+        # check whether an utterance is acceptable for perturbation
+        if not utt: return False
+
+        stop_cnt = 0
+        for w in utt:
+            if w in self.stopwords:
+                stop_cnt += 1
+
+        if  (len(utt)-stop_cnt >= 4): # (float(stop_cnt) / float(len(utt))) < 0.999 and
+            return True
+        return False
 
     def draw_rand_sent(self):
         r = random.randint(0, len(self.utt_da_pairs)-1)
@@ -544,20 +552,19 @@ class SwitchboardConverter:
             prev_act = "%"
             for utt in trans.utterances:
                 sentence = self.clean_utt(utt.text)
-                if not sentence: continue
-
-                sentence = self.word2id(sentence)
-                # print(sentence, " ## DAs: ", utt.act_tag)
-                utterances.append(sentence)
-                act = utt.damsl_act_tag()
-                if act == None: act = "%"
-                if act == "+": act = prev_act
-                acts.append(self.da2num[act])
-                prev_act = act
-                if "A" in utt.caller:
-                    speaker_ixs.append(0)
-                else:
-                    speaker_ixs.append(1)
+                if self.utt_acceptable(sentence):
+                    sentence = self.word2id(sentence)
+                    # print(sentence, " ## DAs: ", utt.act_tag)
+                    utterances.append(sentence)
+                    act = utt.damsl_act_tag()
+                    if act == None: act = "%"
+                    if act == "+": act = prev_act
+                    acts.append(self.da2num[act])
+                    prev_act = act
+                    if "A" in utt.caller:
+                        speaker_ixs.append(0)
+                    else:
+                        speaker_ixs.append(1)
 
             if self.task == 'up':
                 permuted_ixs , segment_perms = self.swda_permute(utterances, amounts, speaker_ixs)
