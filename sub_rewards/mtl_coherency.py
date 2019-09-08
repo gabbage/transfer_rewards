@@ -374,7 +374,7 @@ def main():
                 elif args.loss == 'mtl' or args.loss == 'coin' or args.loss == 'sum':
                     curr_coh_acc = accuracy_score(coh_y_true, coh_y_pred)
                     curr_da_acc = accuracy_score(da_y_true, da_y_pred)
-                    if curr_coh_acc+curr_da_acc > best_coh_acc+best_da_acc:
+                    if curr_coh_acc > best_coh_acc:
                         best_epoch = i
 
             logging.info("Best Epoch = {}".format(best_epoch))
