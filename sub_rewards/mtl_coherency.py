@@ -51,7 +51,6 @@ def main():
    #    device = torch.device('cpu') # if torch.cuda.is_available() else 'cpu')
     device = torch.device('cuda')
 
-
     train_datasetfile = os.path.join(args.datadir,"train", "coherency_dset_{}.txt".format(str(args.task)))
     val_datasetfile = os.path.join(args.datadir, "validation", "coherency_dset_{}.txt".format(str(args.task)))
     test_datasetfile = os.path.join(args.datadir, "test", "coherency_dset_{}.txt".format(str(args.task)))
@@ -154,7 +153,12 @@ def main():
         hinge = torch.nn.MarginRankingLoss(reduction='none', margin=0.1).to(device)
         epoch_scores = dict()
 
+        # previous_model_file = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(19)))
+        # model.load_state_dict(torch.load(previous_model_file))
+        # model.to(device)
+
         for epoch in trange(args.epochs, desc="Epoch"):
+
             output_model_file_epoch = os.path.join(args.datadir, "{}_task-{}_loss-{}_epoch-{}.ckpt".format(str(model), str(args.task),str(args.loss), str(epoch)))
 
             for i,((utts_left, utts_right), 
@@ -370,7 +374,7 @@ def main():
                 elif args.loss == 'mtl' or args.loss == 'coin' or args.loss == 'sum':
                     curr_coh_acc = accuracy_score(coh_y_true, coh_y_pred)
                     curr_da_acc = accuracy_score(da_y_true, da_y_pred)
-                    if curr_coh_acc+curr_da_acc > best_coh_acc+best_da_acc:
+                    if curr_coh_acc > best_coh_acc:
                         best_epoch = i
 
             logging.info("Best Epoch = {}".format(best_epoch))
@@ -394,13 +398,20 @@ def main():
             (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
             _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
 
-def mem_alloc(device):
+def mem_alloc(device, args):
     # use this to first allocate max memory on the gpu
     # to avoid running out of memory by processes started by other idiots
-    alloc = torch.cuda.memory_allocated(device)
-    max_alloc = torch.cuda.max_memory_allocated(device)
-    zeros = torch.zeros(max_alloc-alloc, dtype=torch.int8).to(device)
-    del zeros
+#     alloc = torch.cuda.memory_cached(device)
+    # max_alloc = torch.cuda.max_memory_cached(device)
+    # print("MEM max:{} ; current: {} ; to allocate: {}".format(max_alloc, alloc, max_alloc - alloc))
+    # if args.cuda == 3:
+        # zeros = torch.zeros(7150000000, dtype=torch.int8).to(device)
+    # else:
+    zeros = torch.zeros(16300000000, dtype=torch.int8).to(device)
+     # # 7150000000
+    # # 16300000000
+    del zeros,
+    # pass
 
 
 def da_filter_zero(y_true, y_pred):

@@ -299,18 +299,21 @@ class SwitchboardConverter:
         self.word2id = word2id
         self.task = task
 
-        self.utt_num = 0
-        for utt in self.corpus.iter_utterances():
-            self.utt_num += 1
+        # self.utt_num = 0
+        # for utt in self.corpus.iter_utterances():
+            # self.utt_num += 1
 
-        self.trans_num = 0
-        for trans in self.corpus.iter_transcripts():
-            self.trans_num += 1
+        self.trans_num = 1155
+        self.deleted_utterances = 0
+        self.deleted_tokens = 0
+        self.in_tokens = 0
+        # for trans in self.corpus.iter_transcripts():
+            # self.trans_num += 1
 
         self.da2num = switchboard_da_mapping()
 
         self.stopwords = get_stopwords(data_dir, word2id)
-        
+
         # CAUTION: make sure that for each task the seed is the same s.t. the splits will be the same!
         train_ixs, val_ixs = train_test_split(range(self.trans_num), shuffle=True, train_size=0.8, random_state=seed)
         val_ixs, test_ixs = train_test_split(val_ixs, shuffle=True, train_size=0.5, random_state=seed)
@@ -319,19 +322,15 @@ class SwitchboardConverter:
         self.utt_da_pairs = []
         prev_da = "%"
         for i, utt in enumerate(self.corpus.iter_utterances()):
-            sentence = re.sub(r"([+/\}\[\]]|\{\w)", "",
-                            utt.text)
-
-            sentence = self.word2id(self.tokenizer(sentence))
+            sentence = self.clean_utt(utt.text)
+            if not sentence: continue
+            
+            self.in_tokens += len(sentence)
+            sentence = self.word2id(sentence)
             if len(sentence) == 0:
                 continue
 
-            stop_cnt = 0
-            for w in sentence:
-                if w in self.stopwords:
-                    stop_cnt += 1
-
-            if (float(stop_cnt) / float(len(sentence))) >= 0.999:
+            if not self.utt_acceptable(sentence):
                 continue
 
             act = utt.damsl_act_tag()
@@ -344,6 +343,37 @@ class SwitchboardConverter:
             ix = utt.utterance_index
 
             self.utt_da_pairs.append((sentence, act, swda_name, ix))
+
+    def clean_utt(self, utterance):
+        utterance, cnt = re.subn(r"([+/\}\[\],\-\(\)#]|\{\w)", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"<+.*>+", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"\*\w+", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r">[\s\w'?]+$", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"\*.+$", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"\^\w+$", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"^uh+$", "", utterance) ; self.deleted_tokens += cnt
+        utterance, cnt = re.subn(r"(uh+)", "", utterance) ; self.deleted_tokens += cnt
+        
+        ml = re.search("(^\s*\.\s*$)|>", utterance)
+        if ml:
+            self.deleted_utterances += 1
+            return None
+        utterance = [w.lower() for w in utterance.split(" ") if len(w) > 0 and not re.search("[Uu][Hh]+", w)]
+
+        return utterance
+
+    def utt_acceptable(self, utt):
+        # check whether an utterance is acceptable for perturbation
+        if not utt: return False
+
+        stop_cnt = 0
+        for w in utt:
+            if w in self.stopwords:
+                stop_cnt += 1
+
+        if  (len(utt)-stop_cnt >= 4): # (float(stop_cnt) / float(len(utt))) < 0.999 and
+            return True
+        return False
 
     def draw_rand_sent(self):
         r = random.randint(0, len(self.utt_da_pairs)-1)
@@ -476,17 +506,14 @@ class SwitchboardConverter:
 
         for i in range(amount):
             (sentence, act, swda_name, ix) = self.draw_rand_sent()
+            # insert_ix = random.choice(range(len(utterances)))
+
             while(True):
-                insert_ix = random.choice(range(len(utterances)))
+                insert_ix = np.random.choice(range(len(utterances)))
                 utt = utterances[insert_ix]
                 act_orig = acts[insert_ix]
-                if len(utt) == 0: continue
-                stop_cnt = 0
-                for w in utt:
-                    if w in self.stopwords:
-                        stop_cnt += 1
-
-                if (float(stop_cnt) / float(len(utt))) < 0.99 and act != act_orig : break
+                if self.utt_acceptable(utt) and act != act_orig:
+                    break
 
             permutations.append((sentence, act, swda_name, ix, insert_ix))
 
@@ -519,10 +546,9 @@ class SwitchboardConverter:
             speaker_ixs = []
             prev_act = "%"
             for utt in trans.utterances:
-                sentence = re.sub(r"([+/\}\[\]]|\{\w)", "",
-                                utt.text)
+                sentence = self.clean_utt(utt.text)
+                sentence = self.word2id(sentence)
                 # print(sentence, " ## DAs: ", utt.act_tag)
-                sentence = self.word2id(self.tokenizer(sentence))
                 utterances.append(sentence)
                 act = utt.damsl_act_tag()
                 if act == None: act = "%"
@@ -667,6 +693,8 @@ def main():
         # converter.create_act_utt()
     elif args.corpus == 'Switchboard':
         converter = SwitchboardConverter(args.datadir, tokenizer, word2id, args.task, args.seed)
+        print("SW deleted utterances : ", converter.deleted_utterances)
+        print("SW deleted tokens : ", float(converter.deleted_tokens) / float(converter.in_tokens+converter.deleted_tokens))
         # converter.create_vocab()
 
     converter.convert_dset(amounts=args.amount)
