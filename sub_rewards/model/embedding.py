@@ -43,9 +43,10 @@ class ElmoEmbedding(nn.Module):
 class BertEmbedding(nn.Module):
     def __init__(self, args, device):
         super(BertEmbedding, self).__init__()
-        dev_str = "{}:{}".format(device.type, device.index)
+        #dev_str = "{}:{}".format(device.type, device.index)
+        dev_str = "{}".format(device.type)
         print("SentBERT device: ", dev_str)
-        self.model = SentenceTransformer('bert-base-nli-stsb-mean-tokens', device=dev_str)
+        self.model = SentenceTransformer(device=dev_str, model_name_or_path="/ukp-storage-1/buecker/sentBERT_model")
         self.device = device
 
     def forward(self, batch):

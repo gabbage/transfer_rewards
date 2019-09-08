@@ -43,12 +43,13 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     
-    if args.cuda != -1:
-        cuda_device_name = "cuda:{}".format(args.cuda)
-        device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
-        mem_alloc(device)
-    else:
-        device = torch.device('cpu') # if torch.cuda.is_available() else 'cpu')
+   #if args.cuda != -1:
+   #    cuda_device_name = "cuda:{}".format(args.cuda)
+   #    device = torch.device(cuda_device_name if torch.cuda.is_available() else 'cpu')
+   #    mem_alloc(device)
+   #else:
+   #    device = torch.device('cpu') # if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda')
 
 
     train_datasetfile = os.path.join(args.datadir,"train", "coherency_dset_{}.txt".format(str(args.task)))
@@ -385,10 +386,10 @@ def main():
             model.to(device)
             model.eval()
 
-        # _eval_mrr_p1(model)
+        _eval_mrr_p1(model)
 
         datasets = [('train', train_dl), ('validation', val_dl), ('test', test_dl)]
-        # datasets = [('validation', val_dl), ('test', test_dl)]
+        # datasets = [('train', train_dl)]
         for (name, dl) in datasets:
             (coh_y_true, coh_y_pred), (da_y_true, da_y_pred) = _eval_datasource(dl, "Final Eval {}".format(name))
             _log_dataset_scores(name, coh_y_true, coh_y_pred, da_y_true, da_y_pred)
@@ -410,7 +411,7 @@ def da_filter_zero(y_true, y_pred):
 def init_logging(args):
     now = datetime.datetime.now()
     proc = "train" if args.do_train else "eval"
-    logfile = os.path.join(args.logdir, 'coherency_{}_{}_task_{}_{}.log'.format(proc, args.model, args.task, now.strftime("%Y-%m-%d_%H:%M:%S")))
+    logfile = os.path.join(args.logdir, 'coherency_{}_{}_task_{}_loss_{}_{}.log'.format(proc, args.model, args.task, args.loss, now.strftime("%Y-%m-%d_%H:%M:%S")))
     logging.basicConfig(filename=logfile, filemode='w', level=logging.DEBUG, format='%(levelname)s:%(message)s')
     print("Logging to ", logfile)
 
